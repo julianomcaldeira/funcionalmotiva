@@ -157,7 +157,8 @@ def sync(log=print):
                     except Exception:
                         dt = datetime.utcnow()
                     body = extract_body(msg)
-                    direction = "out" if folder.lower() in SENT_FOLDERS else "in"
+                    sent_by_me = IMAP_USER.lower() in [a.lower() for a in frm]
+                    direction = "out" if (folder.lower() in SENT_FOLDERS or sent_by_me) else "in"
                     e = Email(message_id=mid, thread_key=thread_key_for(s, msg, subject), folder=folder,
                               direction=direction, from_addr=", ".join(frm), to_addr=", ".join(to),
                               cc_addr=", ".join(cc), subject=subject, date=dt, body=body,

@@ -20,17 +20,19 @@ services:
       - key: ZOHO_APP_PASSWORD
         sync: false
       - key: ZOHO_IMAP_HOST
-        value: imap.zoho.com
+        value: imappro.zoho.com
       - key: ZOHO_FOLDERS
-        value: INBOX,Sent
+        value: INBOX,Sent,MOTIVA - CCR
       - key: ZOHO_SENT_FOLDERS
         value: Sent
       - key: MOTIVA_DOMAINS
         value: motiva.com.br,grupoccr.com.br
       - key: AI_PROVIDER
-        value: anthropic
+        value: openai
+      - key: AI_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai
       - key: AI_MODEL
-        value: claude-sonnet-5
+        value: gemini-2.5-flash
       - key: AI_API_KEY
         sync: false
       - key: POLL_MINUTES
