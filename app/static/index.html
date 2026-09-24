@@ -416,7 +416,7 @@ async function loadThreads(){
       <div class="m">${st}${cl}<span>${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")
     :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${filtro==="pendentes"?"Nada a responder agora":"Nenhuma conversa ainda"}</b><br>${filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Conecte o Zoho ou cole um e-mail para começar."}</div>`;
   $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
-  if(!current){$("#conv").innerHTML=setupSteps()||`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
+  if(!current){$("#conv").innerHTML=`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
 }
 
 let thread=null;
@@ -580,7 +580,7 @@ async function loadStatus(){
   await loadHealth();const s=status;
   const zt={ok:["Sincronizando normalmente",`Conta ${s.zoho_user}. Leitura a cada ${s.poll_minutos} min.`],aguardando:["Aguardando a primeira leitura",`Conta ${s.zoho_user}.`],
     erro:["Não foi possível ler os e-mails",s.erro],nao_configurado:["Não configurado","Defina ZOHO_EMAIL e ZOHO_APP_PASSWORD nas variáveis do Render."]}[s.zoho_state];
-  $("#conn").innerHTML=`<div class="card"><span class="dot ${s.zoho_state}" style="margin-top:7px"></span><div class="tx"><b>Zoho Mail · ${zt[0]}</b><div>${esc(zt[1])}</div>${s.ultima_sync?`<div>Última leitura ${ago(s.ultima_sync)}.</div>`:""}</div>${s.zoho?`<button class="btn sm" onclick="syncNow(this)">Ler e-mails agora</button>`:""}</div>
+  $("#conn").innerHTML=setupSteps()+`<div class="card"><span class="dot ${s.zoho_state}" style="margin-top:7px"></span><div class="tx"><b>Zoho Mail · ${zt[0]}</b><div>${esc(zt[1])}</div>${s.ultima_sync?`<div>Última leitura ${ago(s.ultima_sync)}.</div>`:""}</div>${s.zoho?`<button class="btn sm" onclick="syncNow(this)">Ler e-mails agora</button>`:""}</div>
     <div class="card"><span class="dot ${s.ia?"ok":"erro"}" style="margin-top:7px"></span><div class="tx"><b>Modelo de IA · ${s.ia?"Pronto":"Não configurado"}</b><div>${s.ia?esc(s.modelo)+(s.auto_analise?". Briefing automático para cada e-mail novo.":""):"Defina AI_API_KEY nas variáveis do Render."}</div></div></div>
     <div class="card"><span class="dot ok" style="margin-top:7px"></span><div class="tx"><b>Domínios da Motiva</b><div>${esc(s.dominios_motiva.join(", "))}. Só e-mails com esses domínios entram no sistema.</div></div></div>`;
   $("#stats").innerHTML=[["E-mails",s.emails],["Documentos",s.documentos],["Decisões vigentes",s.decisoes_vigentes],["Para revisar",s.decisoes_propostas]].map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");

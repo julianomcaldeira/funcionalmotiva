@@ -168,6 +168,7 @@ def dashboard():
         "ia": bool(ai.API_KEY),
         "modelo": f"{ai.PROVIDER}:{ai.MODEL}",
         "log_count": log_count,
+        "log": state.get("log", [])[-20:],
         "first_email_date": ed,
         "last_email_date": ld,
     }
