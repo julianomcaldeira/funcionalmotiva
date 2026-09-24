@@ -403,7 +403,7 @@ const fmt=iso=>{const d=asDate(iso);return d?d.toLocaleString("pt-BR",{day:"2-di
 const ago=iso=>{const d=asDate(iso);if(!d)return"";const m=(Date.now()-d)/6e4;if(m<60)return`há ${Math.max(1,m|0)} min`;if(m<1440)return`há ${m/60|0} h`;return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})};
 const initials=s=>{const n=(s||"?").split("@")[0].split(/[._\s-]/).filter(Boolean);return((n[0]||"?")[0]+((n[1]||"")[0]||"")).toUpperCase()};
 const CLS={sustentacao:"Sustentação",melhoria:"Melhoria",duvida:"Dúvida",fora_do_escopo_lumos:"Fora do escopo"};
-let filtro="pendentes",current=null,deskTab="briefing",decFilter="",decCache=[],status={};
+let filtro="pendentes",current=null,deskTab="chat",decFilter="",decCache=[],status={};
 
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4500)}
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
@@ -522,7 +522,7 @@ async function loadThreads(){
 }
 
 let thread=null;
-async function openThread(key){
+async function openThread(key,tab){
   current=key;$$(".th").forEach(el=>el.classList.toggle("on",el.dataset.k===key));
   thread=await api("/api/threads/"+encodeURIComponent(key));
   const em=thread.emails, target=[...em].reverse().find(e=>e.direction==="in")||em[em.length-1];
@@ -535,7 +535,7 @@ async function openThread(key){
       ${e.direction==="in"&&e.status!=="respondido"&&e.status!=="ignorado"?`<div class="acts"><button class="btn sm ghost" onclick="setStatus(${e.id},'ignorado')">Não precisa de resposta</button></div>`:""}
     </article>`).join("");
   $("#conv").scrollTop=$("#conv").scrollHeight;
-  deskTab="briefing";renderDesk();
+  deskTab=tab||"chat";renderDesk();
 }
 
 function latestAnalysis(){const t=thread.target;return[...thread.analyses].reverse().find(a=>a.email_id===t.id)}
@@ -641,7 +641,7 @@ async function runAnalyze(id){
   $("#desk").hidden=false;
   $("#desk").innerHTML=`<div class="thinking"><div><img src="/static/icon.png" alt=""><div class="st" id="think">${THINK[0]}</div><div class="conf" style="margin-top:6px">Leva de 20 a 60 segundos.</div></div></div>`;
   let i=0;const h=setInterval(()=>{i=Math.min(i+1,THINK.length-1);const el=$("#think");if(el)el.textContent=THINK[i]},7000);
-  try{await post(`/api/emails/${id}/analyze`);clearInterval(h);toast("Briefing pronto.");await openThread(current);loadThreads()}
+  try{await post(`/api/emails/${id}/analyze`);clearInterval(h);toast("Briefing pronto.");await openThread(current,"briefing");loadThreads()}
   catch(e){clearInterval(h);toast(e.message);renderDesk()}
 }
 async function rw(id,instr,btn){
