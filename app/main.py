@@ -262,6 +262,7 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
         t = by.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject, "last_date": e.date,
                                           "count": 0, "pending": 0, "analyzed": 0, "last_from": None,
                                           "last_in_id": None, "senders": set(), "subjects": set(),
+                                          "last_dir": e.direction,
                                           "st": {"novo": 0, "analisado": 0, "respondido": 0,
                                                  "arquivado": 0, "ignorado": 0},
                                           "preview": ""})
@@ -298,17 +299,22 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
             t["status"] = "novo"
         elif st["analisado"]:
             t["status"] = "pronto"
-        elif st["respondido"]:
-            t["status"] = "respondido"
+        elif st["respondido"] or t["last_dir"] == "out":
+            t["status"] = "aguardando"  # StartGi já respondeu, aguardando o retorno do cliente
         else:
             t["status"] = "arquivado"
-    out = list(by.values())
+    all_threads = list(by.values())
+    counts = {
+        "pendentes": sum(1 for t in all_threads if t["status"] in ("novo", "pronto")),
+        "aguardando": sum(1 for t in all_threads if t["status"] == "aguardando"),
+    }
+    out = all_threads
     ql = (q or "").strip()
     if not ql:  # a busca é global: com termo, varre todas as conversas
         if filtro == "pendentes":
             out = [t for t in out if t["status"] in ("novo", "pronto")]
-        elif filtro == "respondidas":
-            out = [t for t in out if t["status"] == "respondido"]
+        elif filtro == "aguardando":
+            out = [t for t in out if t["status"] == "aguardando"]
     snippet = {}
     if ql:
         ql_low = ql.lower()
@@ -332,16 +338,16 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
                 if key not in snippet:
                     snippet[key] = make_snippet(text, ql)
         out = [t for t in out if t["thread_key"] in matched]
-    prio = {"novo": 0, "pronto": 1, "respondido": 2, "arquivado": 3}
+    prio = {"novo": 0, "pronto": 1, "aguardando": 2, "arquivado": 3}
     out.sort(key=lambda t: t["last_date"] or datetime.min, reverse=True)
     out.sort(key=lambda t: prio.get(t["status"], 9))
-    return [{
+    return {"counts": counts, "items": [{
         "thread_key": t["thread_key"], "subject": t["subject"], "count": t["count"],
         "pending": t["pending"], "analyzed": t["analyzed"], "last_from": t["last_from"],
         "last_date": t["last_date"].isoformat() if t["last_date"] else None,
         "classificacao": t["classificacao"], "status": t["status"],
         "preview": t["preview"], "snippet": snippet.get(t["thread_key"]),
-    } for t in out[:400]]
+    } for t in out[:400]]}
 
 
 def email_dict(e, full=True):

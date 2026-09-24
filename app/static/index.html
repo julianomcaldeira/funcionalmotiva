@@ -50,7 +50,7 @@ main{flex:1;min-width:0;display:flex}
 .list-head h2{margin:0;font-size:17px;font-weight:700}
 .search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--bg)}
 .search input{border:0;background:none;padding:8px 0;flex:1;min-width:0;outline:none}
-.tabs{display:flex;gap:4px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
 .tabs button{border:0;background:none;padding:5px 10px;border-radius:14px;color:var(--muted);font-weight:500;font-size:13px}
 .tabs button.on{background:var(--ink);color:#fff}
 .threads{flex:1;overflow:auto}
@@ -69,6 +69,7 @@ main{flex:1;min-width:0;display:flex}
 .tag.novo{background:var(--red-wash);color:var(--red)}
 .tag.pronto{background:var(--brand-wash);color:var(--brand-ink)}
 .tag.st-respondido{background:var(--blue-wash);color:var(--blue)}
+.tag.st-aguardando{background:var(--amber-wash);color:var(--amber)}
 .tag.st-arquivado{background:#EFF1F0;color:var(--muted)}
 .tag.melhoria{background:var(--amber-wash);color:var(--amber)}
 .tag.sustentacao{background:var(--brand-wash);color:var(--brand-ink)}
@@ -325,7 +326,7 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
           <input id="remetente" placeholder="Nome do remetente" aria-label="Remetente" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;flex:1;min-width:100px">
           <button class="btn sm" onclick="aplicarFiltros()">Filtrar</button>
         </div>
-        <div class="tabs" id="ftabs"><button data-f="pendentes" class="on">A responder<span id="tb-pend"></span></button><button data-f="respondidas">Respondidas</button><button data-f="todas">Tudo</button></div>
+        <div class="tabs" id="ftabs"><button data-f="pendentes" class="on">A responder<span id="tb-pend"></span></button><button data-f="aguardando">Aguardando retorno<span id="tb-aguard"></span></button><button data-f="todas">Tudo</button></div>
       </div>
       <div class="threads" id="threads"></div>
       <div class="list-foot"><button class="btn sm" style="width:100%;justify-content:center" onclick="openManual()">Colar um e-mail</button></div>
@@ -489,12 +490,14 @@ async function loadThreads(){
   const di=$("#di").value;
   const df=$("#df").value;
   const rem=$("#remetente").value;
-  const list=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
-  const pn=(status.novos||0)+(status.analisados||0);
-  const tb=$("#tb-pend");if(tb)tb.textContent=pn?` (${pn})`:"";
+  const data=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
+  const list=data.items||[];
+  const cnt=data.counts||{};
+  const tbp=$("#tb-pend");if(tbp)tbp.textContent=cnt.pendentes?` (${cnt.pendentes})`:"";
+  const tba=$("#tb-aguard");if(tba)tba.textContent=cnt.aguardando?` (${cnt.aguardando})`:"";
   const nowY=new Date().getFullYear();
   const STTAG={novo:'<span class="tag novo">Novo</span>',pronto:'<span class="tag pronto">Briefing pronto</span>',
-    respondido:'<span class="tag st-respondido">Respondido</span>',arquivado:'<span class="tag st-arquivado">Arquivado</span>'};
+    aguardando:'<span class="tag st-aguardando">Aguardando retorno</span>',arquivado:'<span class="tag st-arquivado">Arquivado</span>'};
   $("#threads").innerHTML=list.length?list.map(t=>{
     const d=asDate(t.last_date);
     const dt=d?`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`:"";
@@ -509,7 +512,7 @@ async function loadThreads(){
         <div class="m">${st}${cl}<span>${esc((t.last_from||"").split("@")[0])} · ${t.count} ${t.count>1?"e-mails":"e-mail"}</span></div>
         ${body?`<div class="pv">${hl(body,q)}</div>`:""}
       </div></div>`}).join("")
-    :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${q?"Nada encontrado":filtro==="pendentes"?"Nada a responder agora":filtro==="respondidas"?"Nenhuma conversa respondida":"Nenhuma conversa encontrada"}</b><br>${q?"Tente outra palavra — a busca varre assunto, remetente e o corpo de todos os e-mails, inclusive os arquivados.":filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
+    :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${q?"Nada encontrado":filtro==="pendentes"?"Nada a responder agora":filtro==="aguardando"?"Nenhuma conversa aguardando retorno":"Nenhuma conversa encontrada"}</b><br>${q?"Tente outra palavra — a busca varre assunto, remetente e o corpo de todos os e-mails, inclusive os arquivados.":filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":filtro==="aguardando"?"Quando a StartGi responder uma conversa, ela sai de \"A responder\" e fica aqui até a Motiva voltar a escrever.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
   $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
   if(!current){$("#conv").innerHTML=`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
 }
