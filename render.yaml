@@ -22,7 +22,7 @@ services:
       - key: ZOHO_IMAP_HOST
         value: imappro.zoho.com
       - key: ZOHO_FOLDERS
-        value: INBOX,Sent,MOTIVA - CCR
+        value: INBOX,Sent
       - key: ZOHO_SENT_FOLDERS
         value: Sent
       - key: MOTIVA_DOMAINS
