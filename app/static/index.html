@@ -350,6 +350,7 @@ function aplicarFiltros(){loadThreads()};
 ["#di","#df","#remetente"].forEach(id=>{$(id).onkeydown=e=>{if(e.key==="Enter")loadThreads()}});
 
 async function loadDashboard(){
+  try{
   const d=await api("/api/dashboard");
   const e=d.emails, dec=d.decisoes;
   $("#c-email-total").hidden=!e.total;$("#c-email-total").textContent=e.total;
@@ -368,8 +369,12 @@ async function loadDashboard(){
   const lastSync=d.ultima_sync?new Date(d.ultima_sync).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
   $("#dash-sync").innerHTML=`${lastSync}<div class="sub">${d.zoho_state==="ok"?"Zoho ativo":"Zoho "+d.zoho_state}</div>`;
   $("#dash-sync").querySelector(".sub").style.color=d.zoho_state==="ok"?"var(--brand)":"var(--red)";
-  setInterval(loadDashboard,30000);
+  }catch(e){
+    $("#dash-grid").innerHTML=`<div class="empty" style="padding:30px"><b style="color:var(--ink)">Erro ao carregar</b><br>${e.message||e}</div>`;
+    $("#dash-log").textContent="Erro: "+(e.message||e);
+  }
 }
+setInterval(loadDashboard,30000);
 
 /* ---------- status e primeiros passos ---------- */
 async function loadHealth(){
