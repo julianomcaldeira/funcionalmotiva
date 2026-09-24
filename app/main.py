@@ -152,9 +152,18 @@ def sync_now():
 
 # ---------- caixa ----------
 @app.get("/api/threads")
-def threads(filtro: str = "pendentes", q: str = ""):
+def threads(filtro: str = "pendentes", q: str = "", data_inicio: str = "", data_fim: str = "", remetente: str = ""):
     with SessionLocal() as s:
-        rows = s.query(Email).order_by(Email.date.desc()).limit(3000).all()
+        query = s.query(Email).order_by(Email.date.desc())
+        if data_inicio:
+            try: query = query.filter(Email.date >= datetime.fromisoformat(data_inicio))
+            except Exception: pass
+        if data_fim:
+            try: query = query.filter(Email.date <= datetime.fromisoformat(data_fim + "T23:59:59"))
+            except Exception: pass
+        if remetente:
+            query = query.filter(Email.from_addr.ilike(f"%{remetente}%"))
+        rows = query.limit(3000).all()
     by = {}
     for e in rows:
         t = by.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject, "last_date": e.date,
