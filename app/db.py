@@ -103,6 +103,17 @@ class Setting(Base):
     value = Column(Text)
 
 
+class ChatMessage(Base):
+    """Conversa do funcional com a IA sobre uma cadeia de e-mails (uma por cadeia)."""
+    __tablename__ = "chat_messages"
+    id = Column(Integer, primary_key=True)
+    thread_key = Column(String(500), index=True)
+    role = Column(String(20))          # user | assistant
+    content = Column(Text)
+    sources_json = Column(Text)
+    created_at = Column(DateTime, default=now)
+
+
 def init_db():
     Base.metadata.create_all(engine)
 

@@ -164,6 +164,110 @@ def build_context(session, email_obj):
     return "\n\n".join(parts), uniq
 
 
+CHAT_THREAD_SYSTEM = """Você é o assistente do funcional sênior da StartGi no projeto Lumos (cliente Motiva) e conversa
+com o funcional SOBRE UMA CADEIA DE E-MAILS específica.
+
+Hierarquia das fontes:
+1. A CADEIA DE E-MAILS abaixo é o contexto PRINCIPAL: é o que já foi pedido, dito e respondido entre a Motiva e
+   a StartGi. Nunca contradiga o que está na cadeia.
+2. O registro de decisões [D#], a base de conhecimento [DOC#] e outros e-mails do projeto [E#] dão apoio e
+   contexto — use-os para responder com segurança; se conflitarem com a cadeia, aponte o conflito.
+
+Regras:
+1. Responda em português, direto e curto. Responda dúvidas do funcional sobre o projeto (regras, histórico,
+   decisões, o que já foi dito, o que ainda está em aberto) usando as fontes.
+2. Cite as fontes entre colchetes: [E#] cadeia e outros e-mails, [D#] decisão, [DOC#] documento.
+3. Nunca invente. Sem fonte, diga que não há informação registrada — se for essencial, sugira o que pesquisar
+   ou anexar na base.
+4. Diferencie o que está DITO na cadeia do que é inferência sua.
+5. Se pedirem um rascunho de resposta à Motiva: português, curto, direto, sem listas com hífen, fecha com "Tks,"."""
+
+
+def build_thread_context(session, thread_key, question, history=None):
+    """Contexto do chat por cadeia: a cadeia é o principal; decisões, docs e outros e-mails dão apoio."""
+    emails = session.query(Email).filter(Email.thread_key == thread_key).order_by(Email.date).all()
+    if not emails:
+        raise ValueError("Cadeia de e-mails não encontrada.")
+    thread_ids = {("email", e.id) for e in emails}
+    parts, sources = [], []
+
+    parts.append("## CADEIA DE E-MAILS (contexto principal, ordem cronológica)")
+    for e in emails:
+        who = "StartGi (enviado)" if e.direction == "out" else e.from_addr
+        parts.append(f"[E{e.id}] {fmt_date(e.date)} | De: {who} | Assunto: {e.subject}\n"
+                     f"{(e.body_clean or e.body or '')[:6000]}")
+
+    subjects = " ".join(dict.fromkeys(e.subject for e in emails if e.subject))
+    query = f"{subjects}\n{question}"
+
+    decisions = session.query(Decision).filter(Decision.status.in_(["vigente", "em_discussao", "substituida"])).all()
+    ranked = rank_texts(query, decisions, key=lambda d: f"{d.titulo} {d.modulo} {d.regra}")
+    chosen = [d for sc, d in ranked if sc > 0][:25] or [d for d in decisions if d.status == "vigente"][:10]
+    parts.append("## Registro de decisões (apoio)")
+    if not chosen:
+        parts.append("(nenhuma decisão registrada)")
+    for d in chosen:
+        extra = f" (substituída por D{d.substituida_por})" if d.substituida_por else ""
+        parts.append(f"[D{d.id}] {d.status.upper()}{extra} | {d.modulo} | {d.titulo}\nRegra: {d.regra}")
+        sources.append({"code": f"D{d.id}", "label": d.titulo})
+
+    idx = get_index()
+    hits_docs = search_docs(session, idx, query, exclude=thread_ids)
+    hits_mail = idx.search(query, k=10, exclude=thread_ids, kinds={"email"}) if idx else []
+    docs_all = session.query(Document.id, Document.tipo, Document.nome).order_by(Document.id.desc()).all()
+    parts.append("## Índice da base de conhecimento (todos os documentos anexados)")
+    if docs_all:
+        for did, tipo, nome in docs_all:
+            parts.append(f"[DOC{did}] {tipo}: {nome}")
+    else:
+        parts.append("(nenhum documento anexado à base de conhecimento)")
+    parts.append("## Trechos de documentos (apoio)")
+    if not hits_docs:
+        parts.append("(nenhum trecho relacionado)")
+    for sc, (cid, kind, sid, label, text) in hits_docs:
+        parts.append(f"[DOC{sid}] {label}\n{text}")
+        sources.append({"code": f"DOC{sid}", "label": label})
+    parts.append("## Outros e-mails do projeto (apoio, fora desta cadeia)")
+    for sc, (cid, kind, sid, label, text) in hits_mail:
+        parts.append(f"[E{sid}] {label}\n{text}")
+        sources.append({"code": f"E{sid}", "label": label})
+
+    if history:
+        parts.append("## Histórico desta conversa com o funcional")
+        for m in history[-16:]:
+            who = "Funcional" if m.role == "user" else "Assistente"
+            parts.append(f"{who}: {(m.content or '')[:1500]}")
+
+    parts.append("## Nova pergunta do funcional")
+    parts.append(question)
+
+    seen, uniq = set(), []
+    for s_ in sources:
+        if s_["code"] not in seen:
+            seen.add(s_["code"])
+            uniq.append(s_)
+    return "\n\n".join(parts), uniq
+
+
+def thread_chat(session, thread_key, question, history=None):
+    """Responde à pergunta do funcional usando a cadeia como principal e o resto do sistema como apoio."""
+    emails = session.query(Email).filter(Email.thread_key == thread_key).order_by(Email.date).all()
+    if not emails:
+        raise ValueError("Cadeia de e-mails não encontrada.")
+    user, sources = build_thread_context(session, thread_key, question, history=history)
+    raw = call_model(CHAT_THREAD_SYSTEM, user).strip()
+    cited = set(re.findall(r"\[([A-Z]+?\d+)\]", raw))
+    sources = [s for s in sources if s["code"] in cited]
+    have = {s["code"] for s in sources}
+    for e in emails:
+        code = f"E{e.id}"
+        if code in cited and code not in have:
+            who = "StartGi (enviado)" if e.direction == "out" else e.from_addr
+            sources.append({"code": code, "label": f"{fmt_date(e.date)} {who}"})
+            have.add(code)
+    return raw, sources
+
+
 def call_model(system, user):
     if not API_KEY:
         raise RuntimeError("IA não configurada: defina AI_API_KEY (e AI_PROVIDER/AI_MODEL).")

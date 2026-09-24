@@ -135,6 +135,10 @@ main{flex:1;min-width:0;display:flex}
 .alert{display:flex;gap:10px;background:var(--amber-wash);color:#5C3C06;border-radius:8px;padding:10px 12px;line-height:1.45;font-size:13px;margin-bottom:12px}
 .alert.red{background:var(--red-wash);color:#6B1D12}
 .desk-foot{border-top:1px solid var(--line);padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;background:var(--panel)}
+.desk-body.chatpane{overflow:hidden;padding:0;display:flex;flex-direction:column}
+.desk-body.chatpane .chat-log{flex:1;min-height:0;margin:12px;border:0}
+.desk-foot .chat-form{flex:1;margin-top:0}
+.desk-foot .chat-form textarea{min-height:38px;max-height:140px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff}
 
 .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 14px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
 .btn:hover{border-color:#C5CEC9}
@@ -539,13 +543,17 @@ function items(arr,cls){return arr&&arr.length?`<ul class="items ${cls}">${arr.m
 
 function renderDesk(){
   const d=$("#desk");d.hidden=false;
+  if(deskTab==="chat"){renderThreadChatTab();return}
   const a=latestAnalysis(), t=thread.target;
-  if(!a){d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div><div style="height:12px"></div></div>
-    <div class="desk-body"><div class="empty"><h3>Sem briefing ainda</h3>O funcional lê a conversa, o registro de decisões e o histórico do projeto antes de sugerir a resposta.<div style="margin-top:16px"><button class="btn pri" onclick="runAnalyze(${t.id})">Gerar briefing</button></div></div></div>`;return}
+  if(!a){d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div>
+    <div class="dtabs"><button class="${deskTab==="briefing"?"on":""}">Briefing</button><button>Resposta</button><button data-t="chat">Chat</button></div></div>
+    <div class="desk-body"><div class="empty"><h3>Sem briefing ainda</h3>O funcional lê a conversa, o registro de decisões e o histórico do projeto antes de sugerir a resposta. Enquanto isso, o Chat da cadeia já responde dúvidas com tudo do sistema.<div style="margin-top:16px"><button class="btn pri" onclick="runAnalyze(${t.id})">Gerar briefing</button></div></div></div>`;
+    $$(".dtabs button").forEach(x=>x.onclick=()=>x.dataset.t?(deskTab=x.dataset.t,renderDesk()):toast("Gere o briefing primeiro."));
+    return}
   const b=a.briefing||{}, c=b.classificacao||{}, val=b.validar_antes_de_enviar||[];
   const done=(a._done=a._done||new Set());
   d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div>
-    <div class="dtabs"><button data-t="briefing" class="${deskTab==="briefing"?"on":""}">Briefing</button><button data-t="resposta" class="${deskTab==="resposta"?"on":""}">Resposta${val.length-done.size>0?`<span class="n">${val.length-done.size}</span>`:""}</button></div></div>
+    <div class="dtabs"><button data-t="briefing" class="${deskTab==="briefing"?"on":""}">Briefing</button><button data-t="resposta" class="${deskTab==="resposta"?"on":""}">Resposta${val.length-done.size>0?`<span class="n">${val.length-done.size}</span>`:""}</button><button data-t="chat">Chat</button></div></div>
     <div class="desk-body">${deskTab==="briefing"?briefingHTML(a,b,c,val,done):draftHTML(a,val,done)}</div>
     <div class="desk-foot">${deskTab==="briefing"
       ?`<button class="btn ghost sm" onclick="runAnalyze(${t.id})">Refazer briefing</button><button class="btn pri" onclick="deskTab='resposta';renderDesk()">Ver resposta</button>`
@@ -581,6 +589,52 @@ function draftHTML(a,val,done){
     <button class="chip" onclick="rwCustom(${a.id},this)">Outro ajuste</button></div>`;
 }
 function saveDraftLocal(a){if($("#d-body")){a._body=$("#d-body").value;a._subj=$("#d-subj").value}}
+
+/* ---------- chat da cadeia (uma conversa por corrente de e-mails) ---------- */
+function tcBubble(m){
+  const src=(m.sources||[]).length?`<span class="src"><b>Fontes:</b> ${m.sources.map(s=>`${esc(s.code)} ${esc(s.label)}`).join(" · ")}</span>`:"";
+  return`<div class="chat-msg ${m.role==="user"?"user":"ai"}">${esc(m.content)}${src}</div>`;
+}
+async function renderThreadChatTab(){
+  const d=$("#desk");d.hidden=false;
+  d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Chat da cadeia</div>
+    <div class="dtabs"><button data-t="briefing">Briefing</button><button data-t="resposta">Resposta</button><button data-t="chat" class="on">Chat</button></div></div>
+    <div class="desk-body chatpane"><div class="chat-log" id="tc-log"><div class="empty">Carregando conversa…</div></div></div>
+    <div class="desk-foot"><form class="chat-form" id="tc-form"><textarea id="tc-in" rows="2" placeholder="Pergunte sobre esta cadeia — ou tire dúvidas do projeto…" aria-label="Pergunta"></textarea><button class="btn pri" id="tc-btn" type="submit">Enviar</button></form></div>`;
+  $$(".dtabs button").forEach(x=>x.onclick=()=>{saveDraftLocal();deskTab=x.dataset.t;renderDesk()});
+  $("#tc-form").onsubmit=sendThreadChat;
+  $("#tc-in").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("#tc-form").requestSubmit()}};
+  await loadThreadChat();
+}
+async function loadThreadChat(){
+  const key=current, log=$("#tc-log");
+  if(!log)return;
+  let hist=[];
+  try{hist=await api(`/api/threads/${encodeURIComponent(key)}/chat`)}
+  catch(e){if(current===key&&log.isConnected)log.innerHTML=`<div class="empty">Não carreguei a conversa: ${esc(e.message)}</div>`;return}
+  if(current!==key||!log.isConnected)return;
+  if(!hist.length){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">Chat desta cadeia</b><br>Pergunte o que a Motiva já disse, qual é a regra vigente, o que já foi acordado — ou peça um rascunho. A IA usa esta cadeia como principal e todo o resto do sistema (decisões, base de conhecimento, outros e-mails) como apoio.</div>`;return}
+  log.innerHTML=hist.map(tcBubble).join("");
+  log.scrollTop=log.scrollHeight;
+}
+async function sendThreadChat(ev){
+  ev.preventDefault();
+  const key=current, inp=$("#tc-in"), btn=$("#tc-btn"), q=inp.value.trim();
+  if(!q||!btn)return;
+  const log=$("#tc-log");
+  if(log.querySelector(".empty"))log.innerHTML="";
+  log.insertAdjacentHTML("beforeend",tcBubble({role:"user",content:q}));
+  inp.value="";btn.disabled=true;btn.textContent="Pensando…";log.scrollTop=log.scrollHeight;
+  try{
+    const r=await post(`/api/threads/${encodeURIComponent(key)}/chat`,{pergunta:q});
+    if(current!==key||!log.isConnected)return;
+    log.insertAdjacentHTML("beforeend",tcBubble(r));
+  }catch(e){
+    if(current===key&&log.isConnected)log.insertAdjacentHTML("beforeend",`<div class="chat-msg ai">Não consegui responder: ${esc(e.message||e)}</div>`);
+  }finally{
+    if(current===key&&log.isConnected){btn.disabled=false;btn.textContent="Enviar";log.scrollTop=log.scrollHeight;inp.focus()}
+  }
+}
 
 const THINK=["Lendo a conversa","Consultando o registro de decisões","Cruzando com o que a StartGi já disse","Checando o processo de supply","Escrevendo o briefing e a resposta"];
 async function runAnalyze(id){

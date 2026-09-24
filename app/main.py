@@ -18,8 +18,8 @@ from pydantic import BaseModel
 from sqlalchemy import func
 
 from . import ai, mail
-from .db import (Analysis, Decision, Document, Email, SessionLocal, get_setting,
-                 init_db)
+from .db import (Analysis, ChatMessage, Decision, Document, Email, SessionLocal,
+                 get_setting, init_db)
 from .mail import index_email, normalize_subject, strip_quoted
 from .retrieval import get_index, mark_dirty, rank_texts
 
@@ -364,6 +364,49 @@ def analysis_dict(a):
             "draft_subject": a.draft_subject, "draft_body": a.draft_body, "final_body": a.final_body,
             "model": a.model, "sources": json.loads(a.sources_json or "[]"),
             "created_at": a.created_at.isoformat() if a.created_at else None}
+
+
+class ThreadChatIn(BaseModel):
+    pergunta: str
+
+
+@app.get("/api/threads/{thread_key:path}/chat")
+def thread_chat_history(thread_key: str):
+    with SessionLocal() as s:
+        if not s.query(Email.id).filter(Email.thread_key == thread_key).first():
+            raise HTTPException(404, "Conversa não encontrada.")
+        rows = s.query(ChatMessage).filter(ChatMessage.thread_key == thread_key) \
+            .order_by(ChatMessage.id).all()
+        return [{"id": m.id, "role": m.role, "content": m.content,
+                 "sources": json.loads(m.sources_json or "[]"),
+                 "created_at": m.created_at.isoformat() if m.created_at else None} for m in rows]
+
+
+@app.post("/api/threads/{thread_key:path}/chat")
+def thread_chat_post(thread_key: str, body: ThreadChatIn):
+    if not ai.API_KEY:
+        raise HTTPException(400, "IA não configurada: defina AI_API_KEY nas variáveis do Render.")
+    pergunta = body.pergunta.strip()
+    if not pergunta:
+        raise HTTPException(400, "Escreva uma pergunta.")
+    with SessionLocal() as s:
+        if not s.query(Email.id).filter(Email.thread_key == thread_key).first():
+            raise HTTPException(404, "Conversa não encontrada.")
+        history = s.query(ChatMessage).filter(ChatMessage.thread_key == thread_key) \
+            .order_by(ChatMessage.id.desc()).limit(16).all()
+        history.reverse()
+        s.add(ChatMessage(thread_key=thread_key, role="user", content=pergunta))
+        s.commit()
+        try:
+            answer, sources = ai.thread_chat(s, thread_key, pergunta, history=history)
+        except Exception as ex:
+            traceback.print_exc()
+            raise HTTPException(500, f"Não foi possível responder: {ex}")
+        msg = ChatMessage(thread_key=thread_key, role="assistant", content=answer,
+                          sources_json=json.dumps(sources, ensure_ascii=False))
+        s.add(msg)
+        s.commit()
+        return {"id": msg.id, "role": "assistant", "content": answer, "sources": sources}
 
 
 @app.get("/api/threads/{thread_key:path}")
