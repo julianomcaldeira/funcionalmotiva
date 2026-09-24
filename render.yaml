@@ -32,7 +32,7 @@ services:
       - key: AI_BASE_URL
         value: https://generativelanguage.googleapis.com/v1beta
       - key: AI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.6-flash
       - key: AI_API_KEY
         sync: false
       - key: HISTORY_DAYS

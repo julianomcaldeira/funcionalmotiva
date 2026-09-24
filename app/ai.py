@@ -8,12 +8,13 @@ import httpx
 from .db import Analysis, Decision, Document, Email, SessionLocal
 from .retrieval import get_index, rank_texts
 
-PROVIDER = os.getenv("AI_PROVIDER", "anthropic").lower()  # anthropic | openai (qualquer API compatível)
+PROVIDER = os.getenv("AI_PROVIDER", "anthropic").lower()  # anthropic | openai | gemini
 API_KEY = os.getenv("AI_API_KEY", "")
 MODEL = os.getenv("AI_MODEL", "claude-sonnet-5")
 BASE_URL = os.getenv("AI_BASE_URL", "")
 MAX_TOKENS = int(os.getenv("AI_MAX_TOKENS", "6000"))
 TIMEOUT = float(os.getenv("AI_TIMEOUT", "180"))
+GEMINI_DEFAULT_MODEL = "gemini-3.6-flash"
 
 SYSTEM = """Você é o consultor funcional sênior da StartGi no projeto Lumos, cliente Motiva (antigo Grupo CCR).
 Você domina o processo de supply chain e procurement: requisição, sourcing (RFx, carta convite, estratégia de
@@ -129,7 +130,7 @@ def call_model(system, user):
         base = (BASE_URL or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
         if base.endswith("/openai"):
             base = base[: -len("/openai")]
-        url = f"{base}/models/{MODEL}:generateContent"
+        url = f"{base}/models/{MODEL or GEMINI_DEFAULT_MODEL}:generateContent"
         r = httpx.post(url, timeout=TIMEOUT, headers={
             "x-goog-api-key": API_KEY, "content-type": "application/json"},
             json={"systemInstruction": {"parts": [{"text": system}]},
