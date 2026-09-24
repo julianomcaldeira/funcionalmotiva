@@ -246,7 +246,23 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 </nav>
 
 <main>
-  <section class="view on" id="v-dashboard">
+  <section class="view on" id="v-dashboard"><div class="dash-page">
+    <div class="dash-header">
+      <h2>Visão Geral</h2>
+      <div class="dash-live"><span class="dot ok"></span> Ao vivo</div>
+    </div>
+    <div class="dash-grid" id="dash-grid"></div>
+    <div class="dash-bottom">
+      <div class="dash-card wide">
+        <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Atividade recente</h4>
+        <pre class="log" id="dash-log"></pre>
+      </div>
+      <div class="dash-card">
+        <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Última sincronização</h4>
+        <div class="dash-sync" id="dash-sync">—</div>
+      </div>
+    </div>
+  </div></section>
   <section class="view" id="v-caixa">
     <div class="list">
       <div class="list-head">
