@@ -35,6 +35,8 @@ services:
         value: gemini-2.5-flash
       - key: AI_API_KEY
         sync: false
+      - key: HISTORY_DAYS
+        value: "30"
       - key: SUBJECT_FILTER
         value: ""
       - key: POLL_MINUTES
