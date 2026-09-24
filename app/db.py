@@ -1,5 +1,6 @@
 """Banco de dados: e-mails, análises, registro de decisões e base de conhecimento."""
 import os
+import sys
 from datetime import datetime
 
 from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
@@ -11,7 +12,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./funcional.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+_USING_SQLITE = DATABASE_URL.startswith("sqlite")
+if _USING_SQLITE and os.getenv("RENDER_SERVICE_NAME"):
+    print("⚠️ ATENÇÃO: DATABASE_URL não configurado. Usando SQLite local. Dados NÃO persistem no Render.", file=sys.stderr)
+
+connect_args = {"check_same_thread": False} if _USING_SQLITE else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 Base = declarative_base()
