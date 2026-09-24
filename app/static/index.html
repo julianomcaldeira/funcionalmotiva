@@ -3,432 +3,510 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Funcional Lumos</title>
+<title>Funcional Lumos · StartGi</title>
+<link rel="icon" href="/static/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --paper:#F3F4F1; --panel:#FFFFFF; --ink:#1F2A33; --muted:#5E6A72; --line:#D6DAD4;
-  --action:#2F4B6E; --action-ink:#FFFFFF; --stamp:#A8321E; --ok:#2E6A4A; --warn:#9A6414;
-  --soft:#E9ECE7; --sel:#E3EAF2;
-  --ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --read:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --brand:#1AD56D; --brand-deep:#0B8A45; --brand-ink:#08361D; --brand-wash:#E7FAF0;
+  --ink:#2B2F2D; --muted:#66706B; --line:#E1E6E3; --bg:#F6F8F7; --panel:#FFFFFF;
+  --red:#B4331F; --red-wash:#FCEDEA; --amber:#95610C; --amber-wash:#FDF4E3; --blue:#2A5A8C; --blue-wash:#EAF1F8;
+  --ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --read:"Source Serif 4",Georgia,serif;
+  --r:10px;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{font-family:var(--ui);font-size:14px;color:var(--ink);background:var(--paper);display:flex}
+body{font-family:var(--ui);font-size:14px;color:var(--ink);background:var(--bg);display:flex}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:2px solid var(--action);outline-offset:2px}
+:focus-visible{outline:2px solid var(--brand-deep);outline-offset:2px}
+svg{flex:none}
 
-nav{width:214px;flex:none;border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px;background:var(--paper)}
-nav h1{font-family:var(--read);font-weight:600;font-size:19px;margin:0 8px 2px;letter-spacing:-.01em}
-nav .sub{color:var(--muted);font-size:12px;margin:0 8px 18px}
-nav button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center}
-nav button:hover{background:var(--soft)}
-nav button.on{background:var(--sel);font-weight:600}
-nav .badge{font-size:12px;background:var(--stamp);color:#fff;border-radius:10px;padding:0 7px;min-width:20px;text-align:center}
-nav .foot{margin-top:auto;font-size:12px;color:var(--muted);padding:0 8px;line-height:1.5}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--line)}
-.dot.ok{background:var(--ok)} .dot.bad{background:var(--stamp)}
+/* navegação */
+nav{width:228px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 12px 14px}
+.brand{padding:0 10px 18px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.brand img{width:108px;display:block}
+.brand .prod{margin-top:10px;font-weight:600;font-size:15px}
+.brand .prod span{display:block;font-weight:400;color:var(--muted);font-size:12.5px;margin-top:1px}
+.nv{background:none;border:0;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-align:left;color:var(--muted);font-weight:500}
+.nv:hover{background:var(--bg);color:var(--ink)}
+.nv.on{background:var(--brand-wash);color:var(--brand-ink)}
+.nv .ct{margin-left:auto;font-size:12px;font-weight:600;background:var(--ink);color:#fff;border-radius:10px;padding:1px 7px}
+.nv .ct.warn{background:var(--amber)}
+.health{margin-top:auto;border-top:1px solid var(--line);padding:12px 10px 0;font-size:12.5px;color:var(--muted);display:grid;gap:6px}
+.health button{background:none;border:0;padding:0;text-align:left;color:inherit;display:flex;align-items:center;gap:7px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block}
+.dot.ok{background:var(--brand)} .dot.erro,.dot.nao_configurado{background:var(--red)} .dot.aguardando{background:var(--amber)}
 
 main{flex:1;min-width:0;display:flex}
 .view{display:none;flex:1;min-width:0}
 .view.on{display:flex}
 
-/* caixa: três colunas */
-.list{width:300px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--paper)}
-.list .tools{padding:12px;display:flex;gap:6px;border-bottom:1px solid var(--line)}
-.list .tools input{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff}
-.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.seg button{border:0;background:#fff;padding:6px 9px;font-size:12px}
-.seg button.on{background:var(--action);color:#fff}
-.threads{overflow:auto;flex:1}
-.thread{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
-.thread:hover{background:var(--soft)}
-.thread.on{background:var(--sel)}
-.thread .s{font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.thread .m{color:var(--muted);font-size:12px;margin-top:4px;display:flex;gap:8px;align-items:center}
-.pill{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid currentColor}
-.pill.new{color:var(--stamp)} .pill.an{color:var(--action)}
+/* caixa */
+.list{width:320px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel)}
+.list-head{padding:16px 14px 12px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.list-head h2{margin:0;font-size:17px;font-weight:700}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--bg)}
+.search input{border:0;background:none;padding:8px 0;flex:1;min-width:0;outline:none}
+.tabs{display:flex;gap:4px}
+.tabs button{border:0;background:none;padding:5px 10px;border-radius:14px;color:var(--muted);font-weight:500;font-size:13px}
+.tabs button.on{background:var(--ink);color:#fff}
+.threads{flex:1;overflow:auto}
+.th{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;gap:5px;border-left:3px solid transparent}
+.th:hover{background:var(--bg)}
+.th.on{background:var(--brand-wash);border-left-color:var(--brand)}
+.th .s{font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.th .m{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.tag.novo{background:var(--red-wash);color:var(--red)}
+.tag.pronto{background:var(--brand-wash);color:var(--brand-ink)}
+.tag.melhoria{background:var(--amber-wash);color:var(--amber)}
+.tag.sustentacao{background:var(--brand-wash);color:var(--brand-ink)}
+.tag.duvida{background:var(--blue-wash);color:var(--blue)}
+.tag.fora_do_escopo_lumos{background:#EEF0EF;color:var(--muted)}
+.list-foot{padding:12px 14px;border-top:1px solid var(--line)}
 
-.conv{flex:1;min-width:0;overflow:auto;padding:22px 26px;border-right:1px solid var(--line)}
-.conv h2{font-family:var(--read);font-size:21px;font-weight:600;margin:0 0 16px;line-height:1.3;max-width:60ch}
-.msg{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:12px}
-.msg.out{border-left:3px solid var(--action)}
-.msg.target{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp)}
-.msg header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted)}
+.conv{flex:1;min-width:0;overflow:auto;padding:26px 30px 40px}
+.conv h1{font-family:var(--read);font-size:22px;font-weight:600;line-height:1.3;margin:0 0 4px;max-width:58ch}
+.conv .meta{color:var(--muted);font-size:13px;margin-bottom:20px}
+.msg{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;max-width:760px}
+.msg.out{margin-left:40px;background:#FBFCFB}
+.msg.target{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
+.msg header{display:flex;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
 .msg header b{color:var(--ink);font-weight:600}
-.msg .body{padding:12px 14px;font-family:var(--read);font-size:15px;line-height:1.55;white-space:pre-wrap;max-width:72ch}
-.msg .acts{padding:0 14px 12px;display:flex;gap:8px;flex-wrap:wrap}
-.empty{color:var(--muted);padding:40px 26px;max-width:46ch;line-height:1.55}
+.msg .who{display:flex;align-items:center;gap:8px;min-width:0}
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;background:var(--blue-wash);color:var(--blue);flex:none}
+.out .av{background:var(--brand-wash);color:var(--brand-ink)}
+.msg .body{padding:14px 16px;font-family:var(--read);font-size:15.5px;line-height:1.6;white-space:pre-wrap;max-width:70ch}
+.msg .acts{display:flex;gap:8px;padding:0 16px 14px}
+.hist{font-size:12.5px;color:var(--muted);background:none;border:0;padding:0 16px 12px;text-decoration:underline}
 
-.desk{width:470px;flex:none;overflow:auto;padding:22px 22px 40px;background:#FAFBF9}
-.desk h3{font-size:12.5px;font-weight:600;color:var(--muted);margin:22px 0 8px}
-.desk h3:first-child{margin-top:0}
-.stamp{display:inline-block;border:2px solid var(--stamp);color:var(--stamp);padding:3px 10px;border-radius:4px;font-weight:600;transform:rotate(-2deg);font-size:15px;background:#fff}
-.stamp.sustentacao{border-color:var(--ok);color:var(--ok)}
-.stamp.duvida{border-color:var(--action);color:var(--action)}
-.just{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
-.reco{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--action);border-radius:6px;padding:10px 12px;line-height:1.5;font-weight:500}
-.blk{margin:0;padding:0;list-style:none}
-.blk li{padding:7px 0 7px 22px;position:relative;line-height:1.45;border-bottom:1px dashed var(--line)}
-.blk li:last-child{border-bottom:0}
-.blk li::before{content:"";position:absolute;left:4px;top:13px;width:8px;height:8px;border-radius:2px;background:var(--muted)}
-.blk.red li::before{background:var(--stamp)}
-.blk.amber li::before{background:transparent;border:1.5px solid var(--warn);border-radius:2px}
-.blk.amber li.done{color:var(--muted);text-decoration:line-through}
-.blk.amber li{cursor:pointer}
+/* mesa do funcional */
+.desk[hidden]{display:none!important}
+.desk{width:480px;flex:none;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.desk-head{padding:16px 20px 0;border-bottom:1px solid var(--line)}
+.desk-head .t{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.desk-head .t img{width:20px}
+.dtabs{display:flex;gap:18px;margin-top:12px}
+.dtabs button{border:0;background:none;padding:8px 0 10px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent}
+.dtabs button.on{color:var(--ink);border-bottom-color:var(--brand)}
+.dtabs .n{font-size:11px;background:var(--amber);color:#fff;border-radius:9px;padding:0 6px;margin-left:4px}
+.desk-body{flex:1;overflow:auto;padding:18px 20px 30px}
+.sec{margin-bottom:22px}
+.sec h4{margin:0 0 8px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+.verdict{display:flex;gap:14px;align-items:flex-start;background:var(--bg);border-radius:var(--r);padding:14px}
+.stamp{border:2px solid currentColor;border-radius:6px;padding:4px 10px;font-weight:700;transform:rotate(-2deg);white-space:nowrap;background:#fff}
+.stamp.melhoria{color:var(--amber)} .stamp.sustentacao{color:var(--brand-deep)} .stamp.duvida{color:var(--blue)} .stamp.fora_do_escopo_lumos{color:var(--muted)}
+.verdict p{margin:0;line-height:1.5;color:var(--muted);font-size:13px}
+.reco{border-left:3px solid var(--brand);padding:2px 0 2px 12px;line-height:1.55;font-weight:500;font-size:14.5px}
 .conf{font-size:12px;color:var(--muted)}
-.src{font-size:12px;color:var(--muted);line-height:1.6}
-.src code{font-family:var(--ui);background:var(--soft);padding:0 4px;border-radius:3px;color:var(--ink)}
-.draft input,.draft textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:#fff}
-.draft textarea{font-family:var(--read);font-size:15px;line-height:1.55;min-height:260px;resize:vertical;margin-top:6px}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
-.btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px}
-.btn:hover{border-color:var(--action)}
-.btn.pri{background:var(--action);color:var(--action-ink);border-color:var(--action)}
-.btn.pri:hover{filter:brightness(1.1)}
-.btn:disabled{opacity:.55;cursor:wait}
-.quick{font-size:12px;padding:4px 9px}
-.warnbar{background:#FFF4E5;border:1px solid #EACB9A;color:#6B4A10;padding:9px 12px;border-radius:6px;line-height:1.45;font-size:13px}
+.items{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.items li{padding:9px 11px;border-radius:8px;line-height:1.45;font-size:13.5px}
+.items.red li{background:var(--red-wash)}
+.items.neutral li{background:var(--bg)}
+.check li{display:flex;gap:10px;align-items:flex-start;background:var(--amber-wash);cursor:pointer}
+.check li .bx{width:17px;height:17px;border:2px solid var(--amber);border-radius:4px;flex:none;margin-top:1px;display:grid;place-items:center}
+.check li.done{background:var(--brand-wash);color:var(--muted)}
+.check li.done .bx{background:var(--brand-deep);border-color:var(--brand-deep)}
+.check li.done span{text-decoration:line-through}
+.prog{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin:4px 0 10px}
+.prog i{display:block;height:100%;background:var(--brand);transition:width .25s}
+.none{color:var(--muted);font-size:13px}
+.srcs{display:flex;flex-wrap:wrap;gap:6px}
+.srcs span{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--muted)}
+.srcs b{color:var(--ink)}
+.draft label{font-size:12px;color:var(--muted);font-weight:600}
+.draft input,.draft textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff;margin:4px 0 12px}
+.draft textarea{font-family:var(--read);font-size:15.5px;line-height:1.6;min-height:300px;resize:vertical}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 12px;font-size:13px}
+.chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
+.alert{display:flex;gap:10px;background:var(--amber-wash);color:#5C3C06;border-radius:8px;padding:10px 12px;line-height:1.45;font-size:13px;margin-bottom:12px}
+.alert.red{background:var(--red-wash);color:#6B1D12}
+.desk-foot{border-top:1px solid var(--line);padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;background:var(--panel)}
 
-/* páginas simples */
-.page{flex:1;overflow:auto;padding:26px 32px 60px}
-.page h2{font-family:var(--read);font-size:24px;font-weight:600;margin:0 0 4px}
-.page .lead{color:var(--muted);margin:0 0 20px;max-width:70ch;line-height:1.5}
-table{border-collapse:collapse;width:100%;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
-th{font-size:12px;color:var(--muted);font-weight:600;background:#FAFBF9}
-tr:hover td{background:#FBFCFA}
-.st{font-size:12px;font-weight:600}
-.st.vigente{color:var(--ok)} .st.proposta{color:var(--warn)} .st.em_discussao{color:var(--action)}
-.st.substituida,.st.descartada{color:var(--muted);text-decoration:line-through}
-.form{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;max-width:980px}
-.form label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 14px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{border-color:#C5CEC9}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.pri:hover{background:#15C263}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+.btn:disabled{opacity:.6;cursor:wait}
+
+/* estados */
+.empty{margin:auto;max-width:430px;text-align:center;color:var(--muted);line-height:1.55;padding:30px}
+.empty h3{color:var(--ink);font-size:17px;margin:12px 0 6px}
+.empty img{width:44px;opacity:.9}
+.thinking{display:grid;place-items:center;height:100%;text-align:center;padding:30px;color:var(--muted)}
+.thinking img{width:46px;animation:spin 2.4s linear infinite}
+.thinking .st{margin-top:14px;font-weight:600;color:var(--ink)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* onboarding */
+.setup{margin:26px 30px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;max-width:760px}
+.setup h2{margin:0 0 4px;font-size:19px}
+.setup>p{margin:0 0 16px;color:var(--muted);line-height:1.5}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:8px;counter-reset:s}
+.steps li{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:12px 14px;counter-increment:s}
+.steps li::before{content:counter(s);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:var(--bg);color:var(--muted);flex:none}
+.steps li.done::before{content:"✓";background:var(--brand);color:var(--brand-ink)}
+.steps li.bad::before{content:"!";background:var(--red);color:#fff}
+.steps .tx{flex:1;line-height:1.4}
+.steps .tx b{display:block}
+.steps .tx span{color:var(--muted);font-size:13px}
+
+/* páginas */
+.page{flex:1;overflow:auto;padding:28px 34px 60px}
+.page h2{font-size:22px;margin:0 0 4px}
+.page .lead{color:var(--muted);margin:0 0 20px;max-width:72ch;line-height:1.55}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
+th{font-size:12px;color:var(--muted);font-weight:600}
+tbody tr{cursor:pointer} tbody tr:hover td{background:#FAFCFB}
+tbody tr:last-child td{border-bottom:0}
+.st{font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.st.vigente{background:var(--brand-wash);color:var(--brand-ink)} .st.proposta{background:var(--amber-wash);color:var(--amber)}
+.st.em_discussao{background:var(--blue-wash);color:var(--blue)} .st.substituida,.st.descartada{background:#EEF0EF;color:var(--muted)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px}
+.form label{display:grid;gap:5px;font-size:12.5px;color:var(--muted);font-weight:600}
 .form .full{grid-column:1/-1}
-.form input,.form select,.form textarea{border:1px solid var(--line);border-radius:6px;padding:7px 9px;color:var(--ink);background:#fff}
-.form textarea{min-height:80px;resize:vertical}
-.kv{display:grid;grid-template-columns:200px 1fr;gap:8px 16px;max-width:760px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px}
-.kv div:nth-child(odd){color:var(--muted)}
-pre.log{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;max-height:320px;overflow:auto;white-space:pre-wrap}
-.toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:#fff;padding:10px 14px;border-radius:6px;max-width:420px;line-height:1.4;display:none;z-index:9}
-dialog{border:1px solid var(--line);border-radius:10px;padding:0;width:min(640px,92vw)}
-dialog::backdrop{background:rgba(31,42,51,.35)}
-dialog .form{border:0;margin:0}
+.form input,.form select,.form textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;color:var(--ink);font-weight:400}
+.form textarea{min-height:90px;resize:vertical}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted);cursor:pointer}
+.drop.over{border-color:var(--brand);background:var(--brand-wash)}
+.drop b{color:var(--ink)}
+.conn{display:grid;gap:12px;max-width:820px}
+.conn .card{padding:16px 18px;display:flex;gap:14px;align-items:flex-start}
+.conn .card .tx{flex:1;line-height:1.5}
+.conn .card .tx b{font-size:15px}
+.conn .card .tx div{color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:820px;margin:16px 0}
+.stats div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--muted);font-size:12.5px}
+.stats b{display:block;font-size:22px;color:var(--ink)}
+pre.log{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;max-height:280px;overflow:auto;white-space:pre-wrap;max-width:820px}
 
-@media (max-width:1180px){.desk{width:400px}}
-@media (max-width:980px){
-  body{flex-direction:column} nav{width:auto;flex-direction:row;overflow:auto;padding:8px;border-right:0;border-bottom:1px solid var(--line)}
-  nav h1,nav .sub,nav .foot{display:none}
-  #v-caixa.on{flex-direction:column} .list{width:auto;max-height:40vh} .desk{width:auto} .conv{border-right:0}
-  .form{grid-template-columns:1fr}
+dialog{border:0;border-radius:14px;padding:0;width:min(660px,94vw);box-shadow:0 20px 60px rgba(20,30,25,.25)}
+dialog::backdrop{background:rgba(20,30,25,.4)}
+dialog h3{margin:0;padding:18px 18px 0;font-size:17px}
+dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 16px;border-radius:10px;max-width:520px;line-height:1.4;display:none;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+
+@media (max-width:1280px){.desk{width:420px}.list{width:290px}}
+@media (max-width:1020px){
+  body{flex-direction:column} nav{width:auto;flex-direction:row;align-items:center;padding:8px 10px;overflow:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .brand{border:0;padding:0 10px 0 0;margin:0}.brand .prod,.health{display:none}
+  #v-caixa.on{flex-direction:column}.list{width:auto;max-height:38vh}.desk{width:auto;border-left:0;min-height:60vh}
+  .form,.stats{grid-template-columns:1fr 1fr}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<nav>
-  <h1>Funcional Lumos</h1>
-  <div class="sub">StartGi · Motiva</div>
-  <button data-v="caixa" class="on">Caixa <span class="badge" id="b-pend" hidden></span></button>
-  <button data-v="decisoes">Registro de decisões <span class="badge" id="b-prop" hidden></span></button>
-  <button data-v="base">Base de conhecimento</button>
-  <button data-v="status">Conexões</button>
-  <div class="foot" id="foot"></div>
+<nav aria-label="Seções">
+  <div class="brand">
+    <img src="/static/logo.png" alt="StartGi">
+    <div class="prod">Funcional Lumos<span>Projeto Motiva</span></div>
+  </div>
+  <button class="nv on" data-v="caixa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>Caixa<span class="ct" id="c-pend" hidden></span></button>
+  <button class="nv" data-v="decisoes"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Decisões<span class="ct warn" id="c-prop" hidden></span></button>
+  <button class="nv" data-v="base"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Base de conhecimento</button>
+  <button class="nv" data-v="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Conexões</button>
+  <div class="health" id="health"></div>
 </nav>
 
 <main>
-  <!-- CAIXA -->
   <section class="view on" id="v-caixa">
     <div class="list">
-      <div class="tools">
-        <input id="q" placeholder="Buscar assunto ou remetente" aria-label="Buscar">
-        <div class="seg" role="tablist">
-          <button data-f="pendentes" class="on">Pendentes</button><button data-f="todas">Todas</button>
-        </div>
+      <div class="list-head">
+        <h2>E-mails da Motiva</h2>
+        <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#66706B" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="q" placeholder="Buscar por assunto ou pessoa" aria-label="Buscar"></div>
+        <div class="tabs" id="ftabs"><button data-f="pendentes" class="on">A responder</button><button data-f="todas">Todas</button></div>
       </div>
       <div class="threads" id="threads"></div>
-      <div style="padding:10px 12px;border-top:1px solid var(--line)">
-        <button class="btn" style="width:100%" onclick="openManual()">Colar e-mail manualmente</button>
-      </div>
+      <div class="list-foot"><button class="btn sm" style="width:100%;justify-content:center" onclick="openManual()">Colar um e-mail</button></div>
     </div>
-    <div class="conv" id="conv"><div class="empty">Escolha uma conversa à esquerda. Os e-mails da Motiva chegam do Zoho automaticamente e ganham um briefing do funcional antes da resposta.</div></div>
-    <aside class="desk" id="desk"></aside>
+    <div class="conv" id="conv"></div>
+    <aside class="desk" id="desk" hidden></aside>
   </section>
 
-  <!-- DECISÕES -->
   <section class="view" id="v-decisoes"><div class="page">
     <h2>Registro de decisões</h2>
-    <p class="lead">A regra que vale para cada assunto, com a fonte e quem aprovou do lado da Motiva. É a primeira referência do funcional em toda resposta. Decisões propostas vêm dos e-mails e só passam a valer depois de revisadas aqui.</p>
-    <div class="row" style="margin:0 0 14px">
-      <div class="seg" id="dec-filter">
-        <button data-s="" class="on">Todas</button><button data-s="proposta">Propostas</button><button data-s="vigente">Vigentes</button><button data-s="em_discussao">Em discussão</button><button data-s="substituida">Substituídas</button>
-      </div>
-      <button class="btn pri" onclick="editDecision()">Nova decisão</button>
+    <p class="lead">A regra que vale para cada assunto, com a fonte e quem aprovou na Motiva. O funcional consulta este registro antes de qualquer resposta. As decisões propostas vêm dos e-mails analisados e só passam a valer depois da sua revisão.</p>
+    <div class="bar">
+      <div class="tabs" id="dtabs"><button data-s="" class="on">Todas</button><button data-s="proposta">Para revisar</button><button data-s="vigente">Vigentes</button><button data-s="em_discussao">Em discussão</button><button data-s="substituida">Substituídas</button></div>
+      <div class="search" style="flex:1;max-width:320px"><input id="dq" placeholder="Buscar regra ou módulo" aria-label="Buscar decisões"></div>
+      <button class="btn pri" onclick="editDecision()" style="margin-left:auto">Registrar decisão</button>
     </div>
-    <table><thead><tr><th style="width:60px">Código</th><th>Módulo e título</th><th>Regra</th><th style="width:210px">Fonte e aprovação</th><th style="width:110px">Status</th></tr></thead><tbody id="dec-body"></tbody></table>
+    <div class="card"><table><thead><tr><th style="width:64px">Código</th><th style="width:26%">Assunto</th><th>Regra</th><th style="width:220px">Fonte</th><th style="width:120px">Situação</th></tr></thead><tbody id="dec-body"></tbody></table></div>
   </div></section>
 
-  <!-- BASE -->
   <section class="view" id="v-base"><div class="page">
     <h2>Base de conhecimento</h2>
-    <p class="lead">Especificações (EFs), documentações técnicas, exportações do WhatsApp do time e resultados do validador de regras. Tudo aqui entra na busca do funcional, junto com o histórico de e-mails.</p>
-    <form class="form" id="doc-form" onsubmit="return uploadDoc(event)">
-      <label>Tipo
+    <p class="lead">Especificações, documentações técnicas, conversas exportadas do WhatsApp do time e resultados do validador de regras. Tudo aqui entra na pesquisa do funcional, junto com o histórico de e-mails.</p>
+    <form class="card form" id="doc-form" onsubmit="return uploadDoc(event)" style="max-width:900px;margin-bottom:18px">
+      <label>Tipo de conteúdo
         <select name="tipo">
           <option value="especificacao">Especificação (EF)</option>
           <option value="documentacao">Documentação técnica</option>
-          <option value="whatsapp">Exportação do WhatsApp</option>
+          <option value="whatsapp">Conversa exportada do WhatsApp</option>
           <option value="validador">Resultado do validador de regras</option>
           <option value="outro">Outro</option>
         </select></label>
-      <label>Nome (opcional)<input name="nome" placeholder="Ex.: Documentação Coupa Sourcing API, abril/2026"></label>
-      <label class="full">Arquivo (PDF, DOCX, TXT, MD)<input type="file" name="arquivo" accept=".pdf,.docx,.txt,.md,.csv,.json"></label>
+      <label>Nome<input name="nome" placeholder="Ex.: Documentação Coupa Sourcing API, abril"></label>
+      <label class="full drop" id="drop" for="file"><span id="drop-tx"><b>Arraste um arquivo aqui</b> ou clique para escolher. PDF, Word, TXT ou Markdown.</span>
+        <input type="file" id="file" name="arquivo" accept=".pdf,.docx,.txt,.md,.csv,.json" hidden></label>
       <label class="full">Ou cole o texto<textarea name="texto" placeholder="Cole aqui o conteúdo"></textarea></label>
-      <div class="full row" style="margin:0"><button class="btn pri" id="doc-btn">Adicionar à base</button></div>
+      <div class="full"><button class="btn pri" id="doc-btn">Adicionar à base</button></div>
     </form>
-    <table><thead><tr><th>Nome</th><th style="width:190px">Tipo</th><th style="width:120px">Tamanho</th><th style="width:150px">Adicionado</th><th style="width:90px"></th></tr></thead><tbody id="doc-body"></tbody></table>
+    <div class="card" style="max-width:900px"><table><thead><tr><th>Nome</th><th style="width:220px">Tipo</th><th style="width:130px">Tamanho</th><th style="width:130px">Adicionado</th><th style="width:90px"></th></tr></thead><tbody id="doc-body"></tbody></table></div>
   </div></section>
 
-  <!-- STATUS -->
   <section class="view" id="v-status"><div class="page">
     <h2>Conexões</h2>
-    <p class="lead">A configuração é feita pelas variáveis de ambiente do servidor (veja o README). O acesso ao Zoho é somente leitura, e nenhuma resposta é enviada pelo sistema.</p>
-    <div class="kv" id="kv"></div>
-    <div class="row" style="margin:14px 0"><button class="btn pri" onclick="syncNow()">Sincronizar agora</button></div>
-    <h3 style="font-size:13px;color:var(--muted)">Atividade recente</h3>
+    <p class="lead">O acesso ao Zoho é somente leitura e nenhuma resposta é enviada pelo sistema. As credenciais ficam nas variáveis de ambiente do Render.</p>
+    <div class="conn" id="conn"></div>
+    <div class="stats" id="stats"></div>
+    <h4 style="margin:18px 0 8px">Atividade recente</h4>
     <pre class="log" id="log"></pre>
   </div></section>
 </main>
 
 <dialog id="dlg"></dialog>
-<div class="toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const $ = s => document.querySelector(s);
-const esc = s => (s ?? "").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const fmt = iso => iso ? new Date(iso + (iso.endsWith("Z") ? "" : "Z")).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
-let filtro = "pendentes", current = null, decFilter = "";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>(s??"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const asDate=iso=>iso?new Date(iso+(/[zZ]|[+-]\d\d:?\d\d$/.test(iso)?"":"Z")):null;
+const fmt=iso=>{const d=asDate(iso);return d?d.toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):""};
+const ago=iso=>{const d=asDate(iso);if(!d)return"";const m=(Date.now()-d)/6e4;if(m<60)return`há ${Math.max(1,m|0)} min`;if(m<1440)return`há ${m/60|0} h`;return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})};
+const initials=s=>{const n=(s||"?").split("@")[0].split(/[._\s-]/).filter(Boolean);return((n[0]||"?")[0]+((n[1]||"")[0]||"")).toUpperCase()};
+const CLS={sustentacao:"Sustentação",melhoria:"Melhoria",duvida:"Dúvida",fora_do_escopo_lumos:"Fora do escopo"};
+let filtro="pendentes",current=null,deskTab="briefing",decFilter="",decCache=[],status={};
 
-function toast(msg){ const t=$("#toast"); t.textContent=msg; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none",4200); }
-async function api(path, opts={}){
-  const r = await fetch(path, opts);
-  if(!r.ok){ let d; try{ d=(await r.json()).detail }catch{ d=r.statusText } throw new Error(d || "Erro"); }
-  return r.json();
+function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4500)}
+async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
+const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
+
+function go(v){$$(".nv").forEach(x=>x.classList.toggle("on",x.dataset.v===v));$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));({caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,status:loadStatus})[v]()}
+$$(".nv").forEach(b=>b.onclick=()=>go(b.dataset.v));
+$$("#ftabs button").forEach(b=>b.onclick=()=>{filtro=b.dataset.f;$$("#ftabs button").forEach(x=>x.classList.toggle("on",x===b));loadThreads()});
+$("#q").oninput=()=>{clearTimeout($("#q")._h);$("#q")._h=setTimeout(loadThreads,250)};
+
+/* ---------- status e primeiros passos ---------- */
+async function loadHealth(){
+  try{status=await api("/api/status")}catch{return}
+  const p=status.novos+status.analisados;
+  $("#c-pend").hidden=!p;$("#c-pend").textContent=p;
+  $("#c-prop").hidden=!status.decisoes_propostas;$("#c-prop").textContent=status.decisoes_propostas;
+  const zl={ok:"Zoho sincronizado",erro:"Zoho com erro",aguardando:"Zoho aguardando",nao_configurado:"Zoho não configurado"}[status.zoho_state];
+  $("#health").innerHTML=`<button onclick="go('status')"><span class="dot ${status.zoho_state}"></span>${zl}</button>
+    <button onclick="go('status')"><span class="dot ${status.ia?"ok":"erro"}"></span>${status.ia?"IA pronta":"IA não configurada"}</button>
+    ${status.ultima_sync?`<span>Última leitura ${ago(status.ultima_sync)}</span>`:""}`;
 }
-const post = (p, body) => api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+function setupSteps(){
+  const s=status, z=s.zoho_state;
+  const steps=[
+    {ok:z==="ok",bad:z==="erro"||z==="nao_configurado",t:"Conectar o Zoho Mail",d:z==="erro"?s.erro:"Leitura automática dos e-mails da Motiva a cada "+s.poll_minutos+" min.",a:`<button class="btn sm" onclick="go('status')">Ver conexão</button>`},
+    {ok:s.ia,bad:!s.ia,t:"Configurar o modelo de IA",d:s.ia?s.modelo:"Defina AI_API_KEY no Render.",a:""},
+    {ok:s.documentos>0,t:"Subir as especificações e documentações",d:"EFs, documentação do Coupa de abril, documento do Wellington, WhatsApp do time.",a:`<button class="btn sm" onclick="go('base')">Adicionar</button>`},
+    {ok:s.decisoes_vigentes>0,t:"Registrar as decisões já acordadas",d:"A regra vigente de cada assunto, com fonte e aprovador. É o que dá segurança às respostas.",a:`<button class="btn sm" onclick="go('decisoes')">Registrar</button>`},
+  ];
+  if(steps.every(x=>x.ok))return"";
+  return`<div class="setup"><h2>Primeiros passos</h2><p>O funcional fica mais confiável a cada etapa concluída. Enquanto isso, você já pode colar um e-mail para testar.</p>
+    <ol class="steps">${steps.map(x=>`<li class="${x.ok?"done":x.bad?"bad":""}"><div class="tx"><b>${x.t}</b><span>${esc(x.d)}</span></div>${x.ok?"":x.a}</li>`).join("")}</ol></div>`;
+}
 
-// navegação
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));
-  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==="v-"+b.dataset.v));
-  ({caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,status:loadStatus})[b.dataset.v]();
-});
-document.querySelectorAll(".list .seg button").forEach(b=>b.onclick=()=>{
-  filtro=b.dataset.f; document.querySelectorAll(".list .seg button").forEach(x=>x.classList.toggle("on",x===b)); loadThreads();
-});
-$("#q").oninput = () => { clearTimeout($("#q")._h); $("#q")._h=setTimeout(loadThreads,250); };
-
-// caixa
+/* ---------- caixa ---------- */
 async function loadThreads(){
-  const list = await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent($("#q").value)}`);
-  $("#threads").innerHTML = list.length ? list.map(t=>`
-    <div class="thread ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0">
+  await loadHealth();
+  const list=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent($("#q").value)}`);
+  $("#threads").innerHTML=list.length?list.map(t=>{
+    const st=t.pending?(t.analyzed===t.pending?`<span class="tag pronto">Briefing pronto</span>`:`<span class="tag novo">Novo</span>`):"";
+    const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
+    return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
       <div class="s">${esc(t.subject)}</div>
-      <div class="m">${fmt(t.last_date)} <span>${esc((t.last_from||"").split("@")[0])}</span>
-        ${t.pending ? (t.analyzed===t.pending ? '<span class="pill an">briefing pronto</span>' : '<span class="pill new">novo</span>') : ""}</div>
-    </div>`).join("") : `<div class="empty">${filtro==="pendentes" ? "Nenhum e-mail pendente da Motiva." : "Nenhuma conversa ainda. Conecte o Zoho ou cole um e-mail manualmente."}</div>`;
-  document.querySelectorAll(".thread").forEach(el=>{ el.onclick=()=>openThread(el.dataset.k); el.onkeydown=e=>{ if(e.key==="Enter") openThread(el.dataset.k) }; });
+      <div class="m">${st}${cl}<span>${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")
+    :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${filtro==="pendentes"?"Nada a responder agora":"Nenhuma conversa ainda"}</b><br>${filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Conecte o Zoho ou cole um e-mail para começar."}</div>`;
+  $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
+  if(!current){$("#conv").innerHTML=setupSteps()||`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
 }
 
+let thread=null;
 async function openThread(key){
-  current = key;
-  document.querySelectorAll(".thread").forEach(el=>el.classList.toggle("on",el.dataset.k===key));
-  const d = await api("/api/threads/"+encodeURIComponent(key));
-  const target = [...d.emails].reverse().find(e=>e.direction==="in") || d.emails[d.emails.length-1];
-  $("#conv").innerHTML = `<h2>${esc(d.emails[d.emails.length-1].subject)}</h2>` + d.emails.map(e=>`
+  current=key;$$(".th").forEach(el=>el.classList.toggle("on",el.dataset.k===key));
+  thread=await api("/api/threads/"+encodeURIComponent(key));
+  const em=thread.emails, target=[...em].reverse().find(e=>e.direction==="in")||em[em.length-1];
+  thread.target=target;
+  $("#conv").innerHTML=`<h1>${esc(em[em.length-1].subject)}</h1><div class="meta">${em.length} ${em.length>1?"mensagens":"mensagem"} na conversa</div>`+em.map(e=>`
     <article class="msg ${e.direction==="out"?"out":""} ${e.id===target.id?"target":""}">
-      <header><span><b>${e.direction==="out"?"StartGi":esc(e.from)}</b>${e.to?" para "+esc(e.to):""}</span><span>${fmt(e.date)}</span></header>
+      <header><span class="who"><span class="av">${e.direction==="out"?"SG":initials(e.from)}</span><b>${e.direction==="out"?"StartGi":esc(e.from)}</b></span><span>${fmt(e.date)}</span></header>
       <div class="body">${esc(e.body)}</div>
-      ${e.direction==="in" ? `<div class="acts">
-        <button class="btn quick" onclick="runAnalyze(${e.id},this)">${d.analyses.some(a=>a.email_id===e.id)?"Refazer briefing":"Gerar briefing"}</button>
-        ${e.status!=="ignorado" && e.status!=="respondido" ? `<button class="btn quick" onclick="setStatus(${e.id},'ignorado')">Não precisa resposta</button>`:""}
-      </div>`:""}
+      ${e.body_full && e.body_full.length>e.body.length+40?`<button class="hist" onclick="this.previousElementSibling.textContent=${esc(JSON.stringify(e.body_full))};this.remove()">Mostrar histórico citado</button>`:""}
+      ${e.direction==="in"&&e.status!=="respondido"&&e.status!=="ignorado"?`<div class="acts"><button class="btn sm ghost" onclick="setStatus(${e.id},'ignorado')">Não precisa de resposta</button></div>`:""}
     </article>`).join("");
-  $("#conv").scrollTop = $("#conv").scrollHeight;
-  const a = [...d.analyses].reverse().find(x=>x.email_id===target.id) || d.analyses[d.analyses.length-1];
-  renderDesk(a, target);
+  $("#conv").scrollTop=$("#conv").scrollHeight;
+  deskTab="briefing";renderDesk();
 }
 
-function list(items, cls=""){ return items && items.length ? `<ul class="blk ${cls}">${items.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>` : `<div class="conf">Nada apontado.</div>`; }
-const labels = {sustentacao:"Sustentação", melhoria:"Melhoria", duvida:"Dúvida", fora_do_escopo_lumos:"Fora do escopo do Lumos"};
+function latestAnalysis(){const t=thread.target;return[...thread.analyses].reverse().find(a=>a.email_id===t.id)}
+function items(arr,cls){return arr&&arr.length?`<ul class="items ${cls}">${arr.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:`<div class="none">Nada apontado.</div>`}
 
-function renderDesk(a, target){
-  if(!a){
-    $("#desk").innerHTML = `<div class="empty" style="padding:0">Ainda não há briefing para este e-mail.<div class="row"><button class="btn pri" onclick="runAnalyze(${target.id},this)">Gerar briefing</button></div></div>`;
-    return;
-  }
-  const b = a.briefing || {}, c = b.classificacao || {};
-  const pend = (b.validar_antes_de_enviar||[]).length;
-  $("#desk").innerHTML = `
-    <h3>Classificação</h3>
-    <span class="stamp ${esc(c.tipo)}">${esc(labels[c.tipo]||c.tipo||"Sem classificação")}</span>
-    <div class="just">${esc(c.justificativa)}</div>
-    <h3>Recomendação</h3>
-    <div class="reco">${esc(b.recomendacao)}</div>
-    <div class="conf" style="margin-top:6px">Confiança ${esc(b.confianca||"?")} · ${esc(a.model)} · ${fmt(a.created_at)}</div>
-    <h3>O que a Motiva está dizendo</h3><div style="line-height:1.5">${esc(b.resumo)}</div>
-    <h3>Antes de enviar, validar${pend?` (${pend})`:""}</h3>${list(b.validar_antes_de_enviar,"amber")}
-    <h3>Contradições com o que já foi dito ou decidido</h3>${list(b.contradicoes,"red")}
-    <h3>Questionamentos de processo</h3>${list(b.questionamentos_de_processo)}
-    <h3>Riscos para a StartGi</h3>${list(b.riscos,"red")}
-    <h3>Histórico relevante</h3>${list(b.historico_relevante)}
-    <h3>Rascunho da resposta</h3>
-    ${pend?`<div class="warnbar">Há ${pend} ${pend>1?"pontos":"ponto"} para validar antes do envio. Marque cada um ao concluir.</div>`:""}
-    <div class="draft" style="margin-top:8px">
-      <input id="d-subj" value="${esc(a.draft_subject)}" aria-label="Assunto">
-      <textarea id="d-body" aria-label="Corpo">${esc(a.final_body || a.draft_body)}</textarea>
-    </div>
-    <div class="row">
-      <button class="btn quick" onclick="rw(${a.id},'Deixe mais curto e objetivo',this)">Mais curto</button>
-      <button class="btn quick" onclick="rw(${a.id},'Tom mais leve, sem soar defensivo',this)">Mais leve</button>
-      <button class="btn quick" onclick="rw(${a.id},'Mais firme, deixando claro o que é responsabilidade de cada parte',this)">Mais firme</button>
-      <button class="btn quick" onclick="rwCustom(${a.id},this)">Outra instrução</button>
-    </div>
-    <div class="row">
-      <button class="btn" onclick="copyDraft()">Copiar resposta</button>
-      <button class="btn pri" onclick="markSent(${a.id})">Marcar como enviada</button>
-    </div>
-    <h3>Fontes consultadas</h3>
-    <div class="src">${(a.sources||[]).map(s=>`<code>${esc(s.code)}</code> ${esc(s.label)}`).join("<br>") || "Nenhuma."}</div>`;
-  document.querySelectorAll(".blk.amber li").forEach(li=>li.onclick=()=>li.classList.toggle("done"));
+function renderDesk(){
+  const d=$("#desk");d.hidden=false;
+  const a=latestAnalysis(), t=thread.target;
+  if(!a){d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div><div style="height:12px"></div></div>
+    <div class="desk-body"><div class="empty"><h3>Sem briefing ainda</h3>O funcional lê a conversa, o registro de decisões e o histórico do projeto antes de sugerir a resposta.<div style="margin-top:16px"><button class="btn pri" onclick="runAnalyze(${t.id})">Gerar briefing</button></div></div></div>`;return}
+  const b=a.briefing||{}, c=b.classificacao||{}, val=b.validar_antes_de_enviar||[];
+  const done=(a._done=a._done||new Set());
+  d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div>
+    <div class="dtabs"><button data-t="briefing" class="${deskTab==="briefing"?"on":""}">Briefing</button><button data-t="resposta" class="${deskTab==="resposta"?"on":""}">Resposta${val.length-done.size>0?`<span class="n">${val.length-done.size}</span>`:""}</button></div></div>
+    <div class="desk-body">${deskTab==="briefing"?briefingHTML(a,b,c,val,done):draftHTML(a,val,done)}</div>
+    <div class="desk-foot">${deskTab==="briefing"
+      ?`<button class="btn ghost sm" onclick="runAnalyze(${t.id})">Refazer briefing</button><button class="btn pri" onclick="deskTab='resposta';renderDesk()">Ver resposta</button>`
+      :`<button class="btn" onclick="copyDraft()">Copiar resposta</button><button class="btn pri" onclick="markSent(${a.id})">Marcar como enviada</button>`}</div>`;
+  $$(".dtabs button").forEach(x=>x.onclick=()=>{saveDraftLocal(a);deskTab=x.dataset.t;renderDesk()});
+  $$(".check li").forEach(li=>li.onclick=()=>{const i=+li.dataset.i;done.has(i)?done.delete(i):done.add(i);saveDraftLocal(a);renderDesk()});
 }
+function checklist(val,done){
+  if(!val.length)return`<div class="none">Nenhum teste pendente apontado.</div>`;
+  return`<div class="conf">${done.size} de ${val.length} validados</div><div class="prog"><i style="width:${done.size/val.length*100}%"></i></div>
+    <ul class="items check">${val.map((v,i)=>`<li data-i="${i}" class="${done.has(i)?"done":""}"><span class="bx">${done.has(i)?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12l5 5 9-10"/></svg>':""}</span><span>${esc(v)}</span></li>`).join("")}</ul>`;
+}
+function briefingHTML(a,b,c,val,done){
+  return`<div class="sec verdict"><span class="stamp ${esc(c.tipo)}">${esc(CLS[c.tipo]||c.tipo||"Sem classificação")}</span><p>${esc(c.justificativa)}</p></div>
+  <div class="sec"><h4>Recomendação</h4><div class="reco">${esc(b.recomendacao)}</div><div class="conf" style="margin-top:6px">Confiança ${esc(b.confianca||"?")} · gerado ${ago(a.created_at)}</div></div>
+  <div class="sec"><h4>O que a Motiva está dizendo</h4><div style="line-height:1.55">${esc(b.resumo)}</div></div>
+  <div class="sec"><h4>Validar antes de enviar</h4>${checklist(val,done)}</div>
+  <div class="sec"><h4>Contradições com o que já foi dito ou decidido</h4>${items(b.contradicoes,"red")}</div>
+  <div class="sec"><h4>Questionamentos de processo</h4>${items(b.questionamentos_de_processo,"neutral")}</div>
+  <div class="sec"><h4>Riscos para a StartGi</h4>${items(b.riscos,"red")}</div>
+  <div class="sec"><h4>Histórico relevante</h4>${items(b.historico_relevante,"neutral")}</div>
+  <div class="sec"><h4>Fontes consultadas</h4><div class="srcs">${(a.sources||[]).map(s=>`<span><b>${esc(s.code)}</b> ${esc(s.label)}</span>`).join("")||'<div class="none">Nenhuma.</div>'}</div></div>`;
+}
+function draftHTML(a,val,done){
+  const open=val.length-done.size;
+  return`${open?`<div class="alert"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span>${open} ${open>1?"pontos ainda não validados":"ponto ainda não validado"}. Confira na aba Briefing antes de enviar.</span></div>`:""}
+  ${(a.briefing.contradicoes||[]).length?`<div class="alert red"><span>O briefing encontrou contradições com o que já foi dito. Revise antes de enviar.</span></div>`:""}
+  <div class="draft"><label for="d-subj">Assunto</label><input id="d-subj" value="${esc(a._subj??a.draft_subject)}">
+  <label for="d-body">Mensagem</label><textarea id="d-body">${esc(a._body??(a.final_body||a.draft_body))}</textarea></div>
+  <div class="chips"><button class="chip" onclick="rw(${a.id},'Deixe mais curto e objetivo',this)">Mais curto</button>
+    <button class="chip" onclick="rw(${a.id},'Tom mais leve, sem soar defensivo',this)">Mais leve</button>
+    <button class="chip" onclick="rw(${a.id},'Mais firme, deixando claro o que é responsabilidade de cada parte',this)">Mais firme</button>
+    <button class="chip" onclick="rwCustom(${a.id},this)">Outro ajuste</button></div>`;
+}
+function saveDraftLocal(a){if($("#d-body")){a._body=$("#d-body").value;a._subj=$("#d-subj").value}}
 
-async function runAnalyze(id, btn){
-  btn.disabled=true; const old=btn.textContent; btn.textContent="Analisando o contexto…";
-  try{ await post(`/api/emails/${id}/analyze`); toast("Briefing pronto."); await openThread(current); loadThreads(); refreshBadges(); }
-  catch(e){ toast(e.message); btn.disabled=false; btn.textContent=old; }
+const THINK=["Lendo a conversa","Consultando o registro de decisões","Cruzando com o que a StartGi já disse","Checando o processo de supply","Escrevendo o briefing e a resposta"];
+async function runAnalyze(id){
+  $("#desk").hidden=false;
+  $("#desk").innerHTML=`<div class="thinking"><div><img src="/static/icon.png" alt=""><div class="st" id="think">${THINK[0]}</div><div class="conf" style="margin-top:6px">Leva de 20 a 60 segundos.</div></div></div>`;
+  let i=0;const h=setInterval(()=>{i=Math.min(i+1,THINK.length-1);const el=$("#think");if(el)el.textContent=THINK[i]},7000);
+  try{await post(`/api/emails/${id}/analyze`);clearInterval(h);toast("Briefing pronto.");await openThread(current);loadThreads()}
+  catch(e){clearInterval(h);toast(e.message);renderDesk()}
 }
-async function rw(id, instr, btn){
-  btn.disabled=true;
-  try{ const r=await post(`/api/analyses/${id}/rewrite`,{instrucao:instr,corpo_atual:$("#d-body").value}); $("#d-body").value=r.draft_body; toast("Rascunho reescrito."); }
-  catch(e){ toast(e.message) } finally{ btn.disabled=false }
+async function rw(id,instr,btn){
+  const a=latestAnalysis();saveDraftLocal(a);btn.disabled=true;const o=btn.textContent;btn.textContent="Reescrevendo…";
+  try{const r=await post(`/api/analyses/${id}/rewrite`,{instrucao:instr,corpo_atual:$("#d-body").value});a._body=r.draft_body;renderDesk();toast("Resposta reescrita.")}
+  catch(e){toast(e.message);btn.disabled=false;btn.textContent=o}
 }
-function rwCustom(id, btn){ const i=prompt("Como quer ajustar o rascunho?"); if(i) rw(id,i,btn); }
-function copyDraft(){ navigator.clipboard.writeText($("#d-body").value).then(()=>toast("Resposta copiada. Cole no Zoho para enviar.")); }
+function rwCustom(id,btn){
+  const d=$("#dlg");d.innerHTML=`<form method="dialog"><h3>Como ajustar a resposta?</h3><div class="form"><label class="full">Instrução<textarea name="i" required placeholder="Ex.: deixe claro que a documentação de abril não tinha essa informação, sem soar defensivo"></textarea></label></div><div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Reescrever</button></div></form>`;
+  d.showModal();d.onclose=()=>{if(d.returnValue==="ok"){const v=d.querySelector("textarea").value.trim();if(v)rw(id,v,btn)}};
+}
+function copyDraft(){navigator.clipboard.writeText($("#d-body").value).then(()=>toast("Resposta copiada. Cole no Zoho para enviar."))}
 async function markSent(id){
-  const open = document.querySelectorAll(".blk.amber li:not(.done)").length;
-  if(open && !confirm(`Ainda há ${open} ${open>1?"pontos":"ponto"} de validação não marcados. Marcar como enviada mesmo assim?`)) return;
+  const a=latestAnalysis();saveDraftLocal(a);const val=(a.briefing.validar_antes_de_enviar||[]).length-(a._done?a._done.size:0);
+  if(val>0&&!confirm(`Ainda há ${val} ${val>1?"pontos não validados":"ponto não validado"}. Marcar como enviada mesmo assim?`))return;
   await post(`/api/analyses/${id}/sent`,{corpo_final:$("#d-body").value});
-  toast("Marcada como enviada. A versão final passa a servir de referência de estilo."); loadThreads(); refreshBadges(); openThread(current);
+  toast("Marcada como enviada. Essa versão passa a guiar o estilo das próximas respostas.");current=null;loadThreads();
 }
-async function setStatus(id, st){
-  const f=new FormData(); f.append("status",st);
-  await api(`/api/emails/${id}/status`,{method:"POST",body:f}); toast("Marcado como sem resposta."); loadThreads(); refreshBadges();
-}
+async function setStatus(id,st){const f=new FormData();f.append("status",st);await api(`/api/emails/${id}/status`,{method:"POST",body:f});toast("Marcado como sem necessidade de resposta.");loadThreads()}
 
 function openManual(){
   const d=$("#dlg");
-  d.innerHTML=`<form class="form" method="dialog" id="mf">
+  d.innerHTML=`<form method="dialog" id="mf"><h3>Colar um e-mail</h3><div class="form">
     <label>Remetente<input name="remetente" required placeholder="juliana@motiva.com.br"></label>
-    <label>Direção<select name="direcao"><option value="in">Recebido da Motiva</option><option value="out">Enviado pela StartGi</option></select></label>
-    <label class="full">Assunto<input name="assunto" required></label>
-    <label class="full">Corpo<textarea name="corpo" required style="min-height:200px"></textarea></label>
-    <div class="full row" style="margin:0"><button class="btn pri" value="ok">Adicionar</button><button class="btn" value="cancel" formnovalidate>Cancelar</button></div></form>`;
+    <label>Quem enviou<select name="direcao"><option value="in">A Motiva</option><option value="out">A StartGi</option></select></label>
+    <label class="full">Assunto<input name="assunto" required placeholder="Use o mesmo assunto para agrupar na conversa"></label>
+    <label class="full">Mensagem<textarea name="corpo" required style="min-height:200px"></textarea></label></div>
+    <div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar à caixa</button></div></form>`;
   d.showModal();
-  d.onclose = async ()=>{
-    if(d.returnValue!=="ok") return;
-    const f=Object.fromEntries(new FormData($("#mf")));
-    try{ const r=await post("/api/emails/manual",f); await loadThreads(); openThread(r.thread_key); }catch(e){ toast(e.message) }
-  };
+  d.onclose=async()=>{if(d.returnValue!=="ok")return;const f=Object.fromEntries(new FormData($("#mf")));
+    try{const r=await post("/api/emails/manual",f);current=r.thread_key;await loadThreads();await openThread(r.thread_key);if(f.direcao==="in")runAnalyze(thread.target.id)}catch(e){toast(e.message)}};
 }
 
-// decisões
-document.querySelectorAll("#dec-filter button").forEach(b=>b.onclick=()=>{
-  decFilter=b.dataset.s; document.querySelectorAll("#dec-filter button").forEach(x=>x.classList.toggle("on",x===b)); loadDecisions();
-});
-const stLabel={proposta:"Proposta",vigente:"Vigente",em_discussao:"Em discussão",substituida:"Substituída",descartada:"Descartada"};
-let decCache=[];
-async function loadDecisions(){
-  decCache = await api("/api/decisions?status="+decFilter);
-  $("#dec-body").innerHTML = decCache.length ? decCache.map(d=>`
-    <tr style="cursor:pointer" onclick="editDecision(${d.id})">
-      <td>D${d.id}</td>
-      <td><div style="color:var(--muted);font-size:12px">${esc(d.modulo)}</div>${esc(d.titulo)}</td>
-      <td style="white-space:pre-wrap">${esc(d.regra)}</td>
-      <td style="font-size:12.5px">${esc(d.fonte)}${d.data_decisao?"<br>"+esc(d.data_decisao):""}${d.aprovado_por?"<br>Aprovado por "+esc(d.aprovado_por):""}</td>
-      <td><span class="st ${d.status}">${stLabel[d.status]||d.status}</span>${d.substituida_por?`<div class="conf">por D${d.substituida_por}</div>`:""}</td>
-    </tr>`).join("") : `<tr><td colspan="5" class="conf" style="padding:18px">Nenhuma decisão aqui. Comece registrando as regras já acordadas com a Motiva, com a fonte de cada uma.</td></tr>`;
+/* ---------- decisões ---------- */
+const ST={proposta:"Para revisar",vigente:"Vigente",em_discussao:"Em discussão",substituida:"Substituída",descartada:"Descartada"};
+$$("#dtabs button").forEach(b=>b.onclick=()=>{decFilter=b.dataset.s;$$("#dtabs button").forEach(x=>x.classList.toggle("on",x===b));loadDecisions()});
+$("#dq").oninput=()=>renderDecisions();
+async function loadDecisions(){loadHealth();decCache=await api("/api/decisions?status="+decFilter);renderDecisions()}
+function renderDecisions(){
+  const q=$("#dq").value.toLowerCase();
+  const rows=decCache.filter(d=>!q||(d.titulo+d.modulo+d.regra).toLowerCase().includes(q));
+  $("#dec-body").innerHTML=rows.length?rows.map(d=>`<tr onclick="editDecision(${d.id})">
+    <td><b>D${d.id}</b></td><td><div class="conf">${esc(d.modulo)}</div>${esc(d.titulo)}</td>
+    <td style="white-space:pre-wrap">${esc(d.regra)}</td>
+    <td class="conf" style="font-size:12.5px">${esc(d.fonte)}${d.data_decisao?"<br>"+esc(d.data_decisao):""}${d.aprovado_por?"<br>Aprovado por "+esc(d.aprovado_por):""}</td>
+    <td><span class="st ${d.status}">${ST[d.status]||d.status}</span>${d.substituida_por?`<div class="conf" style="margin-top:4px">por D${d.substituida_por}</div>`:""}</td></tr>`).join("")
+    :`<tr><td colspan="5"><div class="empty" style="padding:26px"><b style="color:var(--ink)">Nenhuma decisão aqui</b><br>Comece pelas regras em disputa: tracking de etapas, reprovação de estratégia no Coupa e LOF. Cada uma com a fonte e quem aprovou.</div></td></tr>`;
 }
 function editDecision(id){
-  const d = decCache.find(x=>x.id===id) || {status:"vigente"};
-  const dlg=$("#dlg");
-  dlg.innerHTML=`<form class="form" method="dialog" id="df">
+  const d=decCache.find(x=>x.id===id)||{status:"vigente"};const dlg=$("#dlg");
+  dlg.innerHTML=`<form method="dialog" id="df"><h3>${d.id?"Decisão D"+d.id:"Registrar decisão"}</h3><div class="form">
     <label>Módulo<input name="modulo" value="${esc(d.modulo)}" placeholder="Tracking de etapas, LOF, Coupa…"></label>
-    <label>Status<select name="status">${Object.entries(stLabel).map(([k,v])=>`<option value="${k}" ${d.status===k?"selected":""}>${v}</option>`).join("")}</select></label>
-    <label class="full">Título<input name="titulo" required value="${esc(d.titulo)}"></label>
+    <label>Situação<select name="status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${d.status===k?"selected":""}>${v}</option>`).join("")}</select></label>
+    <label class="full">Assunto<input name="titulo" required value="${esc(d.titulo)}"></label>
     <label class="full">Regra<textarea name="regra" required>${esc(d.regra)}</textarea></label>
     <label class="full">Fonte<input name="fonte" value="${esc(d.fonte)}" placeholder="E-mail da Juliana de 28/07, EF-Coupa-004 v01…"></label>
-    <label>Data da decisão<input name="data_decisao" value="${esc(d.data_decisao)}"></label>
+    <label>Data da decisão<input name="data_decisao" value="${esc(d.data_decisao)}" placeholder="dd/mm/aaaa"></label>
     <label>Aprovado por (Motiva)<input name="aprovado_por" value="${esc(d.aprovado_por)}"></label>
-    <label>Substituída por (código)<input name="substituida_por" value="${d.substituida_por||""}" placeholder="Ex.: 12"></label>
-    <label>Notas<input name="notas" value="${esc(d.notas)}"></label>
-    <div class="full row" style="margin:0"><button class="btn pri" value="ok">Salvar decisão</button><button class="btn" value="cancel" formnovalidate>Cancelar</button></div></form>`;
+    <label>Substituída por<input name="substituida_por" value="${d.substituida_por||""}" placeholder="Código, ex.: 12"></label>
+    <label>Notas<input name="notas" value="${esc(d.notas)}"></label></div>
+    <div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${d.status==="proposta"?"Salvar":"Salvar decisão"}</button></div></form>`;
   dlg.showModal();
-  dlg.onclose = async ()=>{
-    if(dlg.returnValue!=="ok") return;
-    const f=Object.fromEntries(new FormData($("#df")));
-    f.substituida_por = f.substituida_por ? parseInt(f.substituida_por.replace(/\D/g,"")) : null;
-    try{
-      if(d.id) await api("/api/decisions/"+d.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});
-      else await post("/api/decisions",f);
-      toast("Decisão salva."); loadDecisions(); refreshBadges();
-    }catch(e){ toast(e.message) }
-  };
+  dlg.onclose=async()=>{if(dlg.returnValue!=="ok")return;const f=Object.fromEntries(new FormData($("#df")));
+    f.substituida_por=f.substituida_por?parseInt(f.substituida_por.replace(/\D/g,""))||null:null;
+    try{if(d.id)await api("/api/decisions/"+d.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});else await post("/api/decisions",f);toast("Decisão salva.");loadDecisions()}catch(e){toast(e.message)}};
 }
 
-// base
+/* ---------- base ---------- */
+const TP={especificacao:"Especificação (EF)",documentacao:"Documentação técnica",whatsapp:"WhatsApp",validador:"Validador de regras",outro:"Outro"};
 async function loadDocs(){
-  const docs = await api("/api/documents");
-  const tp={especificacao:"Especificação (EF)",documentacao:"Documentação técnica",whatsapp:"WhatsApp",validador:"Validador de regras",outro:"Outro"};
-  $("#doc-body").innerHTML = docs.length ? docs.map(d=>`<tr><td>${esc(d.nome)}</td><td>${tp[d.tipo]||d.tipo}</td><td>${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td>${fmt(d.created_at)}</td>
-    <td><button class="btn quick" onclick="delDoc(${d.id})">Remover</button></td></tr>`).join("") : `<tr><td colspan="5" class="conf" style="padding:18px">A base está vazia. Comece pelas EFs e pela documentação de abril do Coupa.</td></tr>`;
+  loadHealth();const docs=await api("/api/documents");
+  $("#doc-body").innerHTML=docs.length?docs.map(d=>`<tr style="cursor:default"><td><b>${esc(d.nome)}</b></td><td>${TP[d.tipo]||d.tipo}</td><td class="conf">${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td class="conf">${ago(d.created_at)}</td><td><button class="btn sm ghost" onclick="delDoc(${d.id})">Remover</button></td></tr>`).join("")
+    :`<tr style="cursor:default"><td colspan="5"><div class="empty" style="padding:26px"><b style="color:var(--ink)">A base está vazia</b><br>Comece pelas EFs e pelas duas documentações do Coupa, a de abril e a do Wellington.</div></td></tr>`;
 }
-async function uploadDoc(ev){
-  ev.preventDefault(); const btn=$("#doc-btn"); btn.disabled=true;
-  try{ const r=await api("/api/documents",{method:"POST",body:new FormData($("#doc-form"))}); toast(`Adicionado: ${r.nome}`); $("#doc-form").reset(); loadDocs(); }
-  catch(e){ toast(e.message) } finally{ btn.disabled=false }
-  return false;
-}
-async function delDoc(id){ if(!confirm("Remover este documento da base?")) return; await api("/api/documents/"+id,{method:"DELETE"}); loadDocs(); }
+const drop=$("#drop"),file=$("#file");
+["dragover","dragenter"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(e=>drop.addEventListener(e,()=>drop.classList.remove("over")));
+drop.addEventListener("drop",ev=>{ev.preventDefault();if(ev.dataTransfer.files[0]){file.files=ev.dataTransfer.files;showFile()}});
+file.onchange=showFile;
+function showFile(){$("#drop-tx").innerHTML=file.files[0]?`<b>${esc(file.files[0].name)}</b> pronto para adicionar`:`<b>Arraste um arquivo aqui</b> ou clique para escolher.`}
+async function uploadDoc(ev){ev.preventDefault();const b=$("#doc-btn");b.disabled=true;b.textContent="Lendo o arquivo…";
+  try{const r=await api("/api/documents",{method:"POST",body:new FormData($("#doc-form"))});toast(`Adicionado à base: ${r.nome}`);$("#doc-form").reset();showFile();loadDocs()}
+  catch(e){toast(e.message)}finally{b.disabled=false;b.textContent="Adicionar à base"}return false}
+async function delDoc(id){if(!confirm("Remover este documento da base?"))return;await api("/api/documents/"+id,{method:"DELETE"});toast("Documento removido.");loadDocs()}
 
-// status
+/* ---------- conexões ---------- */
 async function loadStatus(){
-  const s = await api("/api/status");
-  $("#kv").innerHTML = [
-    ["Zoho Mail", s.zoho ? `<span class="dot ok"></span>Conectado (${esc(s.zoho_user)})` : `<span class="dot bad"></span>Não configurado`],
-    ["Modelo de IA", s.ia ? `<span class="dot ok"></span>${esc(s.modelo)}` : `<span class="dot bad"></span>Sem chave de API`],
-    ["Domínios da Motiva", esc(s.dominios_motiva.join(", "))],
-    ["Última sincronização", s.ultima_sync ? fmt(s.ultima_sync) : "Nunca"],
-    ["Verificação", `A cada ${s.poll_minutos} min${s.auto_analise?", com briefing automático":""}`],
-    ["E-mails na base", s.emails], ["Documentos", s.documentos], ["Decisões vigentes", s.decisoes_vigentes],
-    ...(s.erro ? [["Último erro", `<span style="color:var(--stamp)">${esc(s.erro)}</span>`]] : [])
-  ].map(([k,v])=>`<div>${k}</div><div>${v}</div>`).join("");
-  $("#log").textContent = (s.log||[]).join("\n") || "Sem atividade ainda.";
+  await loadHealth();const s=status;
+  const zt={ok:["Sincronizando normalmente",`Conta ${s.zoho_user}. Leitura a cada ${s.poll_minutos} min.`],aguardando:["Aguardando a primeira leitura",`Conta ${s.zoho_user}.`],
+    erro:["Não foi possível ler os e-mails",s.erro],nao_configurado:["Não configurado","Defina ZOHO_EMAIL e ZOHO_APP_PASSWORD nas variáveis do Render."]}[s.zoho_state];
+  $("#conn").innerHTML=`<div class="card"><span class="dot ${s.zoho_state}" style="margin-top:7px"></span><div class="tx"><b>Zoho Mail · ${zt[0]}</b><div>${esc(zt[1])}</div>${s.ultima_sync?`<div>Última leitura ${ago(s.ultima_sync)}.</div>`:""}</div>${s.zoho?`<button class="btn sm" onclick="syncNow(this)">Ler e-mails agora</button>`:""}</div>
+    <div class="card"><span class="dot ${s.ia?"ok":"erro"}" style="margin-top:7px"></span><div class="tx"><b>Modelo de IA · ${s.ia?"Pronto":"Não configurado"}</b><div>${s.ia?esc(s.modelo)+(s.auto_analise?". Briefing automático para cada e-mail novo.":""):"Defina AI_API_KEY nas variáveis do Render."}</div></div></div>
+    <div class="card"><span class="dot ok" style="margin-top:7px"></span><div class="tx"><b>Domínios da Motiva</b><div>${esc(s.dominios_motiva.join(", "))}. Só e-mails com esses domínios entram no sistema.</div></div></div>`;
+  $("#stats").innerHTML=[["E-mails",s.emails],["Documentos",s.documentos],["Decisões vigentes",s.decisoes_vigentes],["Para revisar",s.decisoes_propostas]].map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");
+  $("#log").textContent=(s.log||[]).join("\n")||"Sem atividade ainda.";
 }
-async function syncNow(){ try{ await post("/api/sync"); toast("Sincronização iniciada."); setTimeout(loadStatus,2500) }catch(e){ toast(e.message) } }
+async function syncNow(b){b.disabled=true;b.textContent="Lendo…";try{await post("/api/sync");toast("Leitura iniciada.");setTimeout(loadStatus,4000)}catch(e){toast(e.message);b.disabled=false}}
 
-async function refreshBadges(){
-  try{
-    const s = await api("/api/status");
-    const p=$("#b-pend"), q=$("#b-prop");
-    p.hidden = !(s.novos+s.analisados); p.textContent = s.novos+s.analisados;
-    q.hidden = !s.decisoes_propostas; q.textContent = s.decisoes_propostas;
-    $("#foot").innerHTML = `<span class="dot ${s.zoho?"ok":"bad"}"></span>Zoho<br><span class="dot ${s.ia?"ok":"bad"}"></span>IA`;
-  }catch{}
-}
-loadThreads(); refreshBadges(); setInterval(()=>{ refreshBadges(); if($("#v-caixa").classList.contains("on")) loadThreads(); }, 60000);
+loadThreads();
+setInterval(()=>{if($("#v-caixa").classList.contains("on"))loadThreads();else loadHealth()},60000);
 </script>
 </body>
 </html>

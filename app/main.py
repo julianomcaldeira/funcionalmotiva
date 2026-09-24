@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import ai, mail
@@ -27,6 +28,7 @@ AUTO_ANALYZE = os.getenv("AUTO_ANALYZE", "true").lower() == "true"
 STATIC = Path(__file__).parent / "static"
 
 app = FastAPI(title="Funcional Lumos")
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
 state = {"last_sync": None, "last_error": None, "running": False, "log": []}
 
 
@@ -53,6 +55,27 @@ async def basic_auth(request: Request, call_next):
     return await call_next(request)
 
 
+def humanize_error(ex):
+    if isinstance(ex, OSError) and not isinstance(ex, __import__("imaplib").IMAP4.error):
+        return (f"Não foi possível alcançar o servidor {mail.IMAP_HOST}. Confira o ZOHO_IMAP_HOST "
+                f"({ex.__class__.__name__}).")
+    msg = ex.args[0] if getattr(ex, "args", None) else ex
+    if isinstance(msg, bytes):
+        msg = msg.decode(errors="replace")
+    msg = str(msg)
+    low = msg.lower()
+    if "enable imap" in low:
+        return ("O IMAP não está habilitado nesta conta do Zoho. Habilite em Zoho Mail → Configurações → "
+                "Contas de e-mail → Acesso IMAP. Se for conta de organização, o administrador também precisa "
+                "liberar o IMAP no Admin Console.")
+    if "authentication" in low or "invalid credentials" in low or "login" in low and "fail" in low:
+        return ("O Zoho recusou o login. Confira o ZOHO_EMAIL e use uma senha específica de aplicativo "
+                "no ZOHO_APP_PASSWORD, não a senha normal.")
+    if "getaddrinfo" in low or "timed out" in low or "connection refused" in low:
+        return f"Não foi possível alcançar o servidor {mail.IMAP_HOST}. Confira o ZOHO_IMAP_HOST."
+    return msg
+
+
 def run_sync():
     if state["running"]:
         return
@@ -70,8 +93,8 @@ def run_sync():
                 except Exception as ex:
                     log(f"Falha ao analisar o e-mail {eid}: {ex}")
     except Exception as ex:
-        state["last_error"] = str(ex)
-        log(f"Erro na sincronização: {ex}")
+        state["last_error"] = humanize_error(ex)
+        log(f"Erro na sincronização: {state['last_error']}")
     finally:
         state["running"] = False
 
@@ -112,7 +135,8 @@ def status():
             "documentos": s.query(Document).count(),
         }
         last_db = get_setting(s, "last_sync")
-    return {"zoho": mail.configured(), "zoho_user": mail.IMAP_USER, "ia": bool(ai.API_KEY),
+    zoho_state = "nao_configurado" if not mail.configured() else ("erro" if state["last_error"] else ("ok" if last_db else "aguardando"))
+    return {"zoho": mail.configured(), "zoho_state": zoho_state, "zoho_user": mail.IMAP_USER, "ia": bool(ai.API_KEY),
             "modelo": f"{ai.PROVIDER}:{ai.MODEL}", "dominios_motiva": mail.MOTIVA_DOMAINS,
             "poll_minutos": POLL_MINUTES, "auto_analise": AUTO_ANALYZE, "ultima_sync": last_db,
             "sincronizando": state["running"], "erro": state["last_error"], "log": state["log"][-25:], **counts}
@@ -144,6 +168,17 @@ def threads(filtro: str = "pendentes", q: str = ""):
             t["last_from"] = "StartGi" if e.direction == "out" else e.from_addr
         if e.direction == "in" and t["last_in_id"] is None:
             t["last_in_id"] = e.id
+    with SessionLocal() as s2:
+        in_ids = [t["last_in_id"] for t in by.values() if t["last_in_id"]]
+        cls = {}
+        if in_ids:
+            for a in s2.query(Analysis).filter(Analysis.email_id.in_(in_ids)).order_by(Analysis.id).all():
+                try:
+                    cls[a.email_id] = (json.loads(a.briefing_json or "{}").get("classificacao") or {}).get("tipo")
+                except Exception:
+                    pass
+    for t in by.values():
+        t["classificacao"] = cls.get(t["last_in_id"])
     out = list(by.values())
     if filtro == "pendentes":
         out = [t for t in out if t["pending"]]
