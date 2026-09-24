@@ -200,30 +200,48 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 16px;border-radius:10px;max-width:520px;line-height:1.4;display:none;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 
 /* dashboard */
-.dash-page{padding:28px 34px 60px;overflow:auto}
-.dash-header{display:flex;align-items:center;gap:16px;margin-bottom:24px}
-.dash-header h2{font-size:26px;margin:0;font-weight:700;font-family:var(--read)}
-.dash-live{font-size:13px;color:var(--brand);font-weight:600;display:flex;align-items:center;gap:6px;background:var(--brand-wash);padding:6px 14px;border-radius:20px}
+.dash-page{flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:24px 28px 28px;overflow:auto}
+.dash-header{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.dash-header h2{font-size:24px;margin:0;font-weight:700;font-family:var(--read)}
+.dash-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.dash-live{font-size:12.5px;color:var(--brand);font-weight:600;display:flex;align-items:center;gap:6px;background:var(--brand-wash);padding:6px 14px;border-radius:20px;margin-left:auto}
 .dash-live .dot{width:7px;height:7px}
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
-.dash-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
-.dash-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(26,213,109,.12)}
-.dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--brand);opacity:.6;border-radius:14px 14px 0 0}
-.dash-card h4{margin:0 0 12px;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
-.dash-card h4 svg{color:var(--brand)}
-.dash-stat{font-size:38px;font-weight:700;color:var(--ink);line-height:1;font-family:var(--ui)}
-.dash-stat span{font-size:15px;font-weight:400;color:var(--muted);margin-left:4px}
-.dash-stat-label{font-size:13px;color:var(--muted);margin-top:4px}
-.dash-bottom{display:grid;grid-template-columns:1fr 280px;gap:16px}
-.dash-card.wide{min-height:200px}
-.dash-card.wide .log{font-size:12px;max-height:250px;overflow:auto;white-space:pre-wrap;margin:0;padding:0;background:none;border:0}
-.dash-sync{font-size:22px;font-weight:700;color:var(--ink)}
-.dash-sync .sub{font-size:13px;color:var(--muted);font-weight:400;margin-top:4px}
+.dash-top{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.dash-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;min-width:0}
+.dash-card:hover{transform:translateY(-2px);box-shadow:0 8px 26px rgba(26,213,109,.12)}
+.dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--brand);opacity:.55}
+.dash-card.hot::before{background:var(--orange)}
+.dash-card h4{margin:0 0 10px;font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-card h4 svg{color:var(--brand);flex:none}
+.dash-stat{font-size:34px;font-weight:700;color:var(--ink);line-height:1;font-family:var(--ui)}
+.dash-stat span{font-size:14px;font-weight:400;color:var(--muted);margin-left:4px}
+.dash-stat-label{font-size:12.5px;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px}
+.dash-panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.dash-ph{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dash-ph h4{margin:0;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.dash-ph h4 svg{color:var(--brand);vertical-align:-2px}
+.dash-ph .btn{margin-left:auto}
+.dash-tasks{flex:1;min-height:0;overflow:auto;padding:6px 0}
+.dash-task{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line);cursor:pointer}
+.dash-task:hover{background:var(--bg)}
+.dash-task .tt{flex:1;min-width:0}
+.dash-task .tt b{display:block;font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-task .tt span{font-size:12px;color:var(--muted)}
+.dash-task .n{font-size:12px;font-weight:700;color:var(--brand);background:var(--brand-wash);border-radius:20px;padding:3px 10px;flex:none}
+.dash-task.empty{padding:30px;text-align:center;color:var(--muted)}
+.dash-panel .log{flex:1;min-height:0;overflow:auto;font-size:11.5px;line-height:1.6;white-space:pre-wrap;margin:0;padding:12px 16px;color:var(--muted)}
+.dash-sync{font-size:20px;font-weight:700;color:var(--ink);padding:14px 18px;border-bottom:1px solid var(--line)}
+.dash-sync .sub{font-size:12.5px;color:var(--muted);font-weight:400;margin-top:4px}
+.dash-actions{display:grid;gap:8px;padding:12px 16px}
+.dash-chart{display:flex;align-items:flex-end;gap:6px;padding:16px 18px;height:140px}
+.dash-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.dash-bar i{display:block;width:100%;background:var(--brand);border-radius:5px 5px 0 0;min-height:2px;opacity:.9;transition:height .3s}
+.dash-bar b{font-size:10px;color:var(--muted);font-weight:600;margin-top:5px;white-space:nowrap}
 
-@media (max-width:1020px){
-  .dash-bottom{grid-template-columns:1fr}
-  .dash-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-}
+@media (max-width:1280px){.dash-top{grid-template-columns:repeat(3,1fr)}.dash-main{grid-template-columns:1fr 1fr}}
+@media (max-width:1020px){.dash-bottom{grid-template-columns:1fr}.dash-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.dash-main{grid-template-columns:1fr}}
+@media (max-width:720px){.dash-top{grid-template-columns:repeat(2,1fr)}.dash-page{padding:16px 14px 20px}}
 
 @media (max-width:1280px){.desk{width:420px}.list{width:290px}}
 @media (max-width:1020px){
@@ -264,19 +282,32 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 <main>
   <section class="view on" id="v-dashboard"><div class="dash-page">
     <div class="dash-header">
-      <h2>Visão Geral</h2>
-      <div class="dash-live"><span class="dot ok"></span> Ao vivo</div>
+      <div><h2>Visão Geral</h2><div class="dash-sub" id="dash-range">Carregando…</div></div>
+      <div class="dash-live"><span class="dot ok" id="dash-dot"></span><span id="dash-livetx">Ao vivo</span></div>
     </div>
-    <div class="dash-grid" id="dash-grid"></div>
-    <div class="dash-bottom">
-      <div class="dash-card wide">
-        <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Atividade recente</h4>
+    <div class="dash-top" id="dash-top"></div>
+    <div class="dash-main">
+      <div class="dash-panel">
+        <div class="dash-ph">
+          <h4>Para responder agora</h4>
+          <button class="btn sm ghost" onclick="loadThreads();go('caixa')">Ver conversas</button>
+        </div>
+        <div class="dash-tasks" id="dash-tasks"></div>
+      </div>
+      <div class="dash-panel">
+        <div class="dash-ph">Última sincronização</div>
+        <div class="dash-sync" id="dash-sync">—</div>
+        <div class="dash-actions">
+          <button class="btn sm" onclick="dashSync(this)">Ler e-mails agora</button>
+          <button class="btn sm ghost" onclick="go('assistente')">Perguntar ao assistente</button>
+        </div>
+        <div class="dash-ph" style="border-top:1px solid var(--line)">Atividade recente</div>
         <pre class="log" id="dash-log"></pre>
       </div>
-      <div class="dash-card">
-        <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Última sincronização</h4>
-        <div class="dash-sync" id="dash-sync">—</div>
-      </div>
+    </div>
+    <div class="dash-panel">
+      <div class="dash-ph">Volume de e-mails · últimos 21 dias</div>
+      <div class="dash-chart" id="dash-chart"></div>
     </div>
   </div></section>
   <section class="view" id="v-caixa">
@@ -378,27 +409,47 @@ function aplicarFiltros(){loadThreads()};
 async function loadDashboard(){
   try{
   const d=await api("/api/dashboard");
-  const e=d.emails, dec=d.decisoes;
+  const e=d.emails, dec=d.decisoes, pend=e.novos+e.analisados;
   $("#c-email-total").hidden=!e.total;$("#c-email-total").textContent=e.total;
-  const grid=document.getElementById("dash-grid");
-  grid.innerHTML=`
-    <div class="dash-card" onclick="go('caixa')"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>E-mails totais</h4><div class="dash-stat">${e.total}<span></span></div><div class="dash-stat-label">Todos os e-mails</div></div>
-    <div class="dash-card" onclick="go('caixa')"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Pendentes</h4><div class="dash-stat">${e.novos + e.analisados}<span></span></div><div class="dash-stat-label">Aguardando resposta</div></div>
-    <div class="dash-card" onclick="go('caixa')"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Analisados</h4><div class="dash-stat">${e.analisados}<span></span></div><div class="dash-stat-label">Com briefing pronto</div></div>
-    <div class="dash-card" onclick="go('decisoes')"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Decisões vigentes</h4><div class="dash-stat">${dec.vigentes}<span></span></div><div class="dash-stat-label">Regras ativas</div></div>
-    <div class="dash-card"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Documentos</h4><div class="dash-stat">${d.documentos}<span></span></div><div class="dash-stat-label">Na base de conhecimento</div></div>
-    <div class="dash-card"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Análises IA</h4><div class="dash-stat">${d.analyses}<span></span></div><div class="dash-stat-label">Briefings gerados</div></div>
-    <div class="dash-card"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>E-mails enviados</h4><div class="dash-stat">${e.out}<span></span></div><div class="dash-stat-label">Respostas enviadas</div></div>
-    <div class="dash-card"><h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Arquivados</h4><div class="dash-stat">${e.arquivados}<span></span></div><div class="dash-stat-label">Histórico (antigos)</div></div>
-  `;
-  $("#dash-log").textContent=d.log_count?d.log.slice(-20).join("\n"):"Sem atividade ainda.";
+  $("#dash-top").innerHTML=`
+    <div class="dash-card hot" onclick="go('caixa')"><h4>Pendentes p/ responder</h4><div class="dash-stat">${pend}</div><div class="dash-stat-label">${e.novos} aguardando briefing · ${e.analisados} prontos</div></div>
+    <div class="dash-card" onclick="go('decisoes')"><h4>Decisões vigentes</h4><div class="dash-stat">${dec.vigentes}</div><div class="dash-stat-label">Regras em vigor</div></div>
+    <div class="dash-card" onclick="go('caixa')"><h4>E-mails importados</h4><div class="dash-stat">${e.total}</div><div class="dash-stat-label">${d.conversas} conversas</div></div>
+    <div class="dash-card"><h4>Documentos</h4><div class="dash-stat">${d.documentos}</div><div class="dash-stat-label">Base de conhecimento</div></div>
+    <div class="dash-card" onclick="go('assistente')"><h4>Briefings IA</h4><div class="dash-stat">${d.analyses}</div><div class="dash-stat-label">Análises geradas</div></div>
+    <div class="dash-card" onclick="go('caixa')"><h4>Arquivado</h4><div class="dash-stat">${e.arquivados}</div><div class="dash-stat-label">Histórico · ${e.out} respostas</div></div>`;
+  const tasks=$("#dash-tasks");
+  if(d.para_responder&&d.para_responder.length){
+    tasks.innerHTML=d.para_responder.map(t=>`
+      <div class="dash-task" data-k="${t.thread_key||''}">
+        <div class="tt"><b>${t.subject}</b><span>${t.last_from||'?'} · ${t.last_date?new Date(t.last_date).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):''}</span></div>
+        <div class="n">${t.count} ${t.count>1?"e-mails":"e-mail"}</div>
+      </div>`).join("");
+    $$("#dash-tasks .dash-task").forEach(el=>el.onclick=()=>{go("caixa");setTimeout(()=>openThread(el.dataset.k),60)});
+  }else{
+    tasks.innerHTML=`<div class="dash-task empty">Tudo em dia — nenhuma conversa pendente.</div>`;
+  }
+  const mx=Math.max(1,...(d.por_dia||[]).map(p=>p.total||0));
+  $("#dash-chart").innerHTML=(d.por_dia||[]).map(p=>`
+    <div class="dash-bar" title="${p.dia} · ${p.total} e-mails"><i style="height:${Math.max(3,p.total/mx*100)}%"></i><b>${new Date(p.dia+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</b></div>`).join("");
+  $("#dash-range").textContent=(d.por_dia&&d.por_dia.length)?d.por_dia[0].dia+" a "+d.por_dia[d.por_dia.length-1].dia:"";
+  $("#dash-log").textContent=d.log_count?d.log.slice(-30).join("\n"):"Sem atividade ainda.";
   const lastSync=d.ultima_sync?new Date(d.ultima_sync).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
-  $("#dash-sync").innerHTML=`${lastSync}<div class="sub">${d.zoho_state==="ok"?"Zoho ativo":"Zoho "+d.zoho_state}</div>`;
-  $("#dash-sync").querySelector(".sub").style.color=d.zoho_state==="ok"?"var(--brand)":"var(--red)";
+  $("#dash-sync").innerHTML=`${lastSync}<div class="sub">${d.zoho_state==="ok"?"Zoho sincronizado":"Zoho "+d.zoho_state}</div>`;
+  $("#dash-sync .sub").style.color=d.zoho_state==="ok"?"var(--brand)":"var(--red)";
+  const dot=$("#dash-dot"), tx=$("#dash-livetx");
+  if(d.zoho_state==="ok"){dot.className="dot ok";tx.textContent="Ao vivo"}
+  else if(d.zoho_state==="erro"){dot.className="dot erro";tx.textContent="Erro na sincronização"}
+  else{dot.className="dot aguardando";tx.textContent="Aguardando sincronização"}
   }catch(e){
-    $("#dash-grid").innerHTML=`<div class="empty" style="padding:30px"><b style="color:var(--ink)">Erro ao carregar</b><br>${e.message||e}</div>`;
+    $("#dash-top").innerHTML=`<div style="grid-column:1/-1" class="empty"><b style="color:var(--ink)">Erro ao carregar</b><br>${e.message||e}</div>`;
     $("#dash-log").textContent="Erro: "+(e.message||e);
   }
+}
+async function dashSync(b){
+  b.disabled=true;b.textContent="Lendo…";
+  try{await post("/api/sync");toast("Leitura dos e-mails iniciada.");setTimeout(loadDashboard,4000)}
+  catch(e){toast(e.message);b.disabled=false;b.textContent="Ler e-mails agora"}
 }
 setInterval(loadDashboard,30000);
 

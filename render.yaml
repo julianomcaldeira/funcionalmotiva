@@ -28,9 +28,9 @@ services:
       - key: MOTIVA_DOMAINS
         value: motiva.com.br,grupoccr.com.br
       - key: AI_PROVIDER
-        value: openai
+        value: gemini
       - key: AI_BASE_URL
-        value: https://generativelanguage.googleapis.com/v1beta/openai
+        value: https://generativelanguage.googleapis.com/v1beta
       - key: AI_MODEL
         value: gemini-2.5-flash
       - key: AI_API_KEY

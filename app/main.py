@@ -9,13 +9,14 @@ import threading
 import time
 import traceback
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy import func
 
 from . import ai, mail
 from .db import (Analysis, Decision, Document, Email, SessionLocal, get_setting,
@@ -150,11 +151,33 @@ def dashboard():
         decisoes_descartada = s.query(Decision).filter(Decision.status == "descartada").count()
         documentos = s.query(Document).count()
         analyses_total = s.query(Analysis).count()
+        conversas = s.query(Email.thread_key).distinct().count()
         last_sync = get_setting(s, "last_sync")
         first_email_date = s.query(Email).order_by(Email.date.asc()).first()
         last_email_date = s.query(Email).order_by(Email.date.desc()).first()
         ed = first_email_date.date.isoformat() if first_email_date and first_email_date.date else None
         ld = last_email_date.date.isoformat() if last_email_date and last_email_date.date else None
+        days = 21
+        since = (datetime.utcnow() - timedelta(days=days - 1)).date()
+        dia_total = {}
+        for dia, total in s.query(func.date(Email.date).label("dia"), func.count(Email.id)) \
+                .filter(Email.date >= since, Email.date.isnot(None)).group_by("dia").all():
+            dia_total[str(dia)] = total
+        por_dia = [{"dia": d.isoformat(), "total": dia_total.get(d.isoformat(), 0)}
+                   for d in (since + timedelta(days=i) for i in range(days))]
+        pend = s.query(Email).filter(Email.direction == "in",
+                                     Email.status.in_(["novo", "analisado"])).order_by(Email.date.desc()).limit(400).all()
+        resp = {}
+        for e in pend:
+            t = resp.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject,
+                                               "count": 0, "analyzed": 0, "last_date": e.date,
+                                               "last_from": e.from_addr})
+            t["count"] += 1
+            if e.status == "analisado":
+                t["analyzed"] += 1
+        para_responder = sorted(resp.values(), key=lambda t: t["last_date"] or datetime.min, reverse=True)[:8]
+        for t in para_responder:
+            t["last_date"] = t["last_date"].isoformat() if t["last_date"] else None
     zoho_state = "nao_configurado" if not mail.configured() else ("erro" if state["last_error"] else ("ok" if last_sync else "aguardando"))
     log_count = len(state.get("log", []))
     return {
@@ -171,6 +194,9 @@ def dashboard():
         },
         "documentos": documentos,
         "analyses": analyses_total,
+        "conversas": conversas,
+        "por_dia": por_dia,
+        "para_responder": para_responder,
         "ultima_sync": last_sync,
         "zoho_state": zoho_state,
         "ia": bool(ai.API_KEY),

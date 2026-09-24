@@ -123,20 +123,48 @@ def build_context(session, email_obj):
 def call_model(system, user):
     if not API_KEY:
         raise RuntimeError("IA não configurada: defina AI_API_KEY (e AI_PROVIDER/AI_MODEL).")
+    use_gemini = PROVIDER in ("gemini", "google") or (
+        PROVIDER == "openai" and "generativelanguage.googleapis.com" in (BASE_URL or ""))
+    if use_gemini:
+        base = (BASE_URL or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+        if base.endswith("/openai"):
+            base = base[: -len("/openai")]
+        url = f"{base}/models/{MODEL}:generateContent"
+        r = httpx.post(url, timeout=TIMEOUT, headers={
+            "x-goog-api-key": API_KEY, "content-type": "application/json"},
+            json={"systemInstruction": {"parts": [{"text": system}]},
+                  "contents": [{"role": "user", "parts": [{"text": user}]}],
+                  "generationConfig": {"maxOutputTokens": MAX_TOKENS}})
+        if r.status_code >= 400:
+            raise http_error(r)
+        data = r.json()
+        try:
+            return "".join(p.get("text", "") for c in data.get("candidates", [])
+                           for p in (c.get("content") or {}).get("parts", [])).strip()
+        except Exception:
+            raise RuntimeError(f"Resposta inesperada do Gemini: {str(data)[:500]}")
     if PROVIDER == "anthropic":
         url = (BASE_URL or "https://api.anthropic.com") + "/v1/messages"
         r = httpx.post(url, timeout=TIMEOUT, headers={
             "x-api-key": API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
             json={"model": MODEL, "max_tokens": MAX_TOKENS, "system": system,
                   "messages": [{"role": "user", "content": user}]})
-        r.raise_for_status()
+        if r.status_code >= 400:
+            raise http_error(r)
         return "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
     url = (BASE_URL or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
     r = httpx.post(url, timeout=TIMEOUT, headers={"Authorization": f"Bearer {API_KEY}"},
                    json={"model": MODEL, "max_tokens": MAX_TOKENS,
                          "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
-    r.raise_for_status()
+    if r.status_code >= 400:
+        raise http_error(r)
     return r.json()["choices"][0]["message"]["content"]
+
+
+def http_error(r):
+    detail = (r.text or "").strip()[:500].replace("\n", " ")
+    msg = f"IA respondeu HTTP {r.status_code} para {r.url}"
+    return RuntimeError(f"{msg}: {detail}" if detail else msg)
 
 
 def parse_json(text):
