@@ -3,12 +3,10 @@ import base64
 import io
 import json
 import os
-import re
 import secrets
 import threading
 import time
 import traceback
-from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -39,12 +37,6 @@ def log(msg):
     line = f"{datetime.now():%d/%m %H:%M:%S} {msg}"
     print(line, flush=True)
     state["log"] = (state["log"] + [line])[-60:]
-
-
-def subject_tokens(subject):
-    """Extrai as palavras-chave de um assunto de e-mail para agrupar temas."""
-    return [t for t in re.findall(r"[a-z0-9]{3,}", normalize_subject(subject)) if t not in
-            {"re", "fwd", "fw", "enc", "rv", "tr", "sem", "assunto", "novo", "nova"}][:8]
 
 
 @app.middleware("http")
@@ -253,8 +245,13 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
     by = {}
     for e in rows:
         t = by.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject, "last_date": e.date,
-                                          "count": 0, "pending": 0, "analyzed": 0, "last_from": None, "last_in_id": None})
+                                          "count": 0, "pending": 0, "analyzed": 0, "last_from": None,
+                                          "last_in_id": None, "senders": set(), "subjects": set()})
         t["count"] += 1
+        if e.from_addr:
+            t["senders"].add(e.from_addr)
+        if e.subject:
+            t["subjects"].add(e.subject)
         if e.direction == "in" and e.status in ("novo", "analisado"):
             t["pending"] += 1
             if e.status == "analisado":
@@ -279,40 +276,16 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
         out = [t for t in out if t["pending"]]
     if q:
         ql = q.lower()
-        out = [t for t in out if ql in (t["subject"] or "").lower() or ql in (t["last_from"] or "").lower()]
+        out = [t for t in out
+               if any(ql in (sub or "").lower() for sub in t["subjects"])
+               or any(ql in snd.lower() for snd in t["senders"])]
     out.sort(key=lambda t: t["last_date"] or datetime.min, reverse=True)
-
-    # ---- agrupa os assuntos em blocos por tema ----
-    counts = Counter()
-    for t in out:
-        for tok in set(subject_tokens(t["subject"])):
-            counts[tok] += 1
-    blocks = defaultdict(list)
-    for t in out:
-        toks = set(subject_tokens(t["subject"]))
-        shared = sorted((tok for tok in toks if counts[tok] > 1),
-                        key=lambda k: (-counts[k], k))[:3]
-        topic = " ".join(shared) or normalize_subject(t["subject"])
-        blocks[topic].append(t)
-
-    result = []
-    for topic, items in blocks.items():
-        items.sort(key=lambda t: t["last_date"] or datetime.min, reverse=True)
-        top = max(items, key=lambda t: t["last_date"] or datetime.min)
-        result.append({
-            "topico": topic.title(),
-            "assunto_base": top["subject"],
-            "total_emails": sum(t["count"] for t in items),
-            "total_conversas": len(items),
-            "pending": sum(t["pending"] for t in items),
-            "last_date": top["last_date"].isoformat() if top["last_date"] else None,
-            "threads": [{"thread_key": t["thread_key"], "subject": t["subject"], "count": t["count"],
-                         "pending": t["pending"], "analyzed": t["analyzed"], "last_from": t["last_from"],
-                         "last_date": t["last_date"].isoformat() if t["last_date"] else None,
-                         "classificacao": t["classificacao"]} for t in items],
-        })
-    result.sort(key=lambda b: b["last_date"] or "", reverse=True)
-    return result[:200]
+    return [{
+        "thread_key": t["thread_key"], "subject": t["subject"], "count": t["count"],
+        "pending": t["pending"], "analyzed": t["analyzed"], "last_from": t["last_from"],
+        "last_date": t["last_date"].isoformat() if t["last_date"] else None,
+        "classificacao": t["classificacao"],
+    } for t in out[:400]]
 
 
 def email_dict(e, full=True):

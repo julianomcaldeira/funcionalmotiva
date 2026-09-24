@@ -54,11 +54,8 @@ main{flex:1;min-width:0;display:flex}
 .tabs button{border:0;background:none;padding:5px 10px;border-radius:14px;color:var(--muted);font-weight:500;font-size:13px}
 .tabs button.on{background:var(--ink);color:#fff}
 .threads{flex:1;overflow:auto}
-.blk{margin:10px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.blk-h{display:flex;gap:8px;align-items:center;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--line);flex-wrap:wrap}
-.blk-h b{font-size:14px;color:var(--ink)}
-.blk-meta{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-left:auto;flex-wrap:wrap}
 .th{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;gap:5px;border-left:3px solid transparent}
+.th:last-child{border-bottom:0}
 .th:hover{background:var(--bg)}
 .th.on{background:var(--brand-wash);border-left-color:var(--brand)}
 .th .s{font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -485,17 +482,12 @@ async function loadThreads(){
   const df=$("#df").value;
   const rem=$("#remetente").value;
   const list=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
-  $("#threads").innerHTML=list.length?list.map(b=>{
-    const pend=b.pending?`<span class="tag ${b.pending===b.total_emails?"novo":"pronto"}" style="margin-left:auto">${b.pending} para responder</span>`:"";
-    return`<div class="blk">
-      <div class="blk-h"><b>${esc(b.topico)}</b><span class="blk-meta">${b.total_emails} ${b.total_emails>1?"e-mails":"e-mail"} · ${b.total_conversas} ${b.total_conversas>1?"assuntos":"assunto"} · ${ago(b.last_date)}${pend}</span></div>
-      ${b.threads.map(t=>{
-        const st=t.pending?(t.analyzed===t.pending?`<span class="tag pronto">Briefing pronto</span>`:`<span class="tag novo">Novo</span>`):"";
-        const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
-        return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
-          <div class="s">${esc(t.subject)}</div>
-          <div class="m">${st}${cl}<span>${t.count} ${t.count>1?"e-mails":"e-mail"} · ${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")}
-    </div>`}).join("")
+  $("#threads").innerHTML=list.length?list.map(t=>{
+    const st=t.pending?(t.analyzed===t.pending?`<span class="tag pronto">Briefing pronto</span>`:`<span class="tag novo">Novo</span>`):"";
+    const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
+    return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
+      <div class="s">${esc(t.subject)}</div>
+      <div class="m">${st}${cl}<span>${t.count} ${t.count>1?"e-mails":"e-mail"} · ${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")
     :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${filtro==="pendentes"?"Nada a responder agora":"Nenhuma conversa encontrada"}</b><br>${filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
   $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
   if(!current){$("#conv").innerHTML=`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
