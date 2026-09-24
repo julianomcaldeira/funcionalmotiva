@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Funcional Lumos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3F4F1; --panel:#FFFFFF; --ink:#1F2A33; --muted:#5E6A72; --line:#D6DAD4;
+  --action:#2F4B6E; --action-ink:#FFFFFF; --stamp:#A8321E; --ok:#2E6A4A; --warn:#9A6414;
+  --soft:#E9ECE7; --sel:#E3EAF2;
+  --ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --read:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--ui);font-size:14px;color:var(--ink);background:var(--paper);display:flex}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--action);outline-offset:2px}
+
+nav{width:214px;flex:none;border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px;background:var(--paper)}
+nav h1{font-family:var(--read);font-weight:600;font-size:19px;margin:0 8px 2px;letter-spacing:-.01em}
+nav .sub{color:var(--muted);font-size:12px;margin:0 8px 18px}
+nav button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center}
+nav button:hover{background:var(--soft)}
+nav button.on{background:var(--sel);font-weight:600}
+nav .badge{font-size:12px;background:var(--stamp);color:#fff;border-radius:10px;padding:0 7px;min-width:20px;text-align:center}
+nav .foot{margin-top:auto;font-size:12px;color:var(--muted);padding:0 8px;line-height:1.5}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--line)}
+.dot.ok{background:var(--ok)} .dot.bad{background:var(--stamp)}
+
+main{flex:1;min-width:0;display:flex}
+.view{display:none;flex:1;min-width:0}
+.view.on{display:flex}
+
+/* caixa: três colunas */
+.list{width:300px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--paper)}
+.list .tools{padding:12px;display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.list .tools input{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:6px 9px;font-size:12px}
+.seg button.on{background:var(--action);color:#fff}
+.threads{overflow:auto;flex:1}
+.thread{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.thread:hover{background:var(--soft)}
+.thread.on{background:var(--sel)}
+.thread .s{font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.thread .m{color:var(--muted);font-size:12px;margin-top:4px;display:flex;gap:8px;align-items:center}
+.pill{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid currentColor}
+.pill.new{color:var(--stamp)} .pill.an{color:var(--action)}
+
+.conv{flex:1;min-width:0;overflow:auto;padding:22px 26px;border-right:1px solid var(--line)}
+.conv h2{font-family:var(--read);font-size:21px;font-weight:600;margin:0 0 16px;line-height:1.3;max-width:60ch}
+.msg{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:12px}
+.msg.out{border-left:3px solid var(--action)}
+.msg.target{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp)}
+.msg header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted)}
+.msg header b{color:var(--ink);font-weight:600}
+.msg .body{padding:12px 14px;font-family:var(--read);font-size:15px;line-height:1.55;white-space:pre-wrap;max-width:72ch}
+.msg .acts{padding:0 14px 12px;display:flex;gap:8px;flex-wrap:wrap}
+.empty{color:var(--muted);padding:40px 26px;max-width:46ch;line-height:1.55}
+
+.desk{width:470px;flex:none;overflow:auto;padding:22px 22px 40px;background:#FAFBF9}
+.desk h3{font-size:12.5px;font-weight:600;color:var(--muted);margin:22px 0 8px}
+.desk h3:first-child{margin-top:0}
+.stamp{display:inline-block;border:2px solid var(--stamp);color:var(--stamp);padding:3px 10px;border-radius:4px;font-weight:600;transform:rotate(-2deg);font-size:15px;background:#fff}
+.stamp.sustentacao{border-color:var(--ok);color:var(--ok)}
+.stamp.duvida{border-color:var(--action);color:var(--action)}
+.just{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
+.reco{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--action);border-radius:6px;padding:10px 12px;line-height:1.5;font-weight:500}
+.blk{margin:0;padding:0;list-style:none}
+.blk li{padding:7px 0 7px 22px;position:relative;line-height:1.45;border-bottom:1px dashed var(--line)}
+.blk li:last-child{border-bottom:0}
+.blk li::before{content:"";position:absolute;left:4px;top:13px;width:8px;height:8px;border-radius:2px;background:var(--muted)}
+.blk.red li::before{background:var(--stamp)}
+.blk.amber li::before{background:transparent;border:1.5px solid var(--warn);border-radius:2px}
+.blk.amber li.done{color:var(--muted);text-decoration:line-through}
+.blk.amber li{cursor:pointer}
+.conf{font-size:12px;color:var(--muted)}
+.src{font-size:12px;color:var(--muted);line-height:1.6}
+.src code{font-family:var(--ui);background:var(--soft);padding:0 4px;border-radius:3px;color:var(--ink)}
+.draft input,.draft textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:#fff}
+.draft textarea{font-family:var(--read);font-size:15px;line-height:1.55;min-height:260px;resize:vertical;margin-top:6px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px}
+.btn:hover{border-color:var(--action)}
+.btn.pri{background:var(--action);color:var(--action-ink);border-color:var(--action)}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.55;cursor:wait}
+.quick{font-size:12px;padding:4px 9px}
+.warnbar{background:#FFF4E5;border:1px solid #EACB9A;color:#6B4A10;padding:9px 12px;border-radius:6px;line-height:1.45;font-size:13px}
+
+/* páginas simples */
+.page{flex:1;overflow:auto;padding:26px 32px 60px}
+.page h2{font-family:var(--read);font-size:24px;font-weight:600;margin:0 0 4px}
+.page .lead{color:var(--muted);margin:0 0 20px;max-width:70ch;line-height:1.5}
+table{border-collapse:collapse;width:100%;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
+th{font-size:12px;color:var(--muted);font-weight:600;background:#FAFBF9}
+tr:hover td{background:#FBFCFA}
+.st{font-size:12px;font-weight:600}
+.st.vigente{color:var(--ok)} .st.proposta{color:var(--warn)} .st.em_discussao{color:var(--action)}
+.st.substituida,.st.descartada{color:var(--muted);text-decoration:line-through}
+.form{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;max-width:980px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+.form .full{grid-column:1/-1}
+.form input,.form select,.form textarea{border:1px solid var(--line);border-radius:6px;padding:7px 9px;color:var(--ink);background:#fff}
+.form textarea{min-height:80px;resize:vertical}
+.kv{display:grid;grid-template-columns:200px 1fr;gap:8px 16px;max-width:760px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px}
+.kv div:nth-child(odd){color:var(--muted)}
+pre.log{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;max-height:320px;overflow:auto;white-space:pre-wrap}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:#fff;padding:10px 14px;border-radius:6px;max-width:420px;line-height:1.4;display:none;z-index:9}
+dialog{border:1px solid var(--line);border-radius:10px;padding:0;width:min(640px,92vw)}
+dialog::backdrop{background:rgba(31,42,51,.35)}
+dialog .form{border:0;margin:0}
+
+@media (max-width:1180px){.desk{width:400px}}
+@media (max-width:980px){
+  body{flex-direction:column} nav{width:auto;flex-direction:row;overflow:auto;padding:8px;border-right:0;border-bottom:1px solid var(--line)}
+  nav h1,nav .sub,nav .foot{display:none}
+  #v-caixa.on{flex-direction:column} .list{width:auto;max-height:40vh} .desk{width:auto} .conv{border-right:0}
+  .form{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<nav>
+  <h1>Funcional Lumos</h1>
+  <div class="sub">StartGi · Motiva</div>
+  <button data-v="caixa" class="on">Caixa <span class="badge" id="b-pend" hidden></span></button>
+  <button data-v="decisoes">Registro de decisões <span class="badge" id="b-prop" hidden></span></button>
+  <button data-v="base">Base de conhecimento</button>
+  <button data-v="status">Conexões</button>
+  <div class="foot" id="foot"></div>
+</nav>
+
+<main>
+  <!-- CAIXA -->
+  <section class="view on" id="v-caixa">
+    <div class="list">
+      <div class="tools">
+        <input id="q" placeholder="Buscar assunto ou remetente" aria-label="Buscar">
+        <div class="seg" role="tablist">
+          <button data-f="pendentes" class="on">Pendentes</button><button data-f="todas">Todas</button>
+        </div>
+      </div>
+      <div class="threads" id="threads"></div>
+      <div style="padding:10px 12px;border-top:1px solid var(--line)">
+        <button class="btn" style="width:100%" onclick="openManual()">Colar e-mail manualmente</button>
+      </div>
+    </div>
+    <div class="conv" id="conv"><div class="empty">Escolha uma conversa à esquerda. Os e-mails da Motiva chegam do Zoho automaticamente e ganham um briefing do funcional antes da resposta.</div></div>
+    <aside class="desk" id="desk"></aside>
+  </section>
+
+  <!-- DECISÕES -->
+  <section class="view" id="v-decisoes"><div class="page">
+    <h2>Registro de decisões</h2>
+    <p class="lead">A regra que vale para cada assunto, com a fonte e quem aprovou do lado da Motiva. É a primeira referência do funcional em toda resposta. Decisões propostas vêm dos e-mails e só passam a valer depois de revisadas aqui.</p>
+    <div class="row" style="margin:0 0 14px">
+      <div class="seg" id="dec-filter">
+        <button data-s="" class="on">Todas</button><button data-s="proposta">Propostas</button><button data-s="vigente">Vigentes</button><button data-s="em_discussao">Em discussão</button><button data-s="substituida">Substituídas</button>
+      </div>
+      <button class="btn pri" onclick="editDecision()">Nova decisão</button>
+    </div>
+    <table><thead><tr><th style="width:60px">Código</th><th>Módulo e título</th><th>Regra</th><th style="width:210px">Fonte e aprovação</th><th style="width:110px">Status</th></tr></thead><tbody id="dec-body"></tbody></table>
+  </div></section>
+
+  <!-- BASE -->
+  <section class="view" id="v-base"><div class="page">
+    <h2>Base de conhecimento</h2>
+    <p class="lead">Especificações (EFs), documentações técnicas, exportações do WhatsApp do time e resultados do validador de regras. Tudo aqui entra na busca do funcional, junto com o histórico de e-mails.</p>
+    <form class="form" id="doc-form" onsubmit="return uploadDoc(event)">
+      <label>Tipo
+        <select name="tipo">
+          <option value="especificacao">Especificação (EF)</option>
+          <option value="documentacao">Documentação técnica</option>
+          <option value="whatsapp">Exportação do WhatsApp</option>
+          <option value="validador">Resultado do validador de regras</option>
+          <option value="outro">Outro</option>
+        </select></label>
+      <label>Nome (opcional)<input name="nome" placeholder="Ex.: Documentação Coupa Sourcing API, abril/2026"></label>
+      <label class="full">Arquivo (PDF, DOCX, TXT, MD)<input type="file" name="arquivo" accept=".pdf,.docx,.txt,.md,.csv,.json"></label>
+      <label class="full">Ou cole o texto<textarea name="texto" placeholder="Cole aqui o conteúdo"></textarea></label>
+      <div class="full row" style="margin:0"><button class="btn pri" id="doc-btn">Adicionar à base</button></div>
+    </form>
+    <table><thead><tr><th>Nome</th><th style="width:190px">Tipo</th><th style="width:120px">Tamanho</th><th style="width:150px">Adicionado</th><th style="width:90px"></th></tr></thead><tbody id="doc-body"></tbody></table>
+  </div></section>
+
+  <!-- STATUS -->
+  <section class="view" id="v-status"><div class="page">
+    <h2>Conexões</h2>
+    <p class="lead">A configuração é feita pelas variáveis de ambiente do servidor (veja o README). O acesso ao Zoho é somente leitura, e nenhuma resposta é enviada pelo sistema.</p>
+    <div class="kv" id="kv"></div>
+    <div class="row" style="margin:14px 0"><button class="btn pri" onclick="syncNow()">Sincronizar agora</button></div>
+    <h3 style="font-size:13px;color:var(--muted)">Atividade recente</h3>
+    <pre class="log" id="log"></pre>
+  </div></section>
+</main>
+
+<dialog id="dlg"></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? "").toString().replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = iso => iso ? new Date(iso + (iso.endsWith("Z") ? "" : "Z")).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+let filtro = "pendentes", current = null, decFilter = "";
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none",4200); }
+async function api(path, opts={}){
+  const r = await fetch(path, opts);
+  if(!r.ok){ let d; try{ d=(await r.json()).detail }catch{ d=r.statusText } throw new Error(d || "Erro"); }
+  return r.json();
+}
+const post = (p, body) => api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+
+// navegação
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==="v-"+b.dataset.v));
+  ({caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,status:loadStatus})[b.dataset.v]();
+});
+document.querySelectorAll(".list .seg button").forEach(b=>b.onclick=()=>{
+  filtro=b.dataset.f; document.querySelectorAll(".list .seg button").forEach(x=>x.classList.toggle("on",x===b)); loadThreads();
+});
+$("#q").oninput = () => { clearTimeout($("#q")._h); $("#q")._h=setTimeout(loadThreads,250); };
+
+// caixa
+async function loadThreads(){
+  const list = await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent($("#q").value)}`);
+  $("#threads").innerHTML = list.length ? list.map(t=>`
+    <div class="thread ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0">
+      <div class="s">${esc(t.subject)}</div>
+      <div class="m">${fmt(t.last_date)} <span>${esc((t.last_from||"").split("@")[0])}</span>
+        ${t.pending ? (t.analyzed===t.pending ? '<span class="pill an">briefing pronto</span>' : '<span class="pill new">novo</span>') : ""}</div>
+    </div>`).join("") : `<div class="empty">${filtro==="pendentes" ? "Nenhum e-mail pendente da Motiva." : "Nenhuma conversa ainda. Conecte o Zoho ou cole um e-mail manualmente."}</div>`;
+  document.querySelectorAll(".thread").forEach(el=>{ el.onclick=()=>openThread(el.dataset.k); el.onkeydown=e=>{ if(e.key==="Enter") openThread(el.dataset.k) }; });
+}
+
+async function openThread(key){
+  current = key;
+  document.querySelectorAll(".thread").forEach(el=>el.classList.toggle("on",el.dataset.k===key));
+  const d = await api("/api/threads/"+encodeURIComponent(key));
+  const target = [...d.emails].reverse().find(e=>e.direction==="in") || d.emails[d.emails.length-1];
+  $("#conv").innerHTML = `<h2>${esc(d.emails[d.emails.length-1].subject)}</h2>` + d.emails.map(e=>`
+    <article class="msg ${e.direction==="out"?"out":""} ${e.id===target.id?"target":""}">
+      <header><span><b>${e.direction==="out"?"StartGi":esc(e.from)}</b>${e.to?" para "+esc(e.to):""}</span><span>${fmt(e.date)}</span></header>
+      <div class="body">${esc(e.body)}</div>
+      ${e.direction==="in" ? `<div class="acts">
+        <button class="btn quick" onclick="runAnalyze(${e.id},this)">${d.analyses.some(a=>a.email_id===e.id)?"Refazer briefing":"Gerar briefing"}</button>
+        ${e.status!=="ignorado" && e.status!=="respondido" ? `<button class="btn quick" onclick="setStatus(${e.id},'ignorado')">Não precisa resposta</button>`:""}
+      </div>`:""}
+    </article>`).join("");
+  $("#conv").scrollTop = $("#conv").scrollHeight;
+  const a = [...d.analyses].reverse().find(x=>x.email_id===target.id) || d.analyses[d.analyses.length-1];
+  renderDesk(a, target);
+}
+
+function list(items, cls=""){ return items && items.length ? `<ul class="blk ${cls}">${items.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>` : `<div class="conf">Nada apontado.</div>`; }
+const labels = {sustentacao:"Sustentação", melhoria:"Melhoria", duvida:"Dúvida", fora_do_escopo_lumos:"Fora do escopo do Lumos"};
+
+function renderDesk(a, target){
+  if(!a){
+    $("#desk").innerHTML = `<div class="empty" style="padding:0">Ainda não há briefing para este e-mail.<div class="row"><button class="btn pri" onclick="runAnalyze(${target.id},this)">Gerar briefing</button></div></div>`;
+    return;
+  }
+  const b = a.briefing || {}, c = b.classificacao || {};
+  const pend = (b.validar_antes_de_enviar||[]).length;
+  $("#desk").innerHTML = `
+    <h3>Classificação</h3>
+    <span class="stamp ${esc(c.tipo)}">${esc(labels[c.tipo]||c.tipo||"Sem classificação")}</span>
+    <div class="just">${esc(c.justificativa)}</div>
+    <h3>Recomendação</h3>
+    <div class="reco">${esc(b.recomendacao)}</div>
+    <div class="conf" style="margin-top:6px">Confiança ${esc(b.confianca||"?")} · ${esc(a.model)} · ${fmt(a.created_at)}</div>
+    <h3>O que a Motiva está dizendo</h3><div style="line-height:1.5">${esc(b.resumo)}</div>
+    <h3>Antes de enviar, validar${pend?` (${pend})`:""}</h3>${list(b.validar_antes_de_enviar,"amber")}
+    <h3>Contradições com o que já foi dito ou decidido</h3>${list(b.contradicoes,"red")}
+    <h3>Questionamentos de processo</h3>${list(b.questionamentos_de_processo)}
+    <h3>Riscos para a StartGi</h3>${list(b.riscos,"red")}
+    <h3>Histórico relevante</h3>${list(b.historico_relevante)}
+    <h3>Rascunho da resposta</h3>
+    ${pend?`<div class="warnbar">Há ${pend} ${pend>1?"pontos":"ponto"} para validar antes do envio. Marque cada um ao concluir.</div>`:""}
+    <div class="draft" style="margin-top:8px">
+      <input id="d-subj" value="${esc(a.draft_subject)}" aria-label="Assunto">
+      <textarea id="d-body" aria-label="Corpo">${esc(a.final_body || a.draft_body)}</textarea>
+    </div>
+    <div class="row">
+      <button class="btn quick" onclick="rw(${a.id},'Deixe mais curto e objetivo',this)">Mais curto</button>
+      <button class="btn quick" onclick="rw(${a.id},'Tom mais leve, sem soar defensivo',this)">Mais leve</button>
+      <button class="btn quick" onclick="rw(${a.id},'Mais firme, deixando claro o que é responsabilidade de cada parte',this)">Mais firme</button>
+      <button class="btn quick" onclick="rwCustom(${a.id},this)">Outra instrução</button>
+    </div>
+    <div class="row">
+      <button class="btn" onclick="copyDraft()">Copiar resposta</button>
+      <button class="btn pri" onclick="markSent(${a.id})">Marcar como enviada</button>
+    </div>
+    <h3>Fontes consultadas</h3>
+    <div class="src">${(a.sources||[]).map(s=>`<code>${esc(s.code)}</code> ${esc(s.label)}`).join("<br>") || "Nenhuma."}</div>`;
+  document.querySelectorAll(".blk.amber li").forEach(li=>li.onclick=()=>li.classList.toggle("done"));
+}
+
+async function runAnalyze(id, btn){
+  btn.disabled=true; const old=btn.textContent; btn.textContent="Analisando o contexto…";
+  try{ await post(`/api/emails/${id}/analyze`); toast("Briefing pronto."); await openThread(current); loadThreads(); refreshBadges(); }
+  catch(e){ toast(e.message); btn.disabled=false; btn.textContent=old; }
+}
+async function rw(id, instr, btn){
+  btn.disabled=true;
+  try{ const r=await post(`/api/analyses/${id}/rewrite`,{instrucao:instr,corpo_atual:$("#d-body").value}); $("#d-body").value=r.draft_body; toast("Rascunho reescrito."); }
+  catch(e){ toast(e.message) } finally{ btn.disabled=false }
+}
+function rwCustom(id, btn){ const i=prompt("Como quer ajustar o rascunho?"); if(i) rw(id,i,btn); }
+function copyDraft(){ navigator.clipboard.writeText($("#d-body").value).then(()=>toast("Resposta copiada. Cole no Zoho para enviar.")); }
+async function markSent(id){
+  const open = document.querySelectorAll(".blk.amber li:not(.done)").length;
+  if(open && !confirm(`Ainda há ${open} ${open>1?"pontos":"ponto"} de validação não marcados. Marcar como enviada mesmo assim?`)) return;
+  await post(`/api/analyses/${id}/sent`,{corpo_final:$("#d-body").value});
+  toast("Marcada como enviada. A versão final passa a servir de referência de estilo."); loadThreads(); refreshBadges(); openThread(current);
+}
+async function setStatus(id, st){
+  const f=new FormData(); f.append("status",st);
+  await api(`/api/emails/${id}/status`,{method:"POST",body:f}); toast("Marcado como sem resposta."); loadThreads(); refreshBadges();
+}
+
+function openManual(){
+  const d=$("#dlg");
+  d.innerHTML=`<form class="form" method="dialog" id="mf">
+    <label>Remetente<input name="remetente" required placeholder="juliana@motiva.com.br"></label>
+    <label>Direção<select name="direcao"><option value="in">Recebido da Motiva</option><option value="out">Enviado pela StartGi</option></select></label>
+    <label class="full">Assunto<input name="assunto" required></label>
+    <label class="full">Corpo<textarea name="corpo" required style="min-height:200px"></textarea></label>
+    <div class="full row" style="margin:0"><button class="btn pri" value="ok">Adicionar</button><button class="btn" value="cancel" formnovalidate>Cancelar</button></div></form>`;
+  d.showModal();
+  d.onclose = async ()=>{
+    if(d.returnValue!=="ok") return;
+    const f=Object.fromEntries(new FormData($("#mf")));
+    try{ const r=await post("/api/emails/manual",f); await loadThreads(); openThread(r.thread_key); }catch(e){ toast(e.message) }
+  };
+}
+
+// decisões
+document.querySelectorAll("#dec-filter button").forEach(b=>b.onclick=()=>{
+  decFilter=b.dataset.s; document.querySelectorAll("#dec-filter button").forEach(x=>x.classList.toggle("on",x===b)); loadDecisions();
+});
+const stLabel={proposta:"Proposta",vigente:"Vigente",em_discussao:"Em discussão",substituida:"Substituída",descartada:"Descartada"};
+let decCache=[];
+async function loadDecisions(){
+  decCache = await api("/api/decisions?status="+decFilter);
+  $("#dec-body").innerHTML = decCache.length ? decCache.map(d=>`
+    <tr style="cursor:pointer" onclick="editDecision(${d.id})">
+      <td>D${d.id}</td>
+      <td><div style="color:var(--muted);font-size:12px">${esc(d.modulo)}</div>${esc(d.titulo)}</td>
+      <td style="white-space:pre-wrap">${esc(d.regra)}</td>
+      <td style="font-size:12.5px">${esc(d.fonte)}${d.data_decisao?"<br>"+esc(d.data_decisao):""}${d.aprovado_por?"<br>Aprovado por "+esc(d.aprovado_por):""}</td>
+      <td><span class="st ${d.status}">${stLabel[d.status]||d.status}</span>${d.substituida_por?`<div class="conf">por D${d.substituida_por}</div>`:""}</td>
+    </tr>`).join("") : `<tr><td colspan="5" class="conf" style="padding:18px">Nenhuma decisão aqui. Comece registrando as regras já acordadas com a Motiva, com a fonte de cada uma.</td></tr>`;
+}
+function editDecision(id){
+  const d = decCache.find(x=>x.id===id) || {status:"vigente"};
+  const dlg=$("#dlg");
+  dlg.innerHTML=`<form class="form" method="dialog" id="df">
+    <label>Módulo<input name="modulo" value="${esc(d.modulo)}" placeholder="Tracking de etapas, LOF, Coupa…"></label>
+    <label>Status<select name="status">${Object.entries(stLabel).map(([k,v])=>`<option value="${k}" ${d.status===k?"selected":""}>${v}</option>`).join("")}</select></label>
+    <label class="full">Título<input name="titulo" required value="${esc(d.titulo)}"></label>
+    <label class="full">Regra<textarea name="regra" required>${esc(d.regra)}</textarea></label>
+    <label class="full">Fonte<input name="fonte" value="${esc(d.fonte)}" placeholder="E-mail da Juliana de 28/07, EF-Coupa-004 v01…"></label>
+    <label>Data da decisão<input name="data_decisao" value="${esc(d.data_decisao)}"></label>
+    <label>Aprovado por (Motiva)<input name="aprovado_por" value="${esc(d.aprovado_por)}"></label>
+    <label>Substituída por (código)<input name="substituida_por" value="${d.substituida_por||""}" placeholder="Ex.: 12"></label>
+    <label>Notas<input name="notas" value="${esc(d.notas)}"></label>
+    <div class="full row" style="margin:0"><button class="btn pri" value="ok">Salvar decisão</button><button class="btn" value="cancel" formnovalidate>Cancelar</button></div></form>`;
+  dlg.showModal();
+  dlg.onclose = async ()=>{
+    if(dlg.returnValue!=="ok") return;
+    const f=Object.fromEntries(new FormData($("#df")));
+    f.substituida_por = f.substituida_por ? parseInt(f.substituida_por.replace(/\D/g,"")) : null;
+    try{
+      if(d.id) await api("/api/decisions/"+d.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});
+      else await post("/api/decisions",f);
+      toast("Decisão salva."); loadDecisions(); refreshBadges();
+    }catch(e){ toast(e.message) }
+  };
+}
+
+// base
+async function loadDocs(){
+  const docs = await api("/api/documents");
+  const tp={especificacao:"Especificação (EF)",documentacao:"Documentação técnica",whatsapp:"WhatsApp",validador:"Validador de regras",outro:"Outro"};
+  $("#doc-body").innerHTML = docs.length ? docs.map(d=>`<tr><td>${esc(d.nome)}</td><td>${tp[d.tipo]||d.tipo}</td><td>${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td>${fmt(d.created_at)}</td>
+    <td><button class="btn quick" onclick="delDoc(${d.id})">Remover</button></td></tr>`).join("") : `<tr><td colspan="5" class="conf" style="padding:18px">A base está vazia. Comece pelas EFs e pela documentação de abril do Coupa.</td></tr>`;
+}
+async function uploadDoc(ev){
+  ev.preventDefault(); const btn=$("#doc-btn"); btn.disabled=true;
+  try{ const r=await api("/api/documents",{method:"POST",body:new FormData($("#doc-form"))}); toast(`Adicionado: ${r.nome}`); $("#doc-form").reset(); loadDocs(); }
+  catch(e){ toast(e.message) } finally{ btn.disabled=false }
+  return false;
+}
+async function delDoc(id){ if(!confirm("Remover este documento da base?")) return; await api("/api/documents/"+id,{method:"DELETE"}); loadDocs(); }
+
+// status
+async function loadStatus(){
+  const s = await api("/api/status");
+  $("#kv").innerHTML = [
+    ["Zoho Mail", s.zoho ? `<span class="dot ok"></span>Conectado (${esc(s.zoho_user)})` : `<span class="dot bad"></span>Não configurado`],
+    ["Modelo de IA", s.ia ? `<span class="dot ok"></span>${esc(s.modelo)}` : `<span class="dot bad"></span>Sem chave de API`],
+    ["Domínios da Motiva", esc(s.dominios_motiva.join(", "))],
+    ["Última sincronização", s.ultima_sync ? fmt(s.ultima_sync) : "Nunca"],
+    ["Verificação", `A cada ${s.poll_minutos} min${s.auto_analise?", com briefing automático":""}`],
+    ["E-mails na base", s.emails], ["Documentos", s.documentos], ["Decisões vigentes", s.decisoes_vigentes],
+    ...(s.erro ? [["Último erro", `<span style="color:var(--stamp)">${esc(s.erro)}</span>`]] : [])
+  ].map(([k,v])=>`<div>${k}</div><div>${v}</div>`).join("");
+  $("#log").textContent = (s.log||[]).join("\n") || "Sem atividade ainda.";
+}
+async function syncNow(){ try{ await post("/api/sync"); toast("Sincronização iniciada."); setTimeout(loadStatus,2500) }catch(e){ toast(e.message) } }
+
+async function refreshBadges(){
+  try{
+    const s = await api("/api/status");
+    const p=$("#b-pend"), q=$("#b-prop");
+    p.hidden = !(s.novos+s.analisados); p.textContent = s.novos+s.analisados;
+    q.hidden = !s.decisoes_propostas; q.textContent = s.decisoes_propostas;
+    $("#foot").innerHTML = `<span class="dot ${s.zoho?"ok":"bad"}"></span>Zoho<br><span class="dot ${s.ia?"ok":"bad"}"></span>IA`;
+  }catch{}
+}
+loadThreads(); refreshBadges(); setInterval(()=>{ refreshBadges(); if($("#v-caixa").classList.contains("on")) loadThreads(); }, 60000);
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: funcional-lumos
+    runtime: python
+    plan: starter            # o plano free "dorme" e para a leitura do Zoho em segundo plano
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: funcional-lumos-db
+          property: connectionString
+      - key: APP_USER
+        value: startgi
+      - key: APP_PASSWORD
+        sync: false
+      - key: ZOHO_EMAIL
+        sync: false
+      - key: ZOHO_APP_PASSWORD
+        sync: false
+      - key: ZOHO_IMAP_HOST
+        value: imap.zoho.com
+      - key: ZOHO_FOLDERS
+        value: INBOX,Sent
+      - key: ZOHO_SENT_FOLDERS
+        value: Sent
+      - key: MOTIVA_DOMAINS
+        value: motiva.com.br,grupoccr.com.br
+      - key: AI_PROVIDER
+        value: anthropic
+      - key: AI_MODEL
+        value: claude-sonnet-5
+      - key: AI_API_KEY
+        sync: false
+      - key: POLL_MINUTES
+        value: "5"
+      - key: AUTO_ANALYZE
+        value: "true"
+      - key: PYTHON_VERSION
+        value: 3.12.7
+
+databases:
+  - name: funcional-lumos-db
+    plan: basic-256mb
