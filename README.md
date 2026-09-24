@@ -25,7 +25,7 @@ Na primeira sincronização, o sistema importa o histórico dos últimos `ZOHO_F
 
 ## IA
 
-Por padrão usa a API da Anthropic (`AI_PROVIDER=anthropic`, `AI_MODEL=claude-sonnet-5`). Para outro provedor com API compatível com OpenAI (OpenRouter, servidor próprio etc.), use `AI_PROVIDER=openai`, `AI_BASE_URL` e o `AI_MODEL` correspondente.
+Por padrão usa a **Command Code Provider API** (`AI_PROVIDER=openai`, `AI_BASE_URL=https://api.commandcode.ai/provider/v1`, `AI_MODEL=deepseek/deepseek-v4-flash`), com a chave em `AI_API_KEY` criada no Studio da Command Code. Modelos Claude da Command Code usam o endpoint Anthropic (`AI_PROVIDER=anthropic`, `AI_BASE_URL=https://api.commandcode.ai/provider`). Para outro provedor compatível com OpenAI (OpenRouter, servidor próprio etc.), ajuste `AI_PROVIDER`, `AI_BASE_URL` e `AI_MODEL`.
 
 ## Primeiros passos depois de publicar
 

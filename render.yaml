@@ -28,11 +28,11 @@ services:
       - key: MOTIVA_DOMAINS
         value: motiva.com.br,grupoccr.com.br
       - key: AI_PROVIDER
-        value: gemini
+        value: openai
       - key: AI_BASE_URL
-        value: https://generativelanguage.googleapis.com/v1beta
+        value: https://api.commandcode.ai/provider/v1
       - key: AI_MODEL
-        value: gemini-3.6-flash
+        value: deepseek/deepseek-v4-flash
       - key: AI_API_KEY
         sync: false
       - key: HISTORY_DAYS
