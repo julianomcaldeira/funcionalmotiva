@@ -122,6 +122,57 @@ def index():
     return FileResponse(STATIC / "index.html")
 
 
+# ---------- dashboard ----------
+@app.get("/api/dashboard")
+def dashboard():
+    with SessionLocal() as s:
+        emails_total = s.query(Email).count()
+        emails_in = s.query(Email).filter(Email.direction == "in").count()
+        emails_out = s.query(Email).filter(Email.direction == "out").count()
+        emails_novos = s.query(Email).filter(Email.direction == "in", Email.status == "novo").count()
+        emails_analisados = s.query(Email).filter(Email.direction == "in", Email.status == "analisado").count()
+        emails_respondidos = s.query(Email).filter(Email.direction == "in", Email.status == "respondido").count()
+        emails_ignorados = s.query(Email).filter(Email.direction == "in", Email.status == "ignorado").count()
+        emails_arquivados = s.query(Email).filter(Email.status == "arquivado").count()
+        decisoes_total = s.query(Decision).count()
+        decisoes_vigentes = s.query(Decision).filter(Decision.status == "vigente").count()
+        decisoes_proposta = s.query(Decision).filter(Decision.status == "proposta").count()
+        decisoes_discussao = s.query(Decision).filter(Decision.status == "em_discussao").count()
+        decisoes_substituida = s.query(Decision).filter(Decision.status == "substituida").count()
+        decisoes_descartada = s.query(Decision).filter(Decision.status == "descartada").count()
+        documentos = s.query(Document).count()
+        analyses_total = s.query(Analysis).count()
+        last_sync = get_setting(s, "last_sync")
+        first_email_date = s.query(Email).order_by(Email.date.asc()).first()
+        last_email_date = s.query(Email).order_by(Email.date.desc()).first()
+        ed = first_email_date.date.isoformat() if first_email_date and first_email_date.date else None
+        ld = last_email_date.date.isoformat() if last_email_date and last_email_date.date else None
+    zoho_state = "nao_configurado" if not mail.configured() else ("erro" if state["last_error"] else ("ok" if last_sync else "aguardando"))
+    log_count = len(state.get("log", []))
+    return {
+        "emails": {
+            "total": emails_total, "in": emails_in, "out": emails_out,
+            "novos": emails_novos, "analisados": emails_analisados,
+            "respondidos": emails_respondidos, "ignorados": emails_ignorados,
+            "arquivados": emails_arquivados,
+        },
+        "decisoes": {
+            "total": decisoes_total, "vigentes": decisoes_vigentes,
+            "proposta": decisoes_proposta, "em_discussao": decisoes_discussao,
+            "substituida": decisoes_substituida, "descartada": decisoes_descartada,
+        },
+        "documentos": documentos,
+        "analyses": analyses_total,
+        "ultima_sync": last_sync,
+        "zoho_state": zoho_state,
+        "ia": bool(ai.API_KEY),
+        "modelo": f"{ai.PROVIDER}:{ai.MODEL}",
+        "log_count": log_count,
+        "first_email_date": ed,
+        "last_email_date": ld,
+    }
+
+
 # ---------- status ----------
 @app.get("/api/status")
 def status():
