@@ -9,17 +9,17 @@ Este projeto é o **FuncionalMotiva** e está conectado ao repositório GitHub:
 
 Após **qualquer** alteração no código, o fluxo obrigatório é:
 
-1. `npm run build` (verificar que compila sem erros)
-2. `npm run lint` (se houver erros de lint, corrigir)
+1. `pip install -r requirements.txt` (instalar/atualizar dependências)
+2. `python -m py_compile app/*.py` (verificar que compila sem erros)
 3. `git add <arquivos alterados>`
 4. `git commit -m "<mensagem descritiva da alteração>"`
 5. `git push origin main`
 
-O push para o GitHub é o que faz o **deploy** refletir as mudanças. Nunca finalizar uma tarefa sem commit + push.
+O push para o GitHub é o que faz o **Render** refletir as mudanças no deploy. Nunca finalizar uma tarefa sem commit + push.
 
 ## Comandos
 
-- Instalar deps: `npm install`
-- Rodar dev: `npm run dev`
-- Build: `npm run build`
-- Lint: `npm run lint`
+- Instalar deps: `pip install -r requirements.txt`
+- Rodar dev: `uvicorn app.main:app --reload`
+- Build: `pip install -r requirements.txt`
+- Lint: `python -m py_compile app/*.py`
