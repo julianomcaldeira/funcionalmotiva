@@ -224,12 +224,6 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
       <div class="list-head">
         <h2>E-mails da Motiva</h2>
         <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#66706B" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="q" placeholder="Buscar por assunto ou pessoa" aria-label="Buscar"></div>
-        <div class="filtros" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input type="date" id="di" placeholder="De" aria-label="Data inicial" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px">
-          <input type="date" id="df" placeholder="Até" aria-label="Data final" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px">
-          <input id="remetente" placeholder="Nome do remetente" aria-label="Remetente" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;flex:1;min-width:100px">
-          <button class="btn sm" onclick="aplicarFiltros()">Filtrar</button>
-        </div>
         <div class="tabs" id="ftabs"><button data-f="pendentes" class="on">A responder</button><button data-f="todas">Todas</button></div>
       </div>
       <div class="threads" id="threads"></div>
@@ -302,8 +296,6 @@ function go(v){$$(".nv").forEach(x=>x.classList.toggle("on",x.dataset.v===v));$$
 $$(".nv").forEach(b=>b.onclick=()=>go(b.dataset.v));
 $$("#ftabs button").forEach(b=>b.onclick=()=>{filtro=b.dataset.f;$$("#ftabs button").forEach(x=>x.classList.toggle("on",x===b));loadThreads()});
 $("#q").oninput=()=>{clearTimeout($("#q")._h);$("#q")._h=setTimeout(loadThreads,250)};
-function aplicarFiltros(){loadThreads()};
-["#di","#df","#remetente"].forEach(id=>{$(id).onkeydown=e=>{if(e.key==="Enter")loadThreads()}});
 
 /* ---------- status e primeiros passos ---------- */
 async function loadHealth(){
@@ -332,11 +324,7 @@ function setupSteps(){
 /* ---------- caixa ---------- */
 async function loadThreads(){
   await loadHealth();
-  const q=$("#q").value;
-  const di=$("#di").value;
-  const df=$("#df").value;
-  const rem=$("#remetente").value;
-  const list=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
+  const list=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent($("#q").value)}`);
   $("#threads").innerHTML=list.length?list.map(t=>{
     const st=t.pending?(t.analyzed===t.pending?`<span class="tag pronto">Briefing pronto</span>`:`<span class="tag novo">Novo</span>`):"";
     const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
