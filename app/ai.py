@@ -5,7 +5,7 @@ import re
 
 import httpx
 
-from .db import Analysis, Decision, Document, Email, SessionLocal
+from .db import Analysis, Chunk, Decision, Document, Email, SessionLocal
 from .retrieval import get_index, rank_texts
 
 PROVIDER = os.getenv("AI_PROVIDER", "anthropic").lower()  # anthropic | openai | gemini
@@ -43,7 +43,12 @@ Seu trabalho, a cada e-mail da Motiva, é preparar o Juliano (CEO da StartGi) pa
 7. Questione a regra do ponto de vista do processo de supply: se ela não faz sentido, gera ambiguidade ou
    conflita com outra regra, diga e sugira a pergunta certa a fazer à Motiva. Não seja passivo.
 8. Dê uma recomendação única e firme. Não mude de posição sem um fato novo que justifique.
-
+9. A base de conhecimento ([DOC#]) traz as especificações e documentações oficiais anexadas ao sistema.
+   Sempre que o contexto trouxer trecho [DOC#] sobre o assunto do e-mail, use o documento como fonte da
+   regra, cite [DOC#] no briefing e no rascunho, e trate o que o documento diz como prioridade sobre a sua própria interpretação.
+   O índice [DOCid] lista TODOS os documentos da base: se algum do índice parecer relevante para o pedido
+   mas não tiver trecho no contexto, inclua em "validar_antes_de_enviar" a checagem desse documento
+   (ex.: "conferir regra na EF-12"). Se nenhum documento tratar do assunto, diga isso em "historico_relevante".
 Estilo do rascunho: português, curto, direto, informal-profissional, sem parágrafos longos, sem listas com
 hífen, sem jargão desnecessário, sem se justificar demais nem soar defensivo. Fecha com "Tks,".
 
@@ -66,6 +71,35 @@ Em "decisoes_sugeridas", inclua somente regras ou acordos que este e-mail formal
 
 def fmt_date(d):
     return d.strftime("%d/%m/%Y %H:%M") if d else "?"
+
+
+def search_docs(session, idx, query, exclude=None, k=12, min_hits=4):
+    """Busca na base de conhecimento: BM25 com no máximo 3 trechos por documento e,
+    se a busca acertar poucos, completa com o início dos documentos restantes (mais recentes
+    primeiro). Garante que o briefing sempre veja a base quando ela existe."""
+    hits = idx.search(query, k=k * 3, exclude=exclude, kinds={"document"}) if idx else []
+    chosen, per = [], {}
+    for h in hits:
+        sid = h[1][2]
+        if per.get(sid, 0) >= 3:
+            continue
+        chosen.append(h)
+        per[sid] = per.get(sid, 0) + 1
+        if len(chosen) >= k:
+            break
+    if len(chosen) < min_hits:
+        have = {h[1][2] for h in chosen}
+        for (did,) in session.query(Document.id).order_by(Document.id.desc()).all():
+            if len(chosen) >= min_hits + 2:
+                break
+            if did in have:
+                continue
+            c = session.query(Chunk).filter(Chunk.source_kind == "document",
+                                             Chunk.source_id == did).order_by(Chunk.id).first()
+            if c:
+                chosen.append((0.0, (c.id, "document", did, c.label, c.text)))
+                have.add(did)
+    return chosen
 
 
 def build_context(session, email_obj):
@@ -95,9 +129,18 @@ def build_context(session, email_obj):
         sources.append({"code": f"D{d.id}", "label": d.titulo})
 
     idx = get_index()
-    hits_docs = idx.search(query, k=8, exclude=thread_ids, kinds={"document"})
+    hits_docs = search_docs(session, idx, query, exclude=thread_ids)
     hits_mail = idx.search(query, k=10, exclude=thread_ids, kinds={"email"})
-    parts.append("## Documentos e especificações relacionados")
+    docs_all = session.query(Document.id, Document.tipo, Document.nome).order_by(Document.id.desc()).all()
+    parts.append("## Índice da base de conhecimento (todos os documentos anexados)")
+    if docs_all:
+        for did, tipo, nome in docs_all:
+            parts.append(f"[DOC{did}] {tipo}: {nome}")
+    else:
+        parts.append("(nenhum documento anexado à base de conhecimento)")
+    parts.append("## Trechos dos documentos relacionados a este e-mail")
+    if not hits_docs:
+        parts.append("(nenhum trecho relacionado)")
     for sc, (cid, kind, sid, label, text) in hits_docs:
         parts.append(f"[DOC{sid}] {label}\n{text}")
         sources.append({"code": f"DOC{sid}", "label": label})

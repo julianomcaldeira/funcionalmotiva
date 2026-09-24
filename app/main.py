@@ -620,14 +620,21 @@ def chat(body: ChatIn):
         raise HTTPException(400, "Escreva uma pergunta.")
     with SessionLocal() as s:
         idx = get_index()
-        docs = idx.search(pergunta, k=8, kinds={"document"}) if idx else []
+        docs = ai.search_docs(s, idx, pergunta)
         mails = idx.search(pergunta, k=12, kinds={"email"}) if idx else []
+        docs_all = s.query(Document.id, Document.tipo, Document.nome).order_by(Document.id.desc()).all()
         decisions = s.query(Decision).filter(Decision.status.in_(["vigente", "em_discussao", "proposta"])).all()
         ranked = rank_texts(pergunta, decisions, key=lambda d: f"{d.titulo} {d.modulo} {d.regra}")
         chosen = [d for sc, d in ranked if sc > 0][:25] or [d for d in decisions if d.status == "vigente"][:10]
 
     parts, sources = [], []
-    parts.append("## Documentos e especificações da base")
+    parts.append("## Índice da base de conhecimento (todos os documentos anexados)")
+    if docs_all:
+        for did, tipo, nome in docs_all:
+            parts.append(f"[DOC{did}] {tipo}: {nome}")
+    else:
+        parts.append("(nenhum documento anexado à base de conhecimento)")
+    parts.append("## Trechos dos documentos")
     if not docs:
         parts.append("(nenhum documento relacionado)")
     for sc, (cid, kind, sid, label, text) in docs:
