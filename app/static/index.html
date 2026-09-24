@@ -54,6 +54,10 @@ main{flex:1;min-width:0;display:flex}
 .tabs button{border:0;background:none;padding:5px 10px;border-radius:14px;color:var(--muted);font-weight:500;font-size:13px}
 .tabs button.on{background:var(--ink);color:#fff}
 .threads{flex:1;overflow:auto}
+.blk{margin:10px 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.blk-h{display:flex;gap:8px;align-items:center;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.blk-h b{font-size:14px;color:var(--ink)}
+.blk-meta{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-left:auto;flex-wrap:wrap}
 .th{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;gap:5px;border-left:3px solid transparent}
 .th:hover{background:var(--bg)}
 .th.on{background:var(--brand-wash);border-left-color:var(--brand)}
@@ -229,6 +233,17 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
   .form,.stats{grid-template-columns:1fr 1fr}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.chat-page{display:flex;flex-direction:column;height:100%;max-height:calc(100vh - 130px);padding:20px 24px}
+.chat-page .lead{max-width:760px}
+.chat-log{flex:1;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.chat-msg{max-width:80%;padding:10px 14px;border-radius:14px;line-height:1.45;font-size:13.5px;white-space:pre-wrap;word-break:break-word}
+.chat-msg.user{align-self:flex-end;background:var(--brand);color:#fff}
+.chat-msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--line)}
+.chat-msg .src{display:block;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:11px;color:var(--muted)}
+.chat-msg .src b{color:var(--brand)}
+.chat-form{display:flex;gap:8px;margin-top:12px;align-items:flex-end}
+.chat-form textarea{flex:1;resize:none}
+@media (max-width:720px){.chat-page{max-height:none}.chat-msg{max-width:92%}}
 </style>
 </head>
 <body>
@@ -241,6 +256,7 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
    <button class="nv" data-v="caixa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>Caixa<span class="ct" id="c-pend" hidden></span></button>
    <button class="nv" data-v="decisoes"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Decisões<span class="ct warn" id="c-prop" hidden></span></button>
    <button class="nv" data-v="base"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Base de conhecimento</button>
+   <button class="nv" data-v="assistente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Assistente</button>
    <button class="nv" data-v="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Conexões</button>
    <div class="health" id="health"></div>
 </nav>
@@ -315,6 +331,16 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
     <div class="card" style="max-width:900px"><table><thead><tr><th>Nome</th><th style="width:220px">Tipo</th><th style="width:130px">Tamanho</th><th style="width:130px">Adicionado</th><th style="width:90px"></th></tr></thead><tbody id="doc-body"></tbody></table></div>
   </div></section>
 
+  <section class="view" id="v-assistente"><div class="page chat-page">
+    <h2>Assistente</h2>
+    <p class="lead">Pergunte qualquer coisa sobre o projeto: o que a Motiva já pediu, decisões registradas, documentos e histórico de e-mails. O assistente responde com base em todo o contexto do sistema, citando as fontes.</p>
+    <div class="chat-log" id="chat-log"><div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div></div>
+    <form class="chat-form" onsubmit="return sendChat(event)">
+      <textarea id="chat-in" rows="2" placeholder="Escreva sua pergunta…" aria-label="Pergunta"></textarea>
+      <button class="btn pri" type="submit" id="chat-btn">Enviar</button>
+    </form>
+  </div></section>
+
   <section class="view" id="v-status"><div class="page">
     <h2>Conexões</h2>
     <p class="lead">O acesso ao Zoho é somente leitura e nenhuma resposta é enviada pelo sistema. As credenciais ficam nas variáveis de ambiente do Render.</p>
@@ -342,7 +368,7 @@ function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";cl
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
 const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
 
-function go(v){$$(".nv").forEach(x=>x.classList.toggle("on",x.dataset.v===v));$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));({dashboard:loadDashboard,caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,status:loadStatus})[v]();loadHealth()}
+function go(v){$$(".nv").forEach(x=>x.classList.toggle("on",x.dataset.v===v));$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));({dashboard:loadDashboard,caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,status:loadStatus,assistente:()=>{}})[v]();loadHealth()}
 $$(".nv").forEach(b=>b.onclick=()=>go(b.dataset.v));
 $$("#ftabs button").forEach(b=>b.onclick=()=>{filtro=b.dataset.f;$$("#ftabs button").forEach(x=>x.classList.toggle("on",x===b));loadThreads()});
 $("#q").oninput=()=>{clearTimeout($("#q")._h);$("#q")._h=setTimeout(loadThreads,250)};
@@ -408,12 +434,17 @@ async function loadThreads(){
   const df=$("#df").value;
   const rem=$("#remetente").value;
   const list=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
-  $("#threads").innerHTML=list.length?list.map(t=>{
-    const st=t.pending?(t.analyzed===t.pending?`<span class="tag pronto">Briefing pronto</span>`:`<span class="tag novo">Novo</span>`):"";
-    const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
-    return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
-      <div class="s">${esc(t.subject)}</div>
-      <div class="m">${st}${cl}<span>${t.count} ${t.count>1?"e-mails":"e-mail"} · ${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")
+  $("#threads").innerHTML=list.length?list.map(b=>{
+    const pend=b.pending?`<span class="tag ${b.pending===b.total_emails?"novo":"pronto"}" style="margin-left:auto">${b.pending} para responder</span>`:"";
+    return`<div class="blk">
+      <div class="blk-h"><b>${esc(b.topico)}</b><span class="blk-meta">${b.total_emails} ${b.total_emails>1?"e-mails":"e-mail"} · ${b.total_conversas} ${b.total_conversas>1?"assuntos":"assunto"} · ${ago(b.last_date)}${pend}</span></div>
+      ${b.threads.map(t=>{
+        const st=t.pending?(t.analyzed===t.pending?`<span class="tag pronto">Briefing pronto</span>`:`<span class="tag novo">Novo</span>`):"";
+        const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
+        return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
+          <div class="s">${esc(t.subject)}</div>
+          <div class="m">${st}${cl}<span>${t.count} ${t.count>1?"e-mails":"e-mail"} · ${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")}
+    </div>`}).join("")
     :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${filtro==="pendentes"?"Nada a responder agora":"Nenhuma conversa encontrada"}</b><br>${filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
   $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
   if(!current){$("#conv").innerHTML=`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
@@ -587,6 +618,37 @@ async function loadStatus(){
   $("#log").textContent=(s.log||[]).join("\n")||"Sem atividade ainda.";
 }
 async function syncNow(b){b.disabled=true;b.textContent="Lendo…";try{await post("/api/sync");toast("Leitura iniciada.");setTimeout(loadStatus,4000)}catch(e){toast(e.message);b.disabled=false}}
+
+/* ---------- assistente (chat) ---------- */
+let chat=[];
+function renderChat(){
+  const log=$("#chat-log");
+  if(!chat.length){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div>`;return}
+  log.innerHTML=chat.map(m=>{
+    if(m.role==="user")return`<div class="chat-msg user">${esc(m.text)}</div>`;
+    const src=(m.fontes||[]).length?`<span class="src"><b>Fontes:</b> ${m.fontes.map(f=>esc(f.code)).join(" · ")}</span>`:"";
+    return`<div class="chat-msg ai">${esc(m.text)}${src}</div>`;
+  }).join("");
+  log.scrollTop=log.scrollHeight;
+}
+async function sendChat(ev){
+  ev.preventDefault();
+  const inp=$("#chat-in"), btn=$("#chat-btn"), q=inp.value.trim();
+  if(!q)return;
+  chat.push({role:"user",text:q});
+  inp.value="";
+  renderChat();
+  btn.disabled=true;btn.textContent="Consultando o contexto…";
+  try{
+    const r=await post("/api/chat",{pergunta:q});
+    chat.push({role:"ai",text:r.resposta,fontes:r.fontes});
+  }catch(e){
+    chat.push({role:"ai",text:"Não consegui responder: "+(e.message||e)});
+  }
+  renderChat();
+  btn.disabled=false;btn.textContent="Enviar";
+}
+$("#chat-in").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat(e)}};
 
 loadDashboard();
 setInterval(()=>{const v=["dashboard","caixa","decisoes","base","status"].find(x=>$(`#v-${x}`).classList.contains("on"));if(v==="dashboard")loadDashboard();else if(v==="caixa")loadThreads();else loadHealth()},30000);

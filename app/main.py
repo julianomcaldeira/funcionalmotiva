@@ -3,10 +3,12 @@ import base64
 import io
 import json
 import os
+import re
 import secrets
 import threading
 import time
 import traceback
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -19,7 +21,7 @@ from . import ai, mail
 from .db import (Analysis, Decision, Document, Email, SessionLocal, get_setting,
                  init_db)
 from .mail import index_email, normalize_subject, strip_quoted
-from .retrieval import mark_dirty
+from .retrieval import get_index, mark_dirty, rank_texts
 
 APP_USER = os.getenv("APP_USER", "startgi")
 APP_PASSWORD = os.getenv("APP_PASSWORD", "")
@@ -36,6 +38,12 @@ def log(msg):
     line = f"{datetime.now():%d/%m %H:%M:%S} {msg}"
     print(line, flush=True)
     state["log"] = (state["log"] + [line])[-60:]
+
+
+def subject_tokens(subject):
+    """Extrai as palavras-chave de um assunto de e-mail para agrupar temas."""
+    return [t for t in re.findall(r"[a-z0-9]{3,}", normalize_subject(subject)) if t not in
+            {"re", "fwd", "fw", "enc", "rv", "tr", "sem", "assunto", "novo", "nova"}][:8]
 
 
 @app.middleware("http")
@@ -247,9 +255,38 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
         ql = q.lower()
         out = [t for t in out if ql in (t["subject"] or "").lower() or ql in (t["last_from"] or "").lower()]
     out.sort(key=lambda t: t["last_date"] or datetime.min, reverse=True)
+
+    # ---- agrupa os assuntos em blocos por tema ----
+    counts = Counter()
     for t in out:
-        t["last_date"] = t["last_date"].isoformat() if t["last_date"] else None
-    return out[:300]
+        for tok in set(subject_tokens(t["subject"])):
+            counts[tok] += 1
+    blocks = defaultdict(list)
+    for t in out:
+        toks = set(subject_tokens(t["subject"]))
+        shared = sorted((tok for tok in toks if counts[tok] > 1),
+                        key=lambda k: (-counts[k], k))[:3]
+        topic = " ".join(shared) or normalize_subject(t["subject"])
+        blocks[topic].append(t)
+
+    result = []
+    for topic, items in blocks.items():
+        items.sort(key=lambda t: t["last_date"] or datetime.min, reverse=True)
+        top = max(items, key=lambda t: t["last_date"] or datetime.min)
+        result.append({
+            "topico": topic.title(),
+            "assunto_base": top["subject"],
+            "total_emails": sum(t["count"] for t in items),
+            "total_conversas": len(items),
+            "pending": sum(t["pending"] for t in items),
+            "last_date": top["last_date"].isoformat() if top["last_date"] else None,
+            "threads": [{"thread_key": t["thread_key"], "subject": t["subject"], "count": t["count"],
+                         "pending": t["pending"], "analyzed": t["analyzed"], "last_from": t["last_from"],
+                         "last_date": t["last_date"].isoformat() if t["last_date"] else None,
+                         "classificacao": t["classificacao"]} for t in items],
+        })
+    result.sort(key=lambda b: b["last_date"] or "", reverse=True)
+    return result[:200]
 
 
 def email_dict(e, full=True):
@@ -468,3 +505,67 @@ def delete_document(doc_id: int):
         s.commit()
     mark_dirty()
     return {"ok": True}
+
+
+# ---------- assistente (pergunta sobre todo o contexto) ----------
+CHAT_SYSTEM = """Você é o assistente do Funcional Lumos da StartGi (projeto Lumos, cliente Motiva).
+Você responde perguntas usando TODAS as fontes abaixo — e-mails históricos, decisões registradas e documentos
+da base de conhecimento. Regras:
+
+1. Responda em português, claro e direto, focado no que foi perguntado.
+2. Cite as fontes entre colchetes sempre que usar uma delas: [E#] e-mail, [D#] decisão, [DOC#] documento.
+   Se a resposta se basear em mais de uma fonte, cite todas.
+3. Nunca invente. Se não houver fonte sobre o assunto, diga claramente que não há informação registrada.
+4. Separe o que é fato documentado do que é inferência sua.
+5. Se a pergunta não tiver relação com o projeto (Lumos, Motiva, StartGi, supply chain), responda que só
+   trata de assuntos do projeto."""
+
+
+class ChatIn(BaseModel):
+    pergunta: str
+
+
+@app.post("/api/chat")
+def chat(body: ChatIn):
+    if not ai.API_KEY:
+        raise HTTPException(400, "IA não configurada: defina AI_API_KEY nas variáveis do Render.")
+    pergunta = body.pergunta.strip()
+    if not pergunta:
+        raise HTTPException(400, "Escreva uma pergunta.")
+    with SessionLocal() as s:
+        idx = get_index()
+        docs = idx.search(pergunta, k=8, kinds={"document"}) if idx else []
+        mails = idx.search(pergunta, k=12, kinds={"email"}) if idx else []
+        decisions = s.query(Decision).filter(Decision.status.in_(["vigente", "em_discussao", "proposta"])).all()
+        ranked = rank_texts(pergunta, decisions, key=lambda d: f"{d.titulo} {d.modulo} {d.regra}")
+        chosen = [d for sc, d in ranked if sc > 0][:25] or [d for d in decisions if d.status == "vigente"][:10]
+
+    parts, sources = [], []
+    parts.append("## Documentos e especificações da base")
+    if not docs:
+        parts.append("(nenhum documento relacionado)")
+    for sc, (cid, kind, sid, label, text) in docs:
+        parts.append(f"[DOC{sid}] {label}\n{text}\n")
+        sources.append({"code": f"DOC{sid}", "label": label})
+    parts.append("## E-mails do histórico (ordem de relevância)")
+    if not mails:
+        parts.append("(nenhum e-mail relacionado)")
+    for sc, (cid, kind, sid, label, text) in mails:
+        parts.append(f"[E{sid}] {label}\n{text}\n")
+        sources.append({"code": f"E{sid}", "label": label})
+    parts.append("## Registro de decisões")
+    if not chosen:
+        parts.append("(nenhuma decisão registrada relacionada)")
+    for d in chosen:
+        parts.append(f"[D{d.id}] {d.status.upper()} | {d.modulo} | {d.titulo}\nRegra: {d.regra}\nFonte: {d.fonte} | {d.data_decisao}")
+        sources.append({"code": f"D{d.id}", "label": d.titulo})
+
+    user = f"{chr(10).join(parts)}\n\n## Pergunta do usuário\n{pergunta}"
+    raw = ai.call_model(CHAT_SYSTEM, user)
+
+    seen, uniq = set(), []
+    for src in sources:
+        if src["code"] not in seen:
+            seen.add(src["code"])
+            uniq.append(src)
+    return {"resposta": raw.strip(), "fontes": uniq}
