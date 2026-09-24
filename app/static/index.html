@@ -274,7 +274,7 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
           <input id="remetente" placeholder="Nome do remetente" aria-label="Remetente" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;flex:1;min-width:100px">
           <button class="btn sm" onclick="aplicarFiltros()">Filtrar</button>
         </div>
-        <div class="tabs" id="ftabs"><button data-f="pendentes" class="on">A responder</button><button data-f="todas">Todas</button></div>
+        <div class="tabs" id="ftabs"><button data-f="todas" class="on">Todas</button><button data-f="pendentes">A responder</button></div>
       </div>
       <div class="threads" id="threads"></div>
       <div class="list-foot"><button class="btn sm" style="width:100%;justify-content:center" onclick="openManual()">Colar um e-mail</button></div>
@@ -336,7 +336,7 @@ const fmt=iso=>{const d=asDate(iso);return d?d.toLocaleString("pt-BR",{day:"2-di
 const ago=iso=>{const d=asDate(iso);if(!d)return"";const m=(Date.now()-d)/6e4;if(m<60)return`há ${Math.max(1,m|0)} min`;if(m<1440)return`há ${m/60|0} h`;return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})};
 const initials=s=>{const n=(s||"?").split("@")[0].split(/[._\s-]/).filter(Boolean);return((n[0]||"?")[0]+((n[1]||"")[0]||"")).toUpperCase()};
 const CLS={sustentacao:"Sustentação",melhoria:"Melhoria",duvida:"Dúvida",fora_do_escopo_lumos:"Fora do escopo"};
-let filtro="pendentes",current=null,deskTab="briefing",decFilter="",decCache=[],status={};
+let filtro="todas",current=null,deskTab="briefing",decFilter="",decCache=[],status={};
 
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4500)}
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
@@ -413,8 +413,8 @@ async function loadThreads(){
     const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
     return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
       <div class="s">${esc(t.subject)}</div>
-      <div class="m">${st}${cl}<span>${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")
-    :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${filtro==="pendentes"?"Nada a responder agora":"Nenhuma conversa ainda"}</b><br>${filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Conecte o Zoho ou cole um e-mail para começar."}</div>`;
+      <div class="m">${st}${cl}<span>${t.count} ${t.count>1?"e-mails":"e-mail"} · ${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")
+    :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${filtro==="pendentes"?"Nada a responder agora":"Nenhuma conversa encontrada"}</b><br>${filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
   $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
   if(!current){$("#conv").innerHTML=`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
 }

@@ -204,7 +204,7 @@ def sync_now():
 
 # ---------- caixa ----------
 @app.get("/api/threads")
-def threads(filtro: str = "pendentes", q: str = "", data_inicio: str = "", data_fim: str = "", remetente: str = ""):
+def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim: str = "", remetente: str = ""):
     with SessionLocal() as s:
         query = s.query(Email).order_by(Email.date.desc())
         if data_inicio:
