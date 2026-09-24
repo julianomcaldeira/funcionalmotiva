@@ -54,15 +54,22 @@ main{flex:1;min-width:0;display:flex}
 .tabs button{border:0;background:none;padding:5px 10px;border-radius:14px;color:var(--muted);font-weight:500;font-size:13px}
 .tabs button.on{background:var(--ink);color:#fff}
 .threads{flex:1;overflow:auto}
-.th{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;gap:5px;border-left:3px solid transparent}
+.th{display:grid;grid-template-columns:54px 1fr;gap:0 12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent;align-items:start}
 .th:last-child{border-bottom:0}
 .th:hover{background:var(--bg)}
 .th.on{background:var(--brand-wash);border-left-color:var(--brand)}
+.th .dt{font-size:13px;font-weight:700;color:var(--muted);text-align:right;padding-top:1px;line-height:1.25;white-space:nowrap}
+.th .dt .y{display:block;font-weight:500;font-size:11px}
+.th .tw{min-width:0;display:grid;gap:4px}
 .th .s{font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .th .m{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.th .pv{font-size:12.5px;color:var(--muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.th mark{background:#FFF0A8;color:var(--ink);border-radius:2px;padding:0 1px}
 .tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
 .tag.novo{background:var(--red-wash);color:var(--red)}
 .tag.pronto{background:var(--brand-wash);color:var(--brand-ink)}
+.tag.st-respondido{background:var(--blue-wash);color:var(--blue)}
+.tag.st-arquivado{background:#EFF1F0;color:var(--muted)}
 .tag.melhoria{background:var(--amber-wash);color:var(--amber)}
 .tag.sustentacao{background:var(--brand-wash);color:var(--brand-ink)}
 .tag.duvida{background:var(--blue-wash);color:var(--blue)}
@@ -311,14 +318,14 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
     <div class="list">
       <div class="list-head">
         <h2>E-mails da Motiva</h2>
-        <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#66706B" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="q" placeholder="Buscar por assunto ou pessoa" aria-label="Buscar"></div>
+        <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#66706B" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="q" placeholder="Buscar qualquer palavra nos e-mails…" aria-label="Buscar"></div>
         <div class="filtros" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input type="date" id="di" placeholder="De" aria-label="Data inicial" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px">
           <input type="date" id="df" placeholder="Até" aria-label="Data final" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px">
           <input id="remetente" placeholder="Nome do remetente" aria-label="Remetente" style="border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;flex:1;min-width:100px">
           <button class="btn sm" onclick="aplicarFiltros()">Filtrar</button>
         </div>
-        <div class="tabs" id="ftabs"><button data-f="todas" class="on">Todas</button><button data-f="pendentes">A responder</button></div>
+        <div class="tabs" id="ftabs"><button data-f="pendentes" class="on">A responder<span id="tb-pend"></span></button><button data-f="respondidas">Respondidas</button><button data-f="todas">Tudo</button></div>
       </div>
       <div class="threads" id="threads"></div>
       <div class="list-foot"><button class="btn sm" style="width:100%;justify-content:center" onclick="openManual()">Colar um e-mail</button></div>
@@ -385,12 +392,13 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>(s??"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const hl=(text,q)=>{const e=esc(text);const ts=(q||"").trim().split(/\s+/).filter(t=>t.length>1).map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));if(!ts.length)return e;try{return e.replace(new RegExp("("+ts.join("|")+")","gi"),"<mark>$1</mark>")}catch{return e}};
 const asDate=iso=>iso?new Date(iso+(/[zZ]|[+-]\d\d:?\d\d$/.test(iso)?"":"Z")):null;
 const fmt=iso=>{const d=asDate(iso);return d?d.toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):""};
 const ago=iso=>{const d=asDate(iso);if(!d)return"";const m=(Date.now()-d)/6e4;if(m<60)return`há ${Math.max(1,m|0)} min`;if(m<1440)return`há ${m/60|0} h`;return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})};
 const initials=s=>{const n=(s||"?").split("@")[0].split(/[._\s-]/).filter(Boolean);return((n[0]||"?")[0]+((n[1]||"")[0]||"")).toUpperCase()};
 const CLS={sustentacao:"Sustentação",melhoria:"Melhoria",duvida:"Dúvida",fora_do_escopo_lumos:"Fora do escopo"};
-let filtro="todas",current=null,deskTab="briefing",decFilter="",decCache=[],status={};
+let filtro="pendentes",current=null,deskTab="briefing",decFilter="",decCache=[],status={};
 
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4500)}
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
@@ -482,13 +490,26 @@ async function loadThreads(){
   const df=$("#df").value;
   const rem=$("#remetente").value;
   const list=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
+  const pn=(status.novos||0)+(status.analisados||0);
+  const tb=$("#tb-pend");if(tb)tb.textContent=pn?` (${pn})`:"";
+  const nowY=new Date().getFullYear();
+  const STTAG={novo:'<span class="tag novo">Novo</span>',pronto:'<span class="tag pronto">Briefing pronto</span>',
+    respondido:'<span class="tag st-respondido">Respondido</span>',arquivado:'<span class="tag st-arquivado">Arquivado</span>'};
   $("#threads").innerHTML=list.length?list.map(t=>{
-    const st=t.pending?(t.analyzed===t.pending?`<span class="tag pronto">Briefing pronto</span>`:`<span class="tag novo">Novo</span>`):"";
+    const d=asDate(t.last_date);
+    const dt=d?`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`:"";
+    const yr=d&&d.getFullYear()!==nowY?`<span class="y">${String(d.getFullYear()).slice(2)}</span>`:"";
+    const st=STTAG[t.status]||"";
     const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
+    const body=t.snippet||t.preview||"";
     return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
-      <div class="s">${esc(t.subject)}</div>
-      <div class="m">${st}${cl}<span>${t.count} ${t.count>1?"e-mails":"e-mail"} · ${esc((t.last_from||"").split("@")[0])} · ${ago(t.last_date)}</span></div></div>`}).join("")
-    :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${filtro==="pendentes"?"Nada a responder agora":"Nenhuma conversa encontrada"}</b><br>${filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
+      <div class="dt">${dt}${yr}</div>
+      <div class="tw">
+        <div class="s">${esc(t.subject)}</div>
+        <div class="m">${st}${cl}<span>${esc((t.last_from||"").split("@")[0])} · ${t.count} ${t.count>1?"e-mails":"e-mail"}</span></div>
+        ${body?`<div class="pv">${hl(body,q)}</div>`:""}
+      </div></div>`}).join("")
+    :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${q?"Nada encontrado":filtro==="pendentes"?"Nada a responder agora":filtro==="respondidas"?"Nenhuma conversa respondida":"Nenhuma conversa encontrada"}</b><br>${q?"Tente outra palavra — a busca varre assunto, remetente e o corpo de todos os e-mails, inclusive os arquivados.":filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
   $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
   if(!current){$("#conv").innerHTML=`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
 }

@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -229,6 +230,20 @@ def sync_now():
 
 
 # ---------- caixa ----------
+def make_snippet(text, query, width=170):
+    """Trecho do texto ao redor da primeira palavra da busca, para confirmar o hit sem abrir o e-mail."""
+    t = re.sub(r"\s+", " ", text or "").strip()
+    if not t:
+        return ""
+    words = [w for w in query.split() if len(w) > 2]
+    pos = min((t.lower().find(w.lower()) for w in words if t.lower().find(w.lower()) >= 0), default=-1)
+    if pos < 0:
+        return t[:width] + ("…" if len(t) > width else "")
+    start = max(0, pos - 50)
+    end = min(len(t), start + width)
+    return ("…" if start else "") + t[start:end] + ("…" if end < len(t) else "")
+
+
 @app.get("/api/threads")
 def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim: str = "", remetente: str = ""):
     with SessionLocal() as s:
@@ -246,20 +261,27 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
     for e in rows:
         t = by.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject, "last_date": e.date,
                                           "count": 0, "pending": 0, "analyzed": 0, "last_from": None,
-                                          "last_in_id": None, "senders": set(), "subjects": set()})
+                                          "last_in_id": None, "senders": set(), "subjects": set(),
+                                          "st": {"novo": 0, "analisado": 0, "respondido": 0,
+                                                 "arquivado": 0, "ignorado": 0},
+                                          "preview": ""})
         t["count"] += 1
         if e.from_addr:
             t["senders"].add(e.from_addr)
         if e.subject:
             t["subjects"].add(e.subject)
-        if e.direction == "in" and e.status in ("novo", "analisado"):
-            t["pending"] += 1
-            if e.status == "analisado":
-                t["analyzed"] += 1
+        if e.direction == "in":
+            t["st"][e.status] = t["st"].get(e.status, 0) + 1
+            if e.status in ("novo", "analisado"):
+                t["pending"] += 1
+                if e.status == "analisado":
+                    t["analyzed"] += 1
+            if t["last_in_id"] is None:
+                t["last_in_id"] = e.id
         if t["last_from"] is None:
             t["last_from"] = "StartGi" if e.direction == "out" else e.from_addr
-        if e.direction == "in" and t["last_in_id"] is None:
-            t["last_in_id"] = e.id
+        if not t["preview"]:
+            t["preview"] = re.sub(r"\s+", " ", (e.body_clean or e.body or "")).strip()[:170]
     with SessionLocal() as s2:
         in_ids = [t["last_in_id"] for t in by.values() if t["last_in_id"]]
         cls = {}
@@ -271,20 +293,54 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
                     pass
     for t in by.values():
         t["classificacao"] = cls.get(t["last_in_id"])
+        st = t["st"]
+        if st["novo"]:
+            t["status"] = "novo"
+        elif st["analisado"]:
+            t["status"] = "pronto"
+        elif st["respondido"]:
+            t["status"] = "respondido"
+        else:
+            t["status"] = "arquivado"
     out = list(by.values())
-    if filtro == "pendentes":
-        out = [t for t in out if t["pending"]]
-    if q:
-        ql = q.lower()
-        out = [t for t in out
-               if any(ql in (sub or "").lower() for sub in t["subjects"])
-               or any(ql in snd.lower() for snd in t["senders"])]
+    ql = (q or "").strip()
+    if not ql:  # a busca é global: com termo, varre todas as conversas
+        if filtro == "pendentes":
+            out = [t for t in out if t["status"] in ("novo", "pronto")]
+        elif filtro == "respondidas":
+            out = [t for t in out if t["status"] == "respondido"]
+    snippet = {}
+    if ql:
+        ql_low = ql.lower()
+        matched = {t["thread_key"] for t in out
+                   if any(ql_low in (sub or "").lower() for sub in t["subjects"])
+                   or any(ql_low in snd.lower() for snd in t["senders"])}
+        try:
+            idx = get_index()
+            hits = idx.search(ql, k=40, kinds={"email"}) if idx else []
+        except Exception:
+            hits = []
+        email_ids = list({sid for _, (_, _, sid, _, _) in hits})
+        id2key = {}
+        if email_ids:
+            with SessionLocal() as s3:
+                id2key = dict(s3.query(Email.id, Email.thread_key).filter(Email.id.in_(email_ids)).all())
+        for sc, (cid, kind, sid, label, text) in hits:
+            key = id2key.get(sid)
+            if key and key in by:
+                matched.add(key)
+                if key not in snippet:
+                    snippet[key] = make_snippet(text, ql)
+        out = [t for t in out if t["thread_key"] in matched]
+    prio = {"novo": 0, "pronto": 1, "respondido": 2, "arquivado": 3}
     out.sort(key=lambda t: t["last_date"] or datetime.min, reverse=True)
+    out.sort(key=lambda t: prio.get(t["status"], 9))
     return [{
         "thread_key": t["thread_key"], "subject": t["subject"], "count": t["count"],
         "pending": t["pending"], "analyzed": t["analyzed"], "last_from": t["last_from"],
         "last_date": t["last_date"].isoformat() if t["last_date"] else None,
-        "classificacao": t["classificacao"],
+        "classificacao": t["classificacao"], "status": t["status"],
+        "preview": t["preview"], "snippet": snippet.get(t["thread_key"]),
     } for t in out[:400]]
 
 
