@@ -152,18 +152,9 @@ def sync_now():
 
 # ---------- caixa ----------
 @app.get("/api/threads")
-def threads(filtro: str = "pendentes", q: str = "", data_inicio: str = "", data_fim: str = "", remetente: str = ""):
+def threads(filtro: str = "pendentes", q: str = ""):
     with SessionLocal() as s:
-        query = s.query(Email).order_by(Email.date.desc())
-        if data_inicio:
-            try: query = query.filter(Email.date >= datetime.fromisoformat(data_inicio))
-            except Exception: pass
-        if data_fim:
-            try: query = query.filter(Email.date <= datetime.fromisoformat(data_fim + "T23:59:59"))
-            except Exception: pass
-        if remetente:
-            query = query.filter(Email.from_addr.ilike(f"%{remetente}%"))
-        rows = query.limit(3000).all()
+        rows = s.query(Email).order_by(Email.date.desc()).limit(3000).all()
     by = {}
     for e in rows:
         t = by.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject, "last_date": e.date,
@@ -272,7 +263,7 @@ def mark_sent(analysis_id: int, body: RespondIn):
 
 @app.post("/api/emails/{email_id}/status")
 def set_email_status(email_id: int, status: str = Form(...)):
-    if status not in ("novo", "analisado", "respondido", "ignorado"):
+    if status not in ("novo", "analisado", "respondido", "ignorado", "arquivado"):
         raise HTTPException(400, "Status inválido.")
     with SessionLocal() as s:
         e = s.get(Email, email_id)
