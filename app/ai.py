@@ -12,7 +12,7 @@ PROVIDER = os.getenv("AI_PROVIDER", "anthropic").lower()  # anthropic | openai |
 API_KEY = os.getenv("AI_API_KEY", "")
 MODEL = os.getenv("AI_MODEL", "claude-sonnet-5")
 BASE_URL = os.getenv("AI_BASE_URL", "")
-MAX_TOKENS = int(os.getenv("AI_MAX_TOKENS", "6000"))
+MAX_TOKENS = int(os.getenv("AI_MAX_TOKENS", "16000"))
 TIMEOUT = float(os.getenv("AI_TIMEOUT", "180"))
 GEMINI_DEFAULT_MODEL = "gemini-3.6-flash"
 
@@ -159,7 +159,19 @@ def call_model(system, user):
                          "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
     if r.status_code >= 400:
         raise http_error(r)
-    return r.json()["choices"][0]["message"]["content"]
+    data = r.json()
+    try:
+        choice = data["choices"][0]
+        msg = choice.get("message") or {}
+        content = msg.get("content") or ""
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError(f"Resposta inesperada da IA: {str(data)[:400]}")
+    if not content.strip():
+        finish = choice.get("finish_reason") or "?"
+        raise RuntimeError(
+            f"A IA retornou conteúdo vazio (finish_reason={finish}, modelo={MODEL}). "
+            f"Resposta: {str(data)[:400]}")
+    return content
 
 
 def http_error(r):
@@ -169,11 +181,15 @@ def http_error(r):
 
 
 def parse_json(text):
-    text = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.M).strip()
+    raw = (text or "").strip()
+    text = re.sub(r"^```(json)?|```$", "", raw, flags=re.M).strip()
     start, end = text.find("{"), text.rfind("}")
     if start < 0 or end < 0:
-        raise ValueError("A IA não retornou JSON.")
-    return json.loads(text[start:end + 1])
+        raise ValueError(f"A IA não retornou JSON. Resposta recebida: {raw[:400]}")
+    try:
+        return json.loads(text[start:end + 1])
+    except json.JSONDecodeError as ex:
+        raise ValueError(f"A IA retornou JSON inválido ({ex}). Trecho: {text[start:start + 400]}")
 
 
 def analyze(email_id):
