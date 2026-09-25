@@ -39,7 +39,8 @@ Seu trabalho, a cada e-mail da Motiva, é preparar o Juliano (CEO da StartGi) pa
    Defenda a StartGi com argumentos legítimos e documentados, nunca com afirmações falsas.
 6. Classifique o pedido: "sustentacao" (correção dentro do que foi especificado, coberto pela mensalidade),
    "melhoria" (regra, visão ou escopo novo, cotado à parte), "duvida" ou "fora_do_escopo_lumos". Regra que
-   não consta em nenhuma especificação ou decisão registrada é, em princípio, escopo novo.
+   não consta no documento de Regras do sistema, em nenhuma especificação ou decisão registrada é, em
+   princípio, escopo novo.
 7. Questione a regra do ponto de vista do processo de supply: se ela não faz sentido, gera ambiguidade ou
    conflita com outra regra, diga e sugira a pergunta certa a fazer à Motiva. Não seja passivo.
 8. Dê uma recomendação única e firme. Não mude de posição sem um fato novo que justifique.
@@ -49,6 +50,10 @@ Seu trabalho, a cada e-mail da Motiva, é preparar o Juliano (CEO da StartGi) pa
    O índice [DOCid] lista TODOS os documentos da base: se algum do índice parecer relevante para o pedido
    mas não tiver trecho no contexto, inclua em "validar_antes_de_enviar" a checagem desse documento
    (ex.: "conferir regra na EF-12"). Se nenhum documento tratar do assunto, diga isso em "historico_relevante".
+10. O documento "Regras do sistema" (seção REGRAS DO SISTEMA) é a referência para validar se uma regra
+    consta no sistema. Sempre que o e-mail citar, pressupor ou questionar uma regra, confere nele e registra
+    em "historico_relevante" se a regra CONSTA (com citação [DOC#]) ou NÃO CONSTA — isso alimenta a
+    classificação da regra 6.
 Estilo do rascunho: português, curto, direto, informal-profissional, sem parágrafos longos, sem listas com
 hífen, sem jargão desnecessário, sem se justificar demais nem soar defensivo. Fecha com "Tks,".
 
@@ -113,6 +118,12 @@ def build_context(session, email_obj):
         mark = "  <<< E-MAIL A RESPONDER" if e.id == email_obj.id else ""
         parts.append(f"[E{e.id}] {fmt_date(e.date)} | De: {who} | Assunto: {e.subject}{mark}\n{(e.body_clean or e.body or '')[:6000]}")
         sources.append({"code": f"E{e.id}", "label": f"{fmt_date(e.date)} {who}"})
+
+    rules = session.query(Document).filter(Document.tipo == "regras").order_by(Document.id.desc()).first()
+    if rules and (rules.content or "").strip():
+        parts.append("## REGRAS DO SISTEMA (documento de referência — valide aqui se a regra CONSTA ou NÃO CONSTA)")
+        parts.append(f"[DOC{rules.id}] {rules.nome}\n{(rules.content or '')[:8000]}")
+        sources.append({"code": f"DOC{rules.id}", "label": "Regras do sistema"})
 
     query = f"{email_obj.subject}\n{(email_obj.body_clean or email_obj.body or '')[:3000]}"
 
@@ -180,7 +191,9 @@ Regras:
 3. Nunca invente. Sem fonte, diga que não há informação registrada — se for essencial, sugira o que pesquisar
    ou anexar na base.
 4. Diferencie o que está DITO na cadeia do que é inferência sua.
-5. Se pedirem um rascunho de resposta à Motiva: português, curto, direto, sem listas com hífen, fecha com "Tks,"."""
+5. Se pedirem um rascunho de resposta à Motiva: português, curto, direto, sem listas com hífen, fecha com "Tks,".
+6. Para dizer se uma regra consta ou não no sistema, confira primeiro o documento "Regras do sistema"
+   (seção REGRAS DO SISTEMA) e responda explicitamente "consta" ou "não consta", citando [DOC#]."""
 
 
 def build_thread_context(session, thread_key, question, history=None):
@@ -196,6 +209,12 @@ def build_thread_context(session, thread_key, question, history=None):
         who = "StartGi (enviado)" if e.direction == "out" else e.from_addr
         parts.append(f"[E{e.id}] {fmt_date(e.date)} | De: {who} | Assunto: {e.subject}\n"
                      f"{(e.body_clean or e.body or '')[:6000]}")
+
+    rules = session.query(Document).filter(Document.tipo == "regras").order_by(Document.id.desc()).first()
+    if rules and (rules.content or "").strip():
+        parts.append("## REGRAS DO SISTEMA (documento de referência — valide aqui se a regra CONSTA ou NÃO CONSTA)")
+        parts.append(f"[DOC{rules.id}] {rules.nome}\n{(rules.content or '')[:8000]}")
+        sources.append({"code": f"DOC{rules.id}", "label": "Regras do sistema"})
 
     subjects = " ".join(dict.fromkeys(e.subject for e in emails if e.subject))
     query = f"{subjects}\n{question}"

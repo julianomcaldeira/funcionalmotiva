@@ -598,12 +598,49 @@ def list_documents():
     with SessionLocal() as s:
         return [{"id": d.id, "nome": d.nome, "tipo": d.tipo, "tamanho": len(d.content or ""),
                  "created_at": d.created_at.isoformat() if d.created_at else None}
-                for d in s.query(Document).order_by(Document.id.desc()).all()]
+                for d in s.query(Document).filter(Document.tipo != "regras")
+                .order_by(Document.id.desc()).all()]
+
+
+class RegrasIn(BaseModel):
+    content: str
+
+
+@app.get("/api/regras")
+def get_regras():
+    with SessionLocal() as s:
+        d = s.query(Document).filter(Document.tipo == "regras").order_by(Document.id.desc()).first()
+        if not d:
+            return {"exists": False, "content": ""}
+        return {"exists": True, "id": d.id, "content": d.content or "",
+                "created_at": d.created_at.isoformat() if d.created_at else None}
+
+
+@app.put("/api/regras")
+def put_regras(body: RegrasIn):
+    content = (body.content or "").strip()
+    if not content:
+        raise HTTPException(400, "Escreva as regras antes de salvar.")
+    with SessionLocal() as s:
+        d = s.query(Document).filter(Document.tipo == "regras").order_by(Document.id.desc()).first()
+        created = d is None
+        if created:
+            d = Document(nome="Regras do sistema", tipo="regras", content=content)
+            s.add(d)
+        else:
+            d.content = content
+        s.flush()
+        ai.index_document(s, d)
+        s.commit()
+        return {"id": d.id, "exists": True, "content": d.content, "created": created}
 
 
 @app.post("/api/documents")
 async def upload_document(tipo: str = Form("documentacao"), nome: str = Form(""), texto: str = Form(""),
                           arquivo: UploadFile | None = File(None)):
+    if tipo == "regras":
+        raise HTTPException(400, "As regras do sistema são editadas no cartão próprio "
+                                 "\"Regras do sistema\", na Base de conhecimento.")
     content, filename = texto, nome
     if arquivo is not None and arquivo.filename:
         raw = await arquivo.read()
@@ -627,8 +664,11 @@ async def upload_document(tipo: str = Form("documentacao"), nome: str = Form("")
 def delete_document(doc_id: int):
     from .db import Chunk
     with SessionLocal() as s:
-        s.query(Chunk).filter(Chunk.source_kind == "document", Chunk.source_id == doc_id).delete()
         d = s.get(Document, doc_id)
+        if d and d.tipo == "regras":
+            raise HTTPException(400, "O documento de Regras do sistema não pode ser removido aqui. "
+                                     "Edite o conteúdo no cartão próprio dele.")
+        s.query(Chunk).filter(Chunk.source_kind == "document", Chunk.source_id == doc_id).delete()
         if d:
             s.delete(d)
         s.commit()
@@ -647,7 +687,9 @@ da base de conhecimento. Regras:
 3. Nunca invente. Se não houver fonte sobre o assunto, diga claramente que não há informação registrada.
 4. Separe o que é fato documentado do que é inferência sua.
 5. Se a pergunta não tiver relação com o projeto (Lumos, Motiva, StartGi, supply chain), responda que só
-   trata de assuntos do projeto."""
+   trata de assuntos do projeto.
+6. Para dizer se uma regra consta ou não no sistema, confira primeiro o documento "Regras do sistema"
+   (seção REGRAS DO SISTEMA) e responda explicitamente "consta" ou "não consta", citando [DOC#]."""
 
 
 class ChatIn(BaseModel):
@@ -666,11 +708,18 @@ def chat(body: ChatIn):
         docs = ai.search_docs(s, idx, pergunta)
         mails = idx.search(pergunta, k=12, kinds={"email"}) if idx else []
         docs_all = s.query(Document.id, Document.tipo, Document.nome).order_by(Document.id.desc()).all()
+        rules = s.query(Document).filter(Document.tipo == "regras").order_by(Document.id.desc()).first()
         decisions = s.query(Decision).filter(Decision.status.in_(["vigente", "em_discussao", "proposta"])).all()
         ranked = rank_texts(pergunta, decisions, key=lambda d: f"{d.titulo} {d.modulo} {d.regra}")
         chosen = [d for sc, d in ranked if sc > 0][:25] or [d for d in decisions if d.status == "vigente"][:10]
 
     parts, sources = [], []
+    parts.append("## REGRAS DO SISTEMA (documento de referência — valide aqui se a regra CONSTA ou NÃO CONSTA)")
+    if rules and (rules.content or "").strip():
+        parts.append(f"[DOC{rules.id}] {rules.nome}\n{(rules.content or '')[:8000]}")
+        sources.append({"code": f"DOC{rules.id}", "label": "Regras do sistema"})
+    else:
+        parts.append("(documento de Regras do sistema ainda não criado)")
     parts.append("## Índice da base de conhecimento (todos os documentos anexados)")
     if docs_all:
         for did, tipo, nome in docs_all:
