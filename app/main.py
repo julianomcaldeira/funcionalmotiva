@@ -602,6 +602,17 @@ def list_documents():
                 .order_by(Document.id.desc()).all()]
 
 
+@app.get("/api/documents/{doc_id}")
+def get_document(doc_id: int):
+    with SessionLocal() as s:
+        d = s.get(Document, doc_id)
+        if not d:
+            raise HTTPException(404, "Documento não encontrado.")
+        return {"id": d.id, "nome": d.nome, "tipo": d.tipo, "content": d.content or "",
+                "tamanho": len(d.content or ""),
+                "created_at": d.created_at.isoformat() if d.created_at else None}
+
+
 class RegrasIn(BaseModel):
     content: str
 
