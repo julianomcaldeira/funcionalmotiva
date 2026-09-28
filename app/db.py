@@ -3,8 +3,8 @@ import os
 import sys
 from datetime import datetime
 
-from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
-                        Text, create_engine)
+from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer,
+                        LargeBinary, String, Text, create_engine)
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./funcional.db")
@@ -82,8 +82,10 @@ class Document(Base):
     __tablename__ = "documents"
     id = Column(Integer, primary_key=True)
     nome = Column(String(500))
-    tipo = Column(String(50))   # especificacao | documentacao | whatsapp | validador | outro
+    tipo = Column(String(50))   # especificacao | documentacao | whatsapp | validador | outro | regras
     content = Column(Text)
+    file_data = Column(LargeBinary)   # arquivo original (ex.: PDF) para preview renderizado
+    file_name = Column(String(500))   # nome/original do arquivo anexado
     created_at = Column(DateTime, default=now)
 
 
@@ -116,6 +118,26 @@ class ChatMessage(Base):
 
 def init_db():
     Base.metadata.create_all(engine)
+    _ensure_columns()
+
+
+def _ensure_columns():
+    """Adiciona colunas novas em tabelas já existentes (create_all não altera tabela existente)."""
+    from sqlalchemy import inspect, text
+    try:
+        cols = {c["name"] for c in inspect(engine).get_columns("documents")}
+    except Exception:
+        return
+    adds = []
+    if "file_data" not in cols:
+        t = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
+        adds.append(f"ALTER TABLE documents ADD COLUMN file_data {t}")
+    if "file_name" not in cols:
+        adds.append("ALTER TABLE documents ADD COLUMN file_name VARCHAR(500)")
+    if adds:
+        with engine.begin() as conn:
+            for a in adds:
+                conn.execute(text(a))
 
 
 def get_setting(session, key, default=None):

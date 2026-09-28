@@ -596,21 +596,42 @@ def read_upload(name, raw):
 @app.get("/api/documents")
 def list_documents():
     with SessionLocal() as s:
-        return [{"id": d.id, "nome": d.nome, "tipo": d.tipo, "tamanho": len(d.content or ""),
-                 "created_at": d.created_at.isoformat() if d.created_at else None}
-                for d in s.query(Document).filter(Document.tipo != "regras")
-                .order_by(Document.id.desc()).all()]
+        rows = s.query(Document.id, Document.nome, Document.tipo, Document.content,
+                       Document.created_at, Document.file_name,
+                       Document.file_data.isnot(None).label("tem_arquivo")) \
+            .filter(Document.tipo != "regras") \
+            .order_by(Document.id.desc()).all()
+        return [{"id": r.id, "nome": r.nome, "tipo": r.tipo, "tamanho": len(r.content or ""),
+                 "created_at": r.created_at.isoformat() if r.created_at else None,
+                 "tem_arquivo": bool(r.tem_arquivo), "file_name": r.file_name} for r in rows]
 
 
 @app.get("/api/documents/{doc_id}")
 def get_document(doc_id: int):
     with SessionLocal() as s:
-        d = s.get(Document, doc_id)
-        if not d:
+        row = s.query(Document.id, Document.nome, Document.tipo, Document.content,
+                      Document.created_at, Document.file_name,
+                      Document.file_data.isnot(None).label("tem_arquivo")) \
+            .filter(Document.id == doc_id).first()
+        if not row:
             raise HTTPException(404, "Documento não encontrado.")
-        return {"id": d.id, "nome": d.nome, "tipo": d.tipo, "content": d.content or "",
-                "tamanho": len(d.content or ""),
-                "created_at": d.created_at.isoformat() if d.created_at else None}
+        return {"id": row.id, "nome": row.nome, "tipo": row.tipo, "content": row.content or "",
+                "tamanho": len(row.content or ""),
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "tem_arquivo": bool(row.tem_arquivo), "file_name": row.file_name}
+
+
+@app.get("/api/documents/{doc_id}/file")
+def get_document_file(doc_id: int):
+    with SessionLocal() as s:
+        d = s.get(Document, doc_id)
+        if not d or not d.file_data:
+            raise HTTPException(404, "Arquivo original não encontrado.")
+        name = (d.file_name or d.nome or "documento").replace('"', "")
+        media = "application/pdf" if name.lower().endswith(".pdf") else "application/octet-stream"
+        return Response(content=bytes(d.file_data), media_type=media,
+                        headers={"Content-Disposition": f'inline; filename="{name}"',
+                                 "Cache-Control": "private, max-age=3600"})
 
 
 class RegrasIn(BaseModel):
@@ -652,18 +673,22 @@ async def upload_document(tipo: str = Form("documentacao"), nome: str = Form("")
     if tipo == "regras":
         raise HTTPException(400, "As regras do sistema são editadas no cartão próprio "
                                  "\"Regras do sistema\", na Base de conhecimento.")
-    content, filename = texto, nome
+    content, filename, raw_file, raw_name = texto, nome, None, None
     if arquivo is not None and arquivo.filename:
         raw = await arquivo.read()
+        if len(raw) > 25_000_000:
+            raise HTTPException(400, "Arquivo maior que 25 MB.")
         try:
             content = read_upload(arquivo.filename, raw)
         except Exception as ex:
             raise HTTPException(400, f"Não consegui ler o arquivo: {ex}")
         filename = nome or arquivo.filename
+        raw_file, raw_name = raw, arquivo.filename
     if not (content or "").strip():
         raise HTTPException(400, "Envie um arquivo ou cole o texto.")
     with SessionLocal() as s:
-        d = Document(nome=filename or "Sem nome", tipo=tipo, content=content)
+        d = Document(nome=filename or "Sem nome", tipo=tipo, content=content,
+                     file_data=raw_file, file_name=raw_name)
         s.add(d)
         s.flush()
         ai.index_document(s, d)
