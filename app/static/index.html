@@ -9,19 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --brand:#1AD56D; --brand-deep:#0B8A45; --brand-ink:#08361D; --brand-wash:#E7FAF0;
-  --ink:#2B2F2D; --muted:#66706B; --line:#E1E6E3; --bg:#F6F8F7; --panel:#FFFFFF;
+  --brand:#1AD56D; --brand-deep:#0B8A45; --brand-dark:#0A6B36; --brand-ink:#08361D; --brand-wash:#E7FAF0;
+  --ink:#232725; --muted:#5C665F; --line:#E1E6E3; --bg:#F6F8F7; --panel:#FFFFFF;
   --red:#B4331F; --red-wash:#FCEDEA; --amber:#95610C; --amber-wash:#FDF4E3; --blue:#2A5A8C; --blue-wash:#EAF1F8;
+  --sh-1:0 1px 2px rgba(23,37,32,.05); --sh-2:0 6px 18px rgba(23,37,32,.08); --sh-3:0 18px 44px rgba(23,37,32,.18);
+  --focus:rgba(11,138,69,.28);
   --ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
   --read:"Source Serif 4",Georgia,serif;
-  --r:10px;
+  --r-s:8px; --r:10px; --r-l:14px; --r-xl:18px;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{font-family:var(--ui);font-size:14px;color:var(--ink);background:var(--bg);display:flex}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:2px solid var(--brand-deep);outline-offset:2px}
+:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}
 svg{flex:none}
 
 /* navegação */
@@ -65,7 +67,7 @@ main{flex:1;min-width:0;display:flex}
 .th .m{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .th .pv{font-size:12.5px;color:var(--muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .th mark{background:#FFF0A8;color:var(--ink);border-radius:2px;padding:0 1px}
-.tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.tag{font-size:12px;font-weight:600;padding:2px 9px;border-radius:10px;white-space:nowrap;display:inline-block}
 .tag.novo{background:var(--red-wash);color:var(--red)}
 .tag.pronto{background:var(--brand-wash);color:var(--brand-ink)}
 .tag.st-respondido{background:var(--blue-wash);color:var(--blue)}
@@ -80,7 +82,7 @@ main{flex:1;min-width:0;display:flex}
 .conv{flex:1;min-width:0;overflow:auto;padding:26px 30px 40px}
 .conv h1{font-family:var(--read);font-size:22px;font-weight:600;line-height:1.3;margin:0 0 4px;max-width:58ch}
 .conv .meta{color:var(--muted);font-size:13px;margin-bottom:20px}
-.msg{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;max-width:760px}
+.msg{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;max-width:760px;box-shadow:var(--sh-1)}
 .msg.out{margin-left:40px;background:#FBFCFB}
 .msg.target{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
 .msg header{display:flex;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
@@ -98,9 +100,9 @@ main{flex:1;min-width:0;display:flex}
 
 /* mesa do funcional */
 .desk[hidden]{display:none!important}
-.desk{width:480px;flex:none;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
-.desk-head{padding:16px 20px 0;border-bottom:1px solid var(--line)}
-.desk-head .t{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.desk{width:var(--desk-w,480px);flex:none;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;box-shadow:-8px 0 24px rgba(23,37,32,.05)}
+.desk-head{position:relative;padding:16px 20px 0;border-bottom:1px solid var(--line)}
+.desk-head .t{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;padding-right:34px}
 .desk-head .t img{width:20px}
 .dtabs{display:flex;gap:18px;margin-top:12px}
 .dtabs button{border:0;background:none;padding:8px 0 10px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent}
@@ -144,12 +146,16 @@ main{flex:1;min-width:0;display:flex}
 .desk-foot .chat-form{flex:1;margin-top:0}
 .desk-foot .chat-form textarea{min-height:38px;max-height:140px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff}
 
-.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 14px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
-.btn:hover{border-color:#C5CEC9}
-.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
-.btn.pri:hover{background:#15C263}
-.btn.sm{padding:5px 10px;font-size:13px}
-.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:var(--r-s);padding:8px 14px;font-weight:600;display:inline-flex;align-items:center;gap:7px;box-shadow:var(--sh-1);transition:border-color .12s,background .12s,box-shadow .12s}
+.btn:hover{border-color:#B9C6BF;box-shadow:var(--sh-2)}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--brand-deep);border-color:var(--brand-deep);color:#fff}
+.btn.pri:hover{background:var(--brand-dark);border-color:var(--brand-dark)}
+.btn.sm{padding:5px 11px;font-size:13px}
+.btn.danger{background:#fff;border-color:#D9B9B2;color:var(--red)}
+.btn.danger:hover{background:var(--red-wash);border-color:var(--red)}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted);box-shadow:none}
+.btn.ghost:hover{background:var(--bg);color:var(--ink);box-shadow:none}
 .btn:disabled{opacity:.6;cursor:wait}
 
 /* estados */
@@ -179,11 +185,16 @@ main{flex:1;min-width:0;display:flex}
 .page h2{font-size:22px;margin:0 0 4px}
 .page .lead{color:var(--muted);margin:0 0 20px;max-width:72ch;line-height:1.55}
 .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.page{border-top:1px solid var(--line)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--sh-1)}
 table{border-collapse:collapse;width:100%}
 th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
-th{font-size:12px;color:var(--muted);font-weight:600}
-tbody tr{cursor:pointer} tbody tr:hover td{background:#FAFCFB}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--bg)}
+th.sort{cursor:pointer;user-select:none;white-space:nowrap}
+th.sort::after{content:"↕";margin-left:6px;opacity:.4;font-size:11px}
+th.sort.asc::after{content:"↑";opacity:1}
+th.sort.desc::after{content:"↓";opacity:1}
+tbody tr{cursor:pointer;transition:background .12s} tbody tr:hover td{background:#F2FAF5} tbody tr:focus-visible{box-shadow:0 0 0 3px var(--focus) inset}
 tbody tr:last-child td{border-bottom:0}
 .st{font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
 .st.vigente{background:var(--brand-wash);color:var(--brand-ink)} .st.proposta{background:var(--amber-wash);color:var(--amber)}
@@ -241,10 +252,10 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 .dash-live{font-size:12.5px;color:var(--brand);font-weight:600;display:flex;align-items:center;gap:6px;background:var(--brand-wash);padding:6px 14px;border-radius:20px;margin-left:auto}
 .dash-live .dot{width:7px;height:7px}
 .dash-top{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
-.dash-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;min-width:0}
-.dash-card:hover{transform:translateY(-2px);box-shadow:0 8px 26px rgba(26,213,109,.12)}
+.dash-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;min-width:0;box-shadow:var(--sh-1)}
+.dash-card:hover{transform:translateY(-2px);box-shadow:var(--sh-2);border-color:#CDD9D2}
 .dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--brand);opacity:.55}
-.dash-card.hot::before{background:var(--orange)}
+.dash-card.hot::before{background:var(--amber)}
 .dash-card h4{margin:0 0 10px;font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dash-card h4 svg{color:var(--brand);flex:none}
 .dash-stat{font-size:34px;font-weight:700;color:var(--ink);line-height:1;font-family:var(--ui)}
@@ -296,6 +307,95 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 .chat-form{display:flex;gap:8px;margin-top:12px;align-items:flex-end}
 .chat-form textarea{flex:1;resize:none}
 @media (max-width:720px){.chat-page{max-height:none}.chat-msg{max-width:92%}}
+
+/* --- refresco T1-T6 --- */
+.nv{min-height:44px}
+mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
+.tabs button:hover{background:var(--bg);color:var(--ink)}
+.tabs button:focus-visible{box-shadow:none}
+.st{font-size:12.5px}
+.conf{font-size:12.5px}
+
+/* mesa do funcional: recolher e redimensionar */
+#desk-div{width:5px;flex:none;cursor:col-resize;position:relative;z-index:2}
+#desk-div::after{content:"";position:absolute;inset:0 2px;border-radius:3px;transition:background .15s}
+#desk-div:hover::after,#desk-div:active::after{background:var(--line)}
+.desk-coll{position:absolute;top:12px;right:12px;background:none;border:0;color:var(--muted);padding:6px;border-radius:8px;line-height:0;cursor:pointer}
+.desk-coll:hover{background:var(--bg);color:var(--ink)}
+.desk.collapsed .desk-body,.desk.collapsed .desk-foot,.desk.collapsed .dtabs{display:none}
+.desk.collapsed{width:52px!important}
+.desk.collapsed .desk-head{padding:14px 12px}
+.desk.collapsed .desk-head .t{display:none}
+
+/* filtros em chips */
+.dchips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dchip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 12px;font-size:12.5px;color:var(--muted);font-weight:500;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.dchip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
+.dchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#dm-chips{max-width:100%;flex:1}
+
+/* skeletons */
+.skel{position:relative;overflow:hidden;background:#E7EBE8;border-radius:6px}
+.skel::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:shim 1.3s infinite}
+@keyframes shim{to{transform:translateX(100%)}}
+.sk-ln{height:11px;margin:6px 0}
+.sk-th{display:grid;grid-template-columns:54px 1fr;gap:0 12px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:center}
+.sk-th .sk-c{width:40px;height:40px;border-radius:50%}
+
+/* toasts tipificados */
+.toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center;max-width:min(560px,92vw)}
+.toast{display:flex;align-items:flex-start;gap:9px;background:var(--ink);color:#fff;padding:11px 15px;border-radius:12px;line-height:1.45;box-shadow:var(--sh-3);font-size:13.5px;box-sizing:border-box;animation:tin .18s ease-out;max-width:100%}
+.toast .tic{font-weight:800;line-height:1.2}
+.toast.ok{background:#0B6B33}
+.toast.err{background:#9C2E1D}
+.toast.gone{opacity:0;transition:opacity .25s}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}.skel::after{animation:none}}
+
+/* palette Cmd+K */
+#pal{border:0;border-radius:var(--r-xl);padding:0;width:min(620px,94vw);box-shadow:var(--sh-3);overflow:hidden}
+#pal::backdrop{background:rgba(20,30,25,.45);backdrop-filter:blur(2px)}
+.pal-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.pal-head input{flex:1;border:0;outline:none;font-size:15px;background:none;color:var(--ink)}
+.pal-head .pg{background:var(--bg);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 7px;font-size:11px}
+.pal-res{max-height:62vh;overflow:auto;padding:8px}
+.pal-group{padding:8px 10px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.pal-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer}
+.pal-item.on{background:var(--brand-wash)}
+.pal-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--bg);color:var(--muted);flex:none}
+.pal-item.on .pal-ic{background:var(--brand);color:var(--brand-ink)}
+.pal-item .pi-t{flex:1;min-width:0}
+.pal-item .pi-t b{display:block;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-item .pi-t span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-empty{text-align:center;color:var(--muted);padding:20px;font-size:13.5px}
+.pal-foot{display:flex;gap:14px;padding:10px 16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.kbd{font:600 10.5px var(--ui);border:1px solid #CBD4CE;border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:#fff;color:#5C665F}
+
+/* botão de busca rápida na navegação + sincronização */
+.kbd-btn{width:100%;justify-content:flex-start;margin-top:8px;font-size:12.5px}
+.health .sync{display:flex;align-items:center;gap:7px}
+.spin{width:10px;height:10px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;flex:none}
+
+/* FAB mobile */
+#fabs{position:fixed;right:16px;bottom:16px;z-index:8;display:none;border-radius:999px;box-shadow:var(--sh-3)}
+@media (max-width:1020px){#fabs{display:inline-flex}#desk-div{display:none}}
+@media (max-width:900px){
+  #v-caixa{flex-direction:column}
+  #v-caixa .list{width:100%;border-right:0;border-bottom:1px solid var(--line);max-height:46vh}
+  #v-caixa .conv{min-height:54vh}
+  #v-caixa .desk{width:auto}
+}
+
+/* impressão: só a conversa */
+@media print{
+  body{background:#fff}
+  nav,.list,#desk,#desk-div,.toasts,#fabs,.tabs,.dtabs,.bar{display:none!important}
+  main,section.view,section.view.on,.conv{display:block!important;padding:0!important;margin:0!important;max-width:none!important;width:auto!important;flex:none!important}
+  .conv{overflow:visible}
+  .msg{box-shadow:none;break-inside:avoid;border-color:#ddd;max-width:none}
+  .msg.out{margin-left:0}
+}
+@media (max-width:560px){.form,.stats{grid-template-columns:1fr}.dash-top{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -311,6 +411,7 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
    <button class="nv" data-v="assistente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Assistente</button>
    <button class="nv" data-v="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Conexões</button>
    <div class="health" id="health"></div>
+   <button class="btn sm ghost kbd-btn" onclick="openPalette()" title="Busca rápida em todo o sistema"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Busca rápida<span class="kbd" style="margin-left:auto">⌘K</span></button>
 </nav>
 
 <main>
@@ -361,7 +462,9 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
       <div class="list-foot"><button class="btn sm" style="width:100%;justify-content:center" onclick="openManual()">Colar um e-mail</button></div>
     </div>
     <div class="conv" id="conv"></div>
+    <div id="desk-div"></div>
     <aside class="desk" id="desk" hidden></aside>
+    <button class="btn pri" id="fabs" onclick="fabDesk()">Mesa do funcional</button>
   </section>
 
   <section class="view" id="v-decisoes"><div class="page">
@@ -370,18 +473,18 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
     <div class="bar">
       <div class="tabs" id="dtabs"><button data-s="" class="on">Todas</button><button data-s="proposta">Para revisar</button><button data-s="vigente">Vigentes</button><button data-s="em_discussao">Em discussão</button><button data-s="substituida">Substituídas</button></div>
       <div class="search" style="flex:1;max-width:300px"><input id="dq" placeholder="Buscar regra ou módulo" aria-label="Buscar decisões"></div>
-      <select id="dm" aria-label="Filtrar por módulo" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;font:inherit;max-width:200px"><option value="">Todos os módulos</option></select>
+      <div class="dchips" id="dm-chips" style="min-width:0"></div>
       <button class="btn sm" onclick="exportDecisionsCSV()" title="Baixar as decisões filtradas em CSV">CSV</button>
       <button class="btn sm" onclick="printDecisions()" title="Imprimir ou salvar em PDF as decisões filtradas">Imprimir/PDF</button>
       <button class="btn pri" onclick="editDecision()" style="margin-left:auto">Registrar decisão</button>
     </div>
-    <div class="card"><table><thead><tr><th style="width:64px">Código</th><th style="width:26%">Assunto</th><th>Regra</th><th style="width:220px">Fonte</th><th style="width:120px">Situação</th></tr></thead><tbody id="dec-body"></tbody></table></div>
+    <div class="card"><table><thead><tr><th class="sort" data-k="id" style="width:64px">Código</th><th class="sort" data-k="titulo" style="width:26%">Assunto</th><th class="sort" data-k="regra">Regra</th><th class="sort" data-k="fonte" style="width:220px">Fonte</th><th class="sort" data-k="status" style="width:120px">Situação</th></tr></thead><tbody id="dec-body"></tbody></table></div>
   </div></section>
 
   <section class="view" id="v-base"><div class="page">
     <h2>Base de conhecimento</h2>
     <p class="lead">Especificações, documentações técnicas, conversas exportadas do WhatsApp do time e resultados do validador de regras. Tudo aqui entra na pesquisa do funcional, junto com o histórico de e-mails.</p>
-    <div class="bar"><div class="search" style="flex:1;max-width:340px"><input id="dqDoc" placeholder="Buscar na base (nome, tipo, tags)…" aria-label="Buscar na base"></div></div>
+    <div class="bar"><div class="search" style="flex:1;max-width:340px"><input id="dqDoc" placeholder="Buscar na base (nome, tipo, tags)…" aria-label="Buscar na base"></div><div class="dchips" id="tag-chips" style="min-width:0"></div></div>
     <div class="card rules-card" id="rules-card" style="max-width:900px;margin-bottom:18px"></div>
     <form class="card form" id="doc-form" onsubmit="return uploadDoc(event)" style="max-width:900px;margin-bottom:18px">
       <label>Tipo de conteúdo
@@ -423,7 +526,16 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 </main>
 
 <dialog id="dlg"></dialog>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="pal">
+  <div class="pal-head">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5C665F" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="pal-q" placeholder="Buscar conversas, decisões e documentos…" aria-label="Busca rápida">
+    <span class="pg">esc</span>
+  </div>
+  <div class="pal-res" id="pal-res"><div class="pal-empty">Digite para buscar em todo o sistema.</div></div>
+  <div class="pal-foot"><span><span class="kbd">↑</span><span class="kbd">↓</span> navegar</span><span><span class="kbd">↵</span> abrir</span><span><span class="kbd">esc</span> fechar</span></div>
+</dialog>
+<div class="toasts" id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="/static/pdfjs/pdf.min.js"></script>
 <script>
@@ -442,7 +554,118 @@ const fmtSize=n=>{n=+n||0;if(n<1024)return n+" B";if(n<1048576)return(n/1024).to
 function csvRows(header,rows){const c=v=>{v=(v??"").toString();return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};return "\ufeff"+header.map(c).join(";")+"\n"+rows.map(r=>r.map(c).join(";")).join("\n")}
 function downloadCSV(name,header,rows){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csvRows(header,rows)],{type:"text/csv;charset=utf-8"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 
-function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4500)}
+/* ---- busca rápida (Cmd+K) ---- */
+let palItems=[],palSel=-1;
+function openPalette(){
+  const pal=$("#pal");if(!pal)return;
+  if(!pal.open)pal.showModal();
+  $("#pal-q").value="";
+  $("#pal-res").innerHTML=`<div class="pal-empty">Digite para buscar conversas, decisões e documentos.</div>`;
+  palItems=[];palSel=-1;
+  setTimeout(()=>$("#pal-q").focus(),30);
+}
+function setPalSel(i){
+  if(i<0||i>=palItems.length)return;
+  palSel=i;
+  $$("#pal-res .pal-item").forEach((el,x)=>el.classList.toggle("on",x===i));
+  const act=$("#pal-res .pal-item.on");if(act)act.scrollIntoView({block:"nearest"});
+}
+function pickPal(i){
+  const it=palItems[i];if(!it)return;
+  $("#pal").close();
+  if(it.kb){go("caixa");loadThreads();setTimeout(()=>openThread(it.kb),80)}
+  else if(it.kind==="dec"){go("decisoes");loadDecisions().then(()=>editDecision(it.kd))}
+  else if(it.kind==="doc"){go("base");loadDocs().then(()=>showDoc(it.kd))}
+}
+async function searchPalette(q){
+  const qv=(q||"").trim(),res=$("#pal-res"),inp=$("#pal-q");
+  if(!res)return;
+  if(!qv){res.innerHTML=`<div class="pal-empty">Digite para buscar conversas, decisões e documentos.</div>`;palItems=[];palSel=-1;return}
+  const thisQ=qv;
+  res.innerHTML=`<div class="pal-empty"><span class="spin" style="width:15px;height:15px;vertical-align:-3px"></span> Buscando…</div>`;
+  palItems=[];palSel=-1;
+  try{
+    const [th,dec,docs]=await Promise.all([
+      api("/api/threads?filtro=todas&q="+encodeURIComponent(qv)),
+      api("/api/decisions"),
+      api("/api/documents")
+    ]);
+    if((inp&&(inp.value||"").trim())!==thisQ)return;
+    const fq=fold(qv),items=[];
+    (th.items||[]).slice(0,6).forEach(t=>items.push({g:"Conversas",t:t.subject,s:`${t.count} e-mails${t.last_from?" · "+(t.last_from||"").split("@")[0]:""}`,kb:t.thread_key}));
+    (dec||[]).filter(d=>fold(`${d.titulo} ${d.modulo} ${d.regra}`).includes(fq)).slice(0,6).forEach(d=>items.push({g:"Decisões",t:`D${d.id} · ${d.titulo}`,s:`${d.modulo||""} · ${ST[d.status]||d.status}`,kind:"dec",kd:d.id}));
+    (docs||[]).filter(d=>fold(`${d.nome} ${d.tipo} ${d.tags||""}`).includes(fq)).slice(0,6).forEach(d=>items.push({g:"Documentos",t:d.nome,s:`${TP[d.tipo]||d.tipo}${d.tags?" · "+d.tags:""}`,kind:"doc",kd:d.id}));
+    palItems=items;
+    if(!items.length){res.innerHTML=`<div class="pal-empty">Nada encontrado para "${esc(qv)}".</div>`;return}
+    let html="",grp=null;
+    items.forEach((it,i)=>{
+      if(it.g!==grp){grp=it.g;html+=`<div class="pal-group">${it.g}</div>`}
+      html+=`<div class="pal-item" data-i="${i}"><div class="pal-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></div><div class="pi-t"><b>${esc(it.t)}</b><span>${esc(it.s)}</span></div></div>`;
+    });
+    res.innerHTML=html;
+    setPalSel(0);
+    $$("#pal-res .pal-item").forEach(el=>el.onmouseenter=()=>setPalSel(+el.dataset.i));
+  }catch(e){res.innerHTML=`<div class="pal-empty">Erro ao buscar: ${esc(e.message||e)}</div>`}
+}
+$("#pal-q").oninput=()=>searchPalette($("#pal-q").value);
+$("#pal-q").onkeydown=e=>{
+  if(e.key==="ArrowDown"){e.preventDefault();setPalSel(Math.min(palItems.length-1,palSel+1))}
+  else if(e.key==="ArrowUp"){e.preventDefault();setPalSel(palSel<=0?palItems.length-1:palSel-1)}
+  else if(e.key==="Enter"){e.preventDefault();if(palSel>=0)pickPal(palSel)}
+};
+
+/* ---- atalhos de teclado ---- */
+function focusSearch(){
+  const v={caixa:"#q",decisoes:"#dq",base:"#dqDoc"};
+  const key=Object.keys(v).find(x=>$(`#v-${x}`).classList.contains("on"));
+  const el=key&&$(v[key]);if(el)el.focus();
+}
+function moveThread(dir){
+  const els=$$("#threads .th");if(!els.length)return;
+  const cur=Math.max(0,els.findIndex(el=>el.classList.contains("on")));
+  const n=Math.min(els.length-1,Math.max(0,cur+dir));
+  els[n].scrollIntoView({block:"nearest"});els[n].click();
+}
+document.addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openPalette();return}
+  const t=e.target,field=/^(INPUT|TEXTAREA|SELECT)$/.test((t&&t.tagName)||"")||(t&&t.isContentEditable);
+  if(e.key==="Escape"||field)return;
+  if(e.key==="/"){e.preventDefault();focusSearch();return}
+  if(e.key==="n"){e.preventDefault();openManual();return}
+  if(e.key==="j"){e.preventDefault();moveThread(1);return}
+  if(e.key==="k"){e.preventDefault();moveThread(-1);return}
+  const map={d:"dashboard",c:"caixa",r:"decisoes",b:"base",a:"assistente",s:"status"};
+  const v=map[e.key.toLowerCase()];
+  if(v){e.preventDefault();go(v)}
+});
+
+/* ---- mesa do funcional: recolher e redimensionar ---- */
+function toggleDesk(){const d=$("#desk");if(!d)return;const c=d.classList.toggle("collapsed");localStorage.setItem("desk_collapsed",c?"1":"0")}
+function fabDesk(){const d=$("#desk");if(!current||!thread){go("caixa");loadThreads();return}if(d){if(d.hidden)renderDesk();d.classList.remove("collapsed");d.scrollIntoView({behavior:"smooth",block:"start"})}}
+(function(){
+  const dv=$("#desk-div");if(!dv)return;
+  dv.addEventListener("mousedown",e=>{
+    e.preventDefault();
+    const startX=e.clientX,startW=$("#desk").offsetWidth;
+    const mv=ev=>{const w=Math.min(600,Math.max(300,startW+startX-ev.clientX));document.documentElement.style.setProperty("--desk-w",w+"px")};
+    const up=()=>{document.removeEventListener("mousemove",mv);document.removeEventListener("mouseup",up)};
+    document.addEventListener("mousemove",mv);document.addEventListener("mouseup",up);
+  });
+  if(localStorage.getItem("desk_collapsed")==="1"){const d=$("#desk");if(d)d.classList.add("collapsed")}
+})();
+
+function toast(m,type="info"){
+  const c=$("#toasts");if(!c)return;
+  const el=document.createElement("div");
+  el.className="toast "+(type==="ok"?"ok":type==="err"?"err":"info");
+  el.innerHTML=`<span class="tic">${type==="ok"?"✓":type==="err"?"!":"•"}</span><span>${esc(m)}</span>`;
+  c.appendChild(el);
+  while(c.children.length>4)c.firstChild.remove();
+  setTimeout(()=>{el.classList.add("gone");setTimeout(()=>el.remove(),260)},type==="err"?6500:3800);
+}
+function skelLines(cols,n=6){let r="";for(let i=0;i<n;i++)r+=`<tr style="cursor:default">${Array.from({length:cols},(_,c)=>`<td><div class="skel sk-ln" style="width:${[45,70,55,38,30,50][c%6]}%"></div></td>`).join("")}</tr>`;return r}
+function skelThreads(n=6){let r="";for(let i=0;i<n;i++)r+=`<div class="sk-th"><div class="skel sk-c"></div><div><div class="skel sk-ln" style="width:72%"></div><div class="skel sk-ln" style="width:42%"></div></div></div>`;return r}
+function skelDash(n=6){let r="";for(let i=0;i<n;i++)r+=`<div class="dash-card" style="cursor:default;pointer-events:none"><div class="skel sk-ln" style="width:55%"></div><div class="skel sk-ln" style="width:85%;height:28px;margin:12px 0 6px"></div><div class="skel sk-ln" style="width:45%"></div></div>`;return r}
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
 const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
 
@@ -453,8 +676,10 @@ $("#q").oninput=()=>{clearTimeout($("#q")._h);$("#q")._h=setTimeout(loadThreads,
 function aplicarFiltros(){loadThreads()};
 ["#di","#df","#remetente"].forEach(id=>{$(id).onkeydown=e=>{if(e.key==="Enter")loadThreads()}});
 
+let threadsLoaded=false,dashLoaded=false;
 async function loadDashboard(){
   try{
+  if(!dashLoaded)$("#dash-top").innerHTML=skelDash(6);
   const d=await api("/api/dashboard");
   const e=d.emails, dec=d.decisoes, pend=e.novos+e.analisados;
   $("#c-email-total").hidden=!e.total;$("#c-email-total").textContent=e.total;
@@ -488,6 +713,7 @@ async function loadDashboard(){
   if(d.zoho_state==="ok"){dot.className="dot ok";tx.textContent="Ao vivo"}
   else if(d.zoho_state==="erro"){dot.className="dot erro";tx.textContent="Erro na sincronização"}
   else{dot.className="dot aguardando";tx.textContent="Aguardando sincronização"}
+  dashLoaded=true;
   }catch(e){
     $("#dash-top").innerHTML=`<div style="grid-column:1/-1" class="empty"><b style="color:var(--ink)">Erro ao carregar</b><br>${e.message||e}</div>`;
     $("#dash-log").textContent="Erro: "+(e.message||e);
@@ -496,7 +722,7 @@ async function loadDashboard(){
 async function dashSync(b){
   b.disabled=true;b.textContent="Lendo…";
   try{await post("/api/sync");toast("Leitura dos e-mails iniciada.");setTimeout(loadDashboard,4000)}
-  catch(e){toast(e.message);b.disabled=false;b.textContent="Ler e-mails agora"}
+  catch(e){toast(e.message,"err");b.disabled=false;b.textContent="Ler e-mails agora"}
 }
 setInterval(loadDashboard,30000);
 
@@ -509,6 +735,7 @@ async function loadHealth(){
   const zl={ok:"Zoho sincronizado",erro:"Zoho com erro",aguardando:"Zoho aguardando",nao_configurado:"Zoho não configurado"}[status.zoho_state];
   $("#health").innerHTML=`<button onclick="go('status')"><span class="dot ${status.zoho_state}"></span>${zl}</button>
     <button onclick="go('status')"><span class="dot ${status.ia?"ok":"erro"}"></span>${status.ia?"IA pronta":"IA não configurada"}</button>
+    ${status.sincronizando?`<span class="sync"><span class="spin"></span>Sincronizando</span>`:""}
     ${status.ultima_sync?`<span>Última leitura ${ago(status.ultima_sync)}</span>`:""}`;
 }
 function setupSteps(){
@@ -527,12 +754,14 @@ function setupSteps(){
 /* ---------- caixa ---------- */
 async function loadThreads(){
   await loadHealth();
+  if(!threadsLoaded)$("#threads").innerHTML=skelThreads();
   const q=$("#q").value;
   const di=$("#di").value;
   const df=$("#df").value;
   const rem=$("#remetente").value;
   const data=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
   const list=data.items||[];
+  threadsLoaded=true;
   const cnt=data.counts||{};
   const tbp=$("#tb-pend");if(tbp)tbp.textContent=cnt.pendentes?` (${cnt.pendentes})`:"";
   const tba=$("#tb-aguard");if(tba)tba.textContent=cnt.aguardando?` (${cnt.aguardando})`:"";
@@ -546,7 +775,7 @@ async function loadThreads(){
     const st=STTAG[t.status]||"";
     const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
     const body=t.snippet||t.preview||"";
-    return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button">
+    return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button" title="${esc(t.last_date?fmt(t.last_date):"")}">
       <div class="dt">${dt}${yr}</div>
       <div class="tw">
         <div class="s">${esc(t.subject)}</div>
@@ -579,18 +808,19 @@ async function openThread(key,tab){
 function latestAnalysis(){const t=thread.target;return[...thread.analyses].reverse().find(a=>a.email_id===t.id)}
 function items(arr,cls){return arr&&arr.length?`<ul class="items ${cls}">${arr.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`:`<div class="none">Nada apontado.</div>`}
 
+const deskBtn=`<button class="desk-coll" onclick="toggleDesk()" title="Recolher a mesa" aria-label="Recolher a mesa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></button>`;
 function renderDesk(){
   const d=$("#desk");d.hidden=false;
   if(deskTab==="chat"){renderThreadChatTab();return}
   const a=latestAnalysis(), t=thread.target;
-  if(!a){d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div>
+  if(!a){d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div>${deskBtn}
     <div class="dtabs"><button class="${deskTab==="briefing"?"on":""}">Briefing</button><button>Resposta</button><button data-t="chat">Chat</button></div></div>
     <div class="desk-body"><div class="empty"><h3>Sem briefing ainda</h3>O funcional lê a conversa, o registro de decisões e o histórico do projeto antes de sugerir a resposta. Enquanto isso, o Chat da cadeia já responde dúvidas com tudo do sistema.<div style="margin-top:16px"><button class="btn pri" onclick="runAnalyze(${t.id})">Gerar briefing</button></div></div></div>`;
     $$(".dtabs button").forEach(x=>x.onclick=()=>x.dataset.t?(deskTab=x.dataset.t,renderDesk()):toast("Gere o briefing primeiro."));
     return}
   const b=a.briefing||{}, c=b.classificacao||{}, val=b.validar_antes_de_enviar||[];
   const done=(a._done=a._done||new Set());
-  d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div>
+  d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Mesa do funcional</div>${deskBtn}
     <div class="dtabs"><button data-t="briefing" class="${deskTab==="briefing"?"on":""}">Briefing</button><button data-t="resposta" class="${deskTab==="resposta"?"on":""}">Resposta${val.length-done.size>0?`<span class="n">${val.length-done.size}</span>`:""}</button><button data-t="chat">Chat</button></div></div>
     <div class="desk-body">${deskTab==="briefing"?briefingHTML(a,b,c,val,done):draftHTML(a,val,done)}</div>
     <div class="desk-foot">${deskTab==="briefing"
@@ -635,7 +865,7 @@ function tcBubble(m){
 }
 async function renderThreadChatTab(){
   const d=$("#desk");d.hidden=false;
-  d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Chat da cadeia</div>
+  d.innerHTML=`<div class="desk-head"><div class="t"><img src="/static/icon.png" alt="">Chat da cadeia</div>${deskBtn}
     <div class="dtabs"><button data-t="briefing">Briefing</button><button data-t="resposta">Resposta</button><button data-t="chat" class="on">Chat</button></div></div>
     <div class="desk-body chatpane"><div class="chat-log" id="tc-log"><div class="empty">Carregando conversa…</div></div></div>
     <div class="desk-foot"><form class="chat-form" id="tc-form"><textarea id="tc-in" rows="2" placeholder="Pergunte sobre esta cadeia — ou tire dúvidas do projeto…" aria-label="Pergunta"></textarea><button class="btn pri" id="tc-btn" type="submit">Enviar</button></form></div>`;
@@ -680,12 +910,12 @@ async function runAnalyze(id){
   $("#desk").innerHTML=`<div class="thinking"><div><img src="/static/icon.png" alt=""><div class="st" id="think">${THINK[0]}</div><div class="conf" style="margin-top:6px">Leva de 20 a 60 segundos.</div></div></div>`;
   let i=0;const h=setInterval(()=>{i=Math.min(i+1,THINK.length-1);const el=$("#think");if(el)el.textContent=THINK[i]},7000);
   try{await post(`/api/emails/${id}/analyze`);clearInterval(h);toast("Briefing pronto.");await openThread(current,"briefing");loadThreads()}
-  catch(e){clearInterval(h);toast(e.message);renderDesk()}
+  catch(e){clearInterval(h);toast(e.message,"err");renderDesk()}
 }
 async function rw(id,instr,btn){
   const a=latestAnalysis();saveDraftLocal(a);btn.disabled=true;const o=btn.textContent;btn.textContent="Reescrevendo…";
   try{const r=await post(`/api/analyses/${id}/rewrite`,{instrucao:instr,corpo_atual:$("#d-body").value});a._body=r.draft_body;renderDesk();toast("Resposta reescrita.")}
-  catch(e){toast(e.message);btn.disabled=false;btn.textContent=o}
+  catch(e){toast(e.message,"err");btn.disabled=false;btn.textContent=o}
 }
 function rwCustom(id,btn){
   const d=$("#dlg");d.innerHTML=`<form method="dialog"><h3>Como ajustar a resposta?</h3><div class="form"><label class="full">Instrução<textarea name="i" required placeholder="Ex.: deixe claro que a documentação de abril não tinha essa informação, sem soar defensivo"></textarea></label></div><div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Reescrever</button></div></form>`;
@@ -709,7 +939,7 @@ function exportThreadCSV(){
 }
 async function showAttachment(id){
   let att;
-  try{att=await api("/api/attachments/"+id)}catch(e){toast(e.message);return}
+  try{att=await api("/api/attachments/"+id)}catch(e){toast(e.message,"err");return}
   const el=$("#dlg");
   const isPdf=/\.pdf$/i.test(att.filename);
   const isImg=/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(att.filename);
@@ -754,32 +984,46 @@ function openManual(){
     <div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar à caixa</button></div></form>`;
   d.showModal();
   d.onclose=async()=>{if(d.returnValue!=="ok")return;const f=Object.fromEntries(new FormData($("#mf")));
-    try{const r=await post("/api/emails/manual",f);current=r.thread_key;await loadThreads();await openThread(r.thread_key);if(f.direcao==="in")runAnalyze(thread.target.id)}catch(e){toast(e.message)}};
+    try{const r=await post("/api/emails/manual",f);current=r.thread_key;await loadThreads();await openThread(r.thread_key);if(f.direcao==="in")runAnalyze(thread.target.id)}catch(e){toast(e.message,"err")}};
 }
 
 /* ---------- decisões ---------- */
 const ST={proposta:"Para revisar",vigente:"Vigente",em_discussao:"Em discussão",substituida:"Substituída",descartada:"Descartada"};
+let decModule="",decSortKey="",decSortDir=1,decLoaded=false;
 $$("#dtabs button").forEach(b=>b.onclick=()=>{decFilter=b.dataset.s;$$("#dtabs button").forEach(x=>x.classList.toggle("on",x===b));loadDecisions()});
+(async()=>{const th=$("#v-decisoes th.sort");if(th)th.parentElement.addEventListener("click",e=>{
+  const el=e.target.closest("th.sort");if(!el)return;
+  const k=el.dataset.k;
+  if(decSortKey===k)decSortDir*=-1;else{decSortKey=k;decSortDir=1}
+  $$("#v-decisoes th.sort").forEach(x=>{x.classList.toggle("asc",x===el&&decSortDir===1);x.classList.toggle("desc",x===el&&decSortDir===-1)});
+  renderDecisions();
+})})();
 $("#dq").oninput=()=>renderDecisions();
-$("#dm").onchange=()=>renderDecisions();
-async function loadDecisions(){loadHealth();decCache=await api("/api/decisions?status="+decFilter);renderDecisions()}
+async function loadDecisions(){loadHealth();if(!decLoaded)$("#dec-body").innerHTML=skelLines(5,6);decCache=await api("/api/decisions?status="+decFilter);decLoaded=true;renderDecisions()}
 function filteredDecisions(){
-  const q=fold($("#dq").value), m=$("#dm").value;
-  return decCache.filter(d=>{
-    if(m&&fold(d.modulo||"")!==fold(m))return false;
+  const q=fold($("#dq").value);
+  const rows=decCache.filter(d=>{
+    if(decModule&&fold(d.modulo||"")!==fold(decModule))return false;
     if(q&&!fold((d.titulo||"")+" "+(d.modulo||"")+" "+(d.regra||"")).includes(q))return false;
     return true;
-  });
+  }).slice();
+  const k=decSortKey;
+  if(k)rows.sort((a,b)=>k==="id"?(a.id-b.id)*decSortDir:decSortDir*String(a[k]||"").localeCompare(String(b[k]||""),"pt",{numeric:true,sensitivity:"base"}));
+  else rows.sort((a,b)=>b.id-a.id);
+  return rows;
 }
 function renderDecisions(){
-  const dm=$("#dm"),cur=dm.value;
-  const mods=[...new Set(decCache.map(d=>d.modulo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt"));
-  dm.innerHTML=`<option value="">Todos os módulos</option>`+mods.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("");
-  dm.value=cur;
-  const rows=filteredDecisions();
+  const dmc=$("#dm-chips");
+  if(dmc){
+    const mods=Array.from(new Set(decCache.map(d=>d.modulo).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"pt"));
+    dmc.innerHTML=`<button class="dchip ${decModule===""?"on":""}" data-m="">Todos os módulos</button>`+mods.map(m=>`<button class="dchip ${decModule===m?"on":""}" data-m="${esc(m)}">${esc(m)}</button>`).join("");
+    $$("#dm-chips .dchip").forEach(c=>c.onclick=()=>{decModule=c.dataset.m;renderDecisions()});
+  }
+  const q=$("#dq").value,rows=filteredDecisions();
+  const hl=t=>{if(!q.trim()||!t)return esc(t);const i=(t||"").toLowerCase().indexOf(q.toLowerCase());return i>=0?esc(t.slice(0,i))+"<mark>"+esc(t.slice(i,i+q.length))+"</mark>"+esc(t.slice(i+q.length)):esc(t)};
   $("#dec-body").innerHTML=rows.length?rows.map(d=>`<tr onclick="editDecision(${d.id})">
-    <td><b>D${d.id}</b></td><td><div class="conf">${esc(d.modulo)}</div>${esc(d.titulo)}</td>
-    <td style="white-space:pre-wrap">${esc(d.regra)}</td>
+    <td><b>D${d.id}</b></td><td><div class="conf">${esc(d.modulo)}</div>${hl(d.titulo)}</td>
+    <td style="white-space:pre-wrap">${hl(d.regra)}</td>
     <td class="conf" style="font-size:12.5px">${esc(d.fonte)}${d.data_decisao?"<br>"+esc(d.data_decisao):""}${d.aprovado_por?"<br>Aprovado por "+esc(d.aprovado_por):""}</td>
     <td><span class="st ${d.status}">${ST[d.status]||d.status}</span>${d.substituida_por?`<div class="conf" style="margin-top:4px">por D${d.substituida_por}</div>`:""}</td></tr>`).join("")
     :`<tr><td colspan="5"><div class="empty" style="padding:26px"><b style="color:var(--ink)">Nenhuma decisão aqui</b><br>Comece pelas regras em disputa: tracking de etapas, reprovação de estratégia no Coupa e LOF. Cada uma com a fonte e quem aprovou.</div></td></tr>`;
@@ -821,30 +1065,41 @@ function editDecision(id){
   dlg.showModal();
   dlg.onclose=async()=>{if(dlg.returnValue!=="ok")return;const f=Object.fromEntries(new FormData($("#df")));
     f.substituida_por=f.substituida_por?parseInt(f.substituida_por.replace(/\D/g,""))||null:null;
-    try{if(d.id)await api("/api/decisions/"+d.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});else await post("/api/decisions",f);toast("Decisão salva.");loadDecisions()}catch(e){toast(e.message)}};
+    try{if(d.id)await api("/api/decisions/"+d.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});else await post("/api/decisions",f);toast("Decisão salva.");loadDecisions()}catch(e){toast(e.message,"err")}};
 }
 
 /* ---------- base ---------- */
 const TP={especificacao:"Especificação (EF)",documentacao:"Documentação técnica",whatsapp:"WhatsApp",validador:"Validador de regras",outro:"Outro"};
-let rulesEditing=false,docCache=[];
+let rulesEditing=false,docCache=[],docTag="",docsLoaded=false;
 $("#dqDoc").oninput=()=>renderDocs();
 async function loadDocs(){
   loadHealth();
+  if(!docsLoaded)$("#doc-body").innerHTML=skelLines(6,5);
   const [docs,rules]=await Promise.all([api("/api/documents"),api("/api/regras")]);
   docCache=docs||[];
+  docsLoaded=true;
   renderRules(rules);
   renderDocs();
 }
 function renderDocs(){
   const q=fold($("#dqDoc").value);
-  const docs=docCache.filter(d=>!q||fold(`${d.nome} ${d.tipo} ${d.tags||""}`).includes(q));
+  const tc=$("#tag-chips");
+  if(tc){
+    const tags=Array.from(new Set(docCache.flatMap(d=>(d.tags||"").split(",").map(t=>t.trim()).filter(Boolean)))).sort((a,b)=>a.localeCompare(b,"pt"));
+    tc.innerHTML=`<button class="dchip ${docTag===""?"on":""}" data-t="">Todos</button>`+tags.map(t=>`<button class="dchip ${docTag===t?"on":""}" data-t="${esc(t)}">${esc(t)}</button>`).join("");
+    $$("#tag-chips .dchip").forEach(c=>c.onclick=()=>{docTag=c.dataset.t;renderDocs()});
+  }
+  const docs=docCache.filter(d=>{
+    if(docTag&&!(d.tags||"").split(",").map(t=>t.trim()).includes(docTag))return false;
+    return !q||fold(`${d.nome} ${d.tipo} ${d.tags||""}`).includes(q);
+  });
   $("#doc-body").innerHTML=docs.length?docs.map(d=>{const tags=(d.tags||"").split(",").map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ");
     return `<tr style="cursor:default"><td><span class="doc-lnk" onclick="showDoc(${d.id})">${esc(d.nome)}</span></td><td>${TP[d.tipo]||d.tipo}</td><td class="conf">${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td>${tags||'<span class="conf">—</span>'}</td><td class="conf">${ago(d.created_at)}</td><td><button class="btn sm ghost" onclick="showDoc(${d.id})">Ver</button><button class="btn sm ghost" onclick="delDoc(${d.id})">Remover</button></td></tr>`}).join("")
     :`<tr style="cursor:default"><td colspan="6"><div class="empty" style="padding:26px"><b style="color:var(--ink)">${q?"Nada encontrado":"A base está vazia"}</b><br>${q?"Tente outra palavra — a busca varre nome, tipo e tags.":"Comece pelas EFs e pelas duas documentações do Coupa, a de abril e a do Wellington."}</div></td></tr>`;
 }
 async function showDoc(id){
   let d;
-  try{d=await api("/api/documents/"+id)}catch(e){toast(e.message);return}
+  try{d=await api("/api/documents/"+id)}catch(e){toast(e.message,"err");return}
   const isPdf=!!d.tem_arquivo&&/\.pdf$/i.test(d.file_name||d.nome||"");
   const el=$("#dlg");
   el.innerHTML=`<form method="dialog"><h3>${esc(d.nome)}</h3>
@@ -945,7 +1200,7 @@ async function saveRules(){
   try{
     await api("/api/regras",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:v})});
     toast("Regras do sistema salvas.");rulesEditing=false;loadDocs();
-  }catch(e){toast(e.message);b.disabled=false;b.textContent="Salvar regras"}
+  }catch(e){toast(e.message,"err");b.disabled=false;b.textContent="Salvar regras"}
 }
 const drop=$("#drop"),file=$("#file");
 ["dragover","dragenter"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add("over")}));
@@ -955,7 +1210,7 @@ file.onchange=showFile;
 function showFile(){$("#drop-tx").innerHTML=file.files[0]?`<b>${esc(file.files[0].name)}</b> pronto para adicionar`:`<b>Arraste um arquivo aqui</b> ou clique para escolher.`}
 async function uploadDoc(ev){ev.preventDefault();const b=$("#doc-btn");b.disabled=true;b.textContent="Lendo o arquivo…";
   try{const r=await api("/api/documents",{method:"POST",body:new FormData($("#doc-form"))});toast(`Adicionado à base: ${r.nome}`);$("#doc-form").reset();showFile();await loadDocs();showDoc(r.id)}
-  catch(e){toast(e.message)}finally{b.disabled=false;b.textContent="Adicionar à base"}return false}
+  catch(e){toast(e.message,"err")}finally{b.disabled=false;b.textContent="Adicionar à base"}return false}
 async function delDoc(id){if(!confirm("Remover este documento da base?"))return;await api("/api/documents/"+id,{method:"DELETE"});toast("Documento removido.");loadDocs()}
 
 /* ---------- conexões ---------- */
@@ -969,7 +1224,7 @@ async function loadStatus(){
   $("#stats").innerHTML=[["E-mails",s.emails],["Documentos",s.documentos],["Decisões vigentes",s.decisoes_vigentes],["Para revisar",s.decisoes_propostas]].map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");
   $("#log").textContent=(s.log||[]).join("\n")||"Sem atividade ainda.";
 }
-async function syncNow(b){b.disabled=true;b.textContent="Lendo…";try{await post("/api/sync");toast("Leitura iniciada.");setTimeout(loadStatus,4000)}catch(e){toast(e.message);b.disabled=false}}
+async function syncNow(b){b.disabled=true;b.textContent="Lendo…";try{await post("/api/sync");toast("Leitura iniciada.");setTimeout(loadStatus,4000)}catch(e){toast(e.message,"err");b.disabled=false}}
 
 /* ---------- assistente (chat) ---------- */
 let chat=[];
