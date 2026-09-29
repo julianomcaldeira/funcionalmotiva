@@ -414,7 +414,9 @@ def rewrite(analysis_id, instruction, current_body=None):
 def index_document(session, doc):
     from .db import Chunk
     from .retrieval import chunk_text, mark_dirty
+    tags = f" [{doc.tags}]" if (doc.tags or "").strip() else ""
     session.query(Chunk).filter(Chunk.source_kind == "document", Chunk.source_id == doc.id).delete()
     for piece in chunk_text(doc.content, size=1500):
-        session.add(Chunk(source_kind="document", source_id=doc.id, label=f"{doc.tipo}: {doc.nome}", text=piece))
+        session.add(Chunk(source_kind="document", source_id=doc.id,
+                          label=f"{doc.tipo}: {doc.nome}{tags}", text=piece))
     mark_dirty()

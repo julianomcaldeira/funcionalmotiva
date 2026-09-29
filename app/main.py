@@ -1,6 +1,5 @@
 """Funcional Lumos: servidor web, rotas da API e sincronização em segundo plano."""
 import base64
-import io
 import json
 import os
 import re
@@ -8,6 +7,7 @@ import secrets
 import threading
 import time
 import traceback
+import unicodedata
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -18,8 +18,9 @@ from pydantic import BaseModel
 from sqlalchemy import func
 
 from . import ai, mail
-from .db import (Analysis, ChatMessage, Decision, Document, Email, SessionLocal,
-                 get_setting, init_db)
+from .db import (Analysis, Attachment, ChatMessage, Decision, Document, Email,
+                 SessionLocal, get_setting, init_db)
+from .extract import extract_text_from_bytes
 from .mail import index_email, normalize_subject, strip_quoted
 from .retrieval import get_index, mark_dirty, rank_texts
 
@@ -230,13 +231,23 @@ def sync_now():
 
 
 # ---------- caixa ----------
+def fold(s):
+    """Tira acentos char a char (mantém o tamanho), para busca robusta sem acento."""
+    out = []
+    for ch in s or "":
+        f = unicodedata.normalize("NFKD", ch).encode("ascii", "ignore").decode()
+        out.append(f or ch)
+    return "".join(out).lower()
+
+
 def make_snippet(text, query, width=170):
     """Trecho do texto ao redor da primeira palavra da busca, para confirmar o hit sem abrir o e-mail."""
     t = re.sub(r"\s+", " ", text or "").strip()
     if not t:
         return ""
     words = [w for w in query.split() if len(w) > 2]
-    pos = min((t.lower().find(w.lower()) for w in words if t.lower().find(w.lower()) >= 0), default=-1)
+    ft = fold(t)
+    pos = min((ft.find(fold(w)) for w in words if ft.find(fold(w)) >= 0), default=-1)
     if pos < 0:
         return t[:width] + ("…" if len(t) > width else "")
     start = max(0, pos - 50)
@@ -317,10 +328,10 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
             out = [t for t in out if t["status"] == "aguardando"]
     snippet = {}
     if ql:
-        ql_low = ql.lower()
+        ql_low = fold(ql)
         matched = {t["thread_key"] for t in out
-                   if any(ql_low in (sub or "").lower() for sub in t["subjects"])
-                   or any(ql_low in snd.lower() for snd in t["senders"])}
+                   if any(ql_low in fold(sub or "") for sub in t["subjects"])
+                   or any(ql_low in fold(snd) for snd in t["senders"])}
         try:
             idx = get_index()
             hits = idx.search(ql, k=40, kinds={"email"}) if idx else []
@@ -352,7 +363,9 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
 
 def email_dict(e, full=True):
     d = {"id": e.id, "direction": e.direction, "from": e.from_addr, "to": e.to_addr, "cc": e.cc_addr,
-         "subject": e.subject, "date": e.date.isoformat() if e.date else None, "status": e.status}
+         "subject": e.subject, "date": e.date.isoformat() if e.date else None, "status": e.status,
+         "attachments": [{"id": a.id, "filename": a.filename, "content_type": a.content_type,
+                          "size": a.size} for a in e.attachments]}
     if full:
         d["body"] = e.body_clean or e.body
         d["body_full"] = e.body
@@ -418,6 +431,30 @@ def thread_detail(thread_key: str):
         ids = [e.id for e in emails]
         analyses = s.query(Analysis).filter(Analysis.email_id.in_(ids)).order_by(Analysis.id).all()
         return {"emails": [email_dict(e) for e in emails], "analyses": [analysis_dict(a) for a in analyses]}
+
+
+# ---------- anexos ----------
+@app.get("/api/attachments/{att_id}")
+def get_attachment(att_id: int):
+    with SessionLocal() as s:
+        a = s.get(Attachment, att_id)
+        if not a:
+            raise HTTPException(404, "Anexo não encontrado.")
+        return {"id": a.id, "email_id": a.email_id, "filename": a.filename,
+                "content_type": a.content_type, "size": a.size,
+                "extracted_text": (a.extracted_text or "")[:200000]}
+
+
+@app.get("/api/attachments/{att_id}/file")
+def attachment_file(att_id: int):
+    with SessionLocal() as s:
+        a = s.get(Attachment, att_id)
+        if not a or not a.file_data:
+            raise HTTPException(404, "Arquivo não encontrado.")
+        name = (a.filename or "anexo").replace('"', "")
+        return Response(content=bytes(a.file_data), media_type="application/octet-stream",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"',
+                                 "Cache-Control": "private, max-age=3600"})
 
 
 @app.post("/api/emails/{email_id}/analyze")
@@ -535,11 +572,13 @@ def decision_dict(d):
 
 
 @app.get("/api/decisions")
-def list_decisions(status: str = ""):
+def list_decisions(status: str = "", modulo: str = ""):
     with SessionLocal() as s:
         q = s.query(Decision)
         if status:
             q = q.filter(Decision.status == status)
+        if modulo:
+            q = q.filter(Decision.modulo.ilike(f"%{modulo}%"))
         return [decision_dict(d) for d in q.order_by(Decision.modulo, Decision.id.desc()).all()]
 
 
@@ -570,64 +609,28 @@ def update_decision(decision_id: int, body: DecisionIn):
 
 # ---------- base de conhecimento ----------
 def read_upload(name, raw):
-    low = name.lower()
-    if low.endswith(".pdf"):
-        from pypdf import PdfReader
-        return "\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(raw)).pages)
-    if low.endswith(".docx"):
-        import docx
-        d = docx.Document(io.BytesIO(raw))
-        parts = [p.text for p in d.paragraphs]
-        for t in d.tables:
-            for r in t.rows:
-                parts.append(" | ".join(c.text for c in r.cells))
-        return "\n".join(parts)
-    if low.endswith((".xlsx", ".xlsm")):
-        from openpyxl import load_workbook
-        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-        parts = []
-        try:
-            for ws in wb.worksheets:
-                parts.append(f"Planilha: {ws.title}")
-                for row in ws.iter_rows(values_only=True):
-                    cells = [str(c).strip() for c in row if c is not None and str(c).strip()]
-                    if cells:
-                        parts.append(" | ".join(cells))
-        finally:
-            wb.close()
-        return "\n".join(parts)
-    if low.endswith(".xls"):
-        import xlrd
-        wb = xlrd.open_workbook(file_contents=raw)
-        parts = []
-        for ws in wb.sheets():
-            parts.append(f"Planilha: {ws.name}")
-            for i in range(ws.nrows):
-                cells = [str(c).strip() for c in ws.row_values(i) if str(c).strip()]
-                if cells:
-                    parts.append(" | ".join(cells))
-        return "\n".join(parts)
-    return raw.decode("utf-8", errors="replace")
+    return extract_text_from_bytes(name, raw)
 
 
 @app.get("/api/documents")
 def list_documents():
     with SessionLocal() as s:
         rows = s.query(Document.id, Document.nome, Document.tipo, Document.content,
-                       Document.created_at, Document.file_name,
+                       Document.created_at, Document.file_name, Document.tags,
                        Document.file_data.isnot(None).label("tem_arquivo")) \
             .filter(Document.tipo != "regras") \
             .order_by(Document.id.desc()).all()
         return [{"id": r.id, "nome": r.nome, "tipo": r.tipo, "tamanho": len(r.content or ""),
                  "created_at": r.created_at.isoformat() if r.created_at else None,
-                 "tem_arquivo": bool(r.tem_arquivo), "file_name": r.file_name} for r in rows]
+                 "tem_arquivo": bool(r.tem_arquivo), "file_name": r.file_name,
+                 "tags": r.tags or ""} for r in rows]
 
 
 @app.get("/api/documents/{doc_id}")
 def get_document(doc_id: int):
     with SessionLocal() as s:
         row = s.query(Document.id, Document.nome, Document.tipo, Document.content,
-                      Document.created_at, Document.file_name,
+                      Document.created_at, Document.file_name, Document.tags,
                       Document.file_data.isnot(None).label("tem_arquivo")) \
             .filter(Document.id == doc_id).first()
         if not row:
@@ -635,7 +638,8 @@ def get_document(doc_id: int):
         return {"id": row.id, "nome": row.nome, "tipo": row.tipo, "content": row.content or "",
                 "tamanho": len(row.content or ""),
                 "created_at": row.created_at.isoformat() if row.created_at else None,
-                "tem_arquivo": bool(row.tem_arquivo), "file_name": row.file_name}
+                "tem_arquivo": bool(row.tem_arquivo), "file_name": row.file_name,
+                "tags": row.tags or ""}
 
 
 @app.get("/api/documents/{doc_id}/file")
@@ -686,7 +690,7 @@ def put_regras(body: RegrasIn):
 
 @app.post("/api/documents")
 async def upload_document(tipo: str = Form("documentacao"), nome: str = Form(""), texto: str = Form(""),
-                          arquivo: UploadFile | None = File(None)):
+                          tags: str = Form(""), arquivo: UploadFile | None = File(None)):
     if tipo == "regras":
         raise HTTPException(400, "As regras do sistema são editadas no cartão próprio "
                                  "\"Regras do sistema\", na Base de conhecimento.")
@@ -705,6 +709,7 @@ async def upload_document(tipo: str = Form("documentacao"), nome: str = Form("")
         raise HTTPException(400, "Envie um arquivo ou cole o texto.")
     with SessionLocal() as s:
         d = Document(nome=filename or "Sem nome", tipo=tipo, content=content,
+                     tags=", ".join(t.strip() for t in tags.split(",") if t.strip())[:300],
                      file_data=raw_file, file_name=raw_name)
         s.add(d)
         s.flush()

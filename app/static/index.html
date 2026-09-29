@@ -90,6 +90,10 @@ main{flex:1;min-width:0;display:flex}
 .out .av{background:var(--brand-wash);color:var(--brand-ink)}
 .msg .body{padding:14px 16px;font-family:var(--read);font-size:15.5px;line-height:1.6;white-space:pre-wrap;max-width:70ch}
 .msg .acts{display:flex;gap:8px;padding:0 16px 14px}
+.msg .atts{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px}
+.att{border:1px solid var(--line);background:#fff;border-radius:14px;padding:5px 11px;font-size:12.5px;display:inline-flex;align-items:center;gap:7px;color:var(--ink);font-weight:500;max-width:100%}
+.att:hover{border-color:var(--brand-deep);color:var(--brand-ink);background:var(--brand-wash)}
+.att .sz{font-size:11px;color:var(--muted);font-weight:400}
 .hist{font-size:12.5px;color:var(--muted);background:none;border:0;padding:0 16px 12px;text-decoration:underline}
 
 /* mesa do funcional */
@@ -365,7 +369,10 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
     <p class="lead">A regra que vale para cada assunto, com a fonte e quem aprovou na Motiva. O funcional consulta este registro antes de qualquer resposta. As decisões propostas vêm dos e-mails analisados e só passam a valer depois da sua revisão.</p>
     <div class="bar">
       <div class="tabs" id="dtabs"><button data-s="" class="on">Todas</button><button data-s="proposta">Para revisar</button><button data-s="vigente">Vigentes</button><button data-s="em_discussao">Em discussão</button><button data-s="substituida">Substituídas</button></div>
-      <div class="search" style="flex:1;max-width:320px"><input id="dq" placeholder="Buscar regra ou módulo" aria-label="Buscar decisões"></div>
+      <div class="search" style="flex:1;max-width:300px"><input id="dq" placeholder="Buscar regra ou módulo" aria-label="Buscar decisões"></div>
+      <select id="dm" aria-label="Filtrar por módulo" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;font:inherit;max-width:200px"><option value="">Todos os módulos</option></select>
+      <button class="btn sm" onclick="exportDecisionsCSV()" title="Baixar as decisões filtradas em CSV">CSV</button>
+      <button class="btn sm" onclick="printDecisions()" title="Imprimir ou salvar em PDF as decisões filtradas">Imprimir/PDF</button>
       <button class="btn pri" onclick="editDecision()" style="margin-left:auto">Registrar decisão</button>
     </div>
     <div class="card"><table><thead><tr><th style="width:64px">Código</th><th style="width:26%">Assunto</th><th>Regra</th><th style="width:220px">Fonte</th><th style="width:120px">Situação</th></tr></thead><tbody id="dec-body"></tbody></table></div>
@@ -374,6 +381,7 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
   <section class="view" id="v-base"><div class="page">
     <h2>Base de conhecimento</h2>
     <p class="lead">Especificações, documentações técnicas, conversas exportadas do WhatsApp do time e resultados do validador de regras. Tudo aqui entra na pesquisa do funcional, junto com o histórico de e-mails.</p>
+    <div class="bar"><div class="search" style="flex:1;max-width:340px"><input id="dqDoc" placeholder="Buscar na base (nome, tipo, tags)…" aria-label="Buscar na base"></div></div>
     <div class="card rules-card" id="rules-card" style="max-width:900px;margin-bottom:18px"></div>
     <form class="card form" id="doc-form" onsubmit="return uploadDoc(event)" style="max-width:900px;margin-bottom:18px">
       <label>Tipo de conteúdo
@@ -385,12 +393,13 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
           <option value="outro">Outro</option>
         </select></label>
       <label>Nome<input name="nome" placeholder="Ex.: Documentação Coupa Sourcing API, abril"></label>
+      <label>Tags<input name="tags" placeholder="Ex.: Coupa, LOF, tracking (separadas por vírgula)"></label>
       <label class="full drop" id="drop" for="file"><span id="drop-tx"><b>Arraste um arquivo aqui</b> ou clique para escolher. PDF, Word, Excel, TXT, CSV ou Markdown.</span>
         <input type="file" id="file" name="arquivo" accept=".pdf,.docx,.xlsx,.xlsm,.xls,.txt,.md,.csv,.json" hidden></label>
       <label class="full">Ou cole o texto<textarea name="texto" placeholder="Cole aqui o conteúdo"></textarea></label>
       <div class="full"><button class="btn pri" id="doc-btn">Adicionar à base</button></div>
     </form>
-    <div class="card" style="max-width:900px"><table><thead><tr><th>Nome</th><th style="width:220px">Tipo</th><th style="width:130px">Tamanho</th><th style="width:130px">Adicionado</th><th style="width:160px"></th></tr></thead><tbody id="doc-body"></tbody></table></div>
+    <div class="card" style="max-width:900px"><table><thead><tr><th>Nome</th><th style="width:200px">Tipo</th><th style="width:130px">Tamanho</th><th style="width:240px">Tags</th><th style="width:120px">Adicionado</th><th style="width:150px"></th></tr></thead><tbody id="doc-body"></tbody></table></div>
   </div></section>
 
   <section class="view" id="v-assistente"><div class="page chat-page">
@@ -427,6 +436,11 @@ const ago=iso=>{const d=asDate(iso);if(!d)return"";const m=(Date.now()-d)/6e4;if
 const initials=s=>{const n=(s||"?").split("@")[0].split(/[._\s-]/).filter(Boolean);return((n[0]||"?")[0]+((n[1]||"")[0]||"")).toUpperCase()};
 const CLS={sustentacao:"Sustentação",melhoria:"Melhoria",duvida:"Dúvida",fora_do_escopo_lumos:"Fora do escopo"};
 let filtro="pendentes",current=null,deskTab="chat",decFilter="",decCache=[],status={};
+
+const fold=s=>((s??"").toString()).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const fmtSize=n=>{n=+n||0;if(n<1024)return n+" B";if(n<1048576)return(n/1024).toFixed(n>10240?0:1)+" KB";return(n/1048576).toFixed(1)+" MB"};
+function csvRows(header,rows){const c=v=>{v=(v??"").toString();return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};return "\ufeff"+header.map(c).join(";")+"\n"+rows.map(r=>r.map(c).join(";")).join("\n")}
+function downloadCSV(name,header,rows){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csvRows(header,rows)],{type:"text/csv;charset=utf-8"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4500)}
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
@@ -550,11 +564,12 @@ async function openThread(key,tab){
   thread=await api("/api/threads/"+encodeURIComponent(key));
   const em=thread.emails, target=[...em].reverse().find(e=>e.direction==="in")||em[em.length-1];
   thread.target=target;
-  $("#conv").innerHTML=`<h1>${esc(em[em.length-1].subject)}</h1><div class="meta">${em.length} ${em.length>1?"mensagens":"mensagem"} na conversa</div>`+em.map(e=>`
+  $("#conv").innerHTML=`<h1>${esc(em[em.length-1].subject)}</h1><div class="meta" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span>${em.length} ${em.length>1?"mensagens":"mensagem"} na conversa</span><button class="btn sm ghost" onclick="exportThreadCSV()" title="Baixar esta conversa em CSV">Baixar CSV</button></div>`+em.map(e=>`
     <article class="msg ${e.direction==="out"?"out":""} ${e.id===target.id?"target":""}">
       <header><span class="who"><span class="av">${e.direction==="out"?"SG":initials(e.from)}</span><b>${e.direction==="out"?"StartGi":esc(e.from)}</b></span><span>${fmt(e.date)}</span></header>
       <div class="body">${esc(e.body)}</div>
-      ${e.body_full && e.body_full.length>e.body.length+40?`<button class="hist" onclick="this.previousElementSibling.textContent=${esc(JSON.stringify(e.body_full))};this.remove()">Mostrar histórico citado</button>`:""}
+      ${(e.attachments||[]).length?`<div class="atts">${e.attachments.map(a=>`<button type="button" class="att" onclick="showAttachment(${a.id})" title="${esc(a.filename)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${esc(a.filename)}<span class="sz">${fmtSize(a.size)}</span></button>`).join("")}</div>`:""}
+      ${e.body_full && e.body_full.length>e.body.length+40?`<button class="hist" onclick="this.closest('.msg').querySelector('.body').textContent=${esc(JSON.stringify(e.body_full))};this.remove()">Mostrar histórico citado</button>`:""}
       ${e.direction==="in"&&e.status!=="respondido"&&e.status!=="ignorado"?`<div class="acts"><button class="btn sm ghost" onclick="setStatus(${e.id},'ignorado')">Não precisa de resposta</button></div>`:""}
     </article>`).join("");
   $("#conv").scrollTop=$("#conv").scrollHeight;
@@ -685,6 +700,50 @@ async function markSent(id){
 }
 async function setStatus(id,st){const f=new FormData();f.append("status",st);await api(`/api/emails/${id}/status`,{method:"POST",body:f});toast("Marcado como sem necessidade de resposta.");loadThreads()}
 
+function exportThreadCSV(){
+  const em=thread&&thread.emails||[];
+  if(!em.length){toast("Nenhuma conversa aberta para exportar.");return}
+  downloadCSV("conversa.csv",["Data","Direcao","De","Para","CC","Assunto","Mensagem"],
+    em.map(m=>[m.date||"",m.direction==="out"?"StartGi enviou":"Recebido",m.from||"",m.to||"",m.cc||"",m.subject||"",m.body||""]));
+  toast(`CSV com ${em.length} ${em.length>1?"mensagens":"mensagem"} exportado.`);
+}
+async function showAttachment(id){
+  let att;
+  try{att=await api("/api/attachments/"+id)}catch(e){toast(e.message);return}
+  const el=$("#dlg");
+  const isPdf=/\.pdf$/i.test(att.filename);
+  const isImg=/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(att.filename);
+  const hasText=!!(att.extracted_text||"").trim();
+  const fileUrl=`/api/attachments/${id}/file`;
+  let body;
+  if(isPdf){
+    body=`<div class="dp-tools">
+      <button type="button" class="btn sm" id="dp-prev" disabled>← Anterior</button>
+      <span class="pg" id="dp-page">–</span>
+      <button type="button" class="btn sm" id="dp-next" disabled>Próxima →</button>
+      <button type="button" class="btn sm ghost" id="dp-toggle">Texto extraído</button>
+      <a class="btn sm ghost" href="${fileUrl}" target="_blank" rel="noopener">Baixar PDF</a>
+    </div>
+    <div class="dp-canvas" id="dp-view"><div class="conf" style="padding:26px">Carregando PDF…</div></div>
+    <div class="dp-body" id="dp-text" hidden>${esc(att.extracted_text||"")}</div>`;
+  }else if(isImg){
+    body=`<div class="dp-canvas" style="background:#fff"><img src="${fileUrl}" alt="${esc(att.filename)}" style="max-width:100%;max-height:68vh;border-radius:6px"></div>
+    <div class="dp-meta conf" style="margin:10px 0;text-align:center"><a href="${fileUrl}" target="_blank" rel="noopener">Baixar ${esc(att.filename)}</a></div>`;
+  }else if(hasText){
+    body=`<div class="dp-body">${esc(att.extracted_text)}</div>
+    <div class="dp-meta conf" style="margin:10px 0;text-align:center"><a class="btn sm ghost" href="${fileUrl}" target="_blank" rel="noopener">Baixar arquivo original</a></div>`;
+  }else{
+    body=`<div class="dp-empty">Não dá para pré-visualizar este tipo de anexo.
+      <div style="margin-top:14px"><a class="btn" href="${fileUrl}" target="_blank" rel="noopener">Baixar ${esc(att.filename)}</a></div></div>`;
+  }
+  el.innerHTML=`<form method="dialog"><h3>${esc(att.filename)}</h3>
+    <div class="dp-meta conf">${fmtSize(att.size)} · anexo do e-mail</div>
+    ${body}
+    <div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
+  el.showModal();
+  if(isPdf)loadPdfFrom(fileUrl);
+}
+
 function openManual(){
   const d=$("#dlg");
   d.innerHTML=`<form method="dialog" id="mf"><h3>Colar um e-mail</h3><div class="form">
@@ -702,16 +761,49 @@ function openManual(){
 const ST={proposta:"Para revisar",vigente:"Vigente",em_discussao:"Em discussão",substituida:"Substituída",descartada:"Descartada"};
 $$("#dtabs button").forEach(b=>b.onclick=()=>{decFilter=b.dataset.s;$$("#dtabs button").forEach(x=>x.classList.toggle("on",x===b));loadDecisions()});
 $("#dq").oninput=()=>renderDecisions();
+$("#dm").onchange=()=>renderDecisions();
 async function loadDecisions(){loadHealth();decCache=await api("/api/decisions?status="+decFilter);renderDecisions()}
+function filteredDecisions(){
+  const q=fold($("#dq").value), m=$("#dm").value;
+  return decCache.filter(d=>{
+    if(m&&fold(d.modulo||"")!==fold(m))return false;
+    if(q&&!fold((d.titulo||"")+" "+(d.modulo||"")+" "+(d.regra||"")).includes(q))return false;
+    return true;
+  });
+}
 function renderDecisions(){
-  const q=$("#dq").value.toLowerCase();
-  const rows=decCache.filter(d=>!q||(d.titulo+d.modulo+d.regra).toLowerCase().includes(q));
+  const dm=$("#dm"),cur=dm.value;
+  const mods=[...new Set(decCache.map(d=>d.modulo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt"));
+  dm.innerHTML=`<option value="">Todos os módulos</option>`+mods.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  dm.value=cur;
+  const rows=filteredDecisions();
   $("#dec-body").innerHTML=rows.length?rows.map(d=>`<tr onclick="editDecision(${d.id})">
     <td><b>D${d.id}</b></td><td><div class="conf">${esc(d.modulo)}</div>${esc(d.titulo)}</td>
     <td style="white-space:pre-wrap">${esc(d.regra)}</td>
     <td class="conf" style="font-size:12.5px">${esc(d.fonte)}${d.data_decisao?"<br>"+esc(d.data_decisao):""}${d.aprovado_por?"<br>Aprovado por "+esc(d.aprovado_por):""}</td>
     <td><span class="st ${d.status}">${ST[d.status]||d.status}</span>${d.substituida_por?`<div class="conf" style="margin-top:4px">por D${d.substituida_por}</div>`:""}</td></tr>`).join("")
     :`<tr><td colspan="5"><div class="empty" style="padding:26px"><b style="color:var(--ink)">Nenhuma decisão aqui</b><br>Comece pelas regras em disputa: tracking de etapas, reprovação de estratégia no Coupa e LOF. Cada uma com a fonte e quem aprovou.</div></td></tr>`;
+}
+function exportDecisionsCSV(){
+  const rows=filteredDecisions();
+  if(!rows.length){toast("Nenhuma decisão com esses filtros para exportar.");return}
+  downloadCSV("decisoes.csv",["ID","Situacao","Modulo","Assunto","Regra","Fonte","Data da decisao","Aprovado por","Notas"],
+    rows.map(d=>[d.id,ST[d.status]||d.status,d.modulo,d.titulo,d.regra,d.fonte,d.data_decisao,d.aprovado_por,d.notas||""]));
+  toast(`CSV com ${rows.length} ${rows.length>1?"decisões":"decisão"} exportado.`);
+}
+function printDecisions(){
+  const rows=filteredDecisions();
+  if(!rows.length){toast("Nenhuma decisão com esses filtros para imprimir.");return}
+  const w=window.open("","_blank");
+  if(!w){toast("Permita pop-ups para imprimir.");return}
+  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Registro de decisões</title>
+  <style>body{font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#111;padding:24px}header{margin-bottom:14px}h1{font-size:19px;margin:0 0 4px}.n{color:#555;font-size:11px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top;line-height:1.45}th{background:#f2f2f2;font-size:10.5px;white-space:nowrap}.st{white-space:nowrap}</style></head><body>
+  <header><h1>Registro de decisões — Funcional Lumos</h1><div class="n">Gerado em ${new Date().toLocaleString("pt-BR")} · ${rows.length} decisões</div></header>
+  <table><thead><tr><th>ID</th><th>Situação</th><th>Módulo</th><th>Assunto</th><th>Regra</th><th>Fonte</th><th>Data</th><th>Aprovado por</th></tr></thead><tbody>
+  ${rows.map(d=>`<tr><td>D${d.id}</td><td class="st">${ST[d.status]||d.status}</td><td>${esc(d.modulo)}</td><td><b>${esc(d.titulo)}</b></td><td>${esc(d.regra)}</td><td>${esc(d.fonte)}</td><td>${esc(d.data_decisao)}</td><td>${esc(d.aprovado_por)}</td></tr>`).join("")}
+  </tbody></table></body></html>`);
+  w.document.close();w.focus();
+  setTimeout(()=>{w.print()},300);
 }
 function editDecision(id){
   const d=decCache.find(x=>x.id===id)||{status:"vigente"};const dlg=$("#dlg");
@@ -734,13 +826,21 @@ function editDecision(id){
 
 /* ---------- base ---------- */
 const TP={especificacao:"Especificação (EF)",documentacao:"Documentação técnica",whatsapp:"WhatsApp",validador:"Validador de regras",outro:"Outro"};
-let rulesEditing=false;
+let rulesEditing=false,docCache=[];
+$("#dqDoc").oninput=()=>renderDocs();
 async function loadDocs(){
   loadHealth();
   const [docs,rules]=await Promise.all([api("/api/documents"),api("/api/regras")]);
+  docCache=docs||[];
   renderRules(rules);
-  $("#doc-body").innerHTML=docs.length?docs.map(d=>`<tr style="cursor:default"><td><span class="doc-lnk" onclick="showDoc(${d.id})">${esc(d.nome)}</span></td><td>${TP[d.tipo]||d.tipo}</td><td class="conf">${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td class="conf">${ago(d.created_at)}</td><td><button class="btn sm ghost" onclick="showDoc(${d.id})">Ver</button><button class="btn sm ghost" onclick="delDoc(${d.id})">Remover</button></td></tr>`).join("")
-    :`<tr style="cursor:default"><td colspan="5"><div class="empty" style="padding:26px"><b style="color:var(--ink)">A base está vazia</b><br>Comece pelas EFs e pelas duas documentações do Coupa, a de abril e a do Wellington.</div></td></tr>`;
+  renderDocs();
+}
+function renderDocs(){
+  const q=fold($("#dqDoc").value);
+  const docs=docCache.filter(d=>!q||fold(`${d.nome} ${d.tipo} ${d.tags||""}`).includes(q));
+  $("#doc-body").innerHTML=docs.length?docs.map(d=>{const tags=(d.tags||"").split(",").map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ");
+    return `<tr style="cursor:default"><td><span class="doc-lnk" onclick="showDoc(${d.id})">${esc(d.nome)}</span></td><td>${TP[d.tipo]||d.tipo}</td><td class="conf">${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td>${tags||'<span class="conf">—</span>'}</td><td class="conf">${ago(d.created_at)}</td><td><button class="btn sm ghost" onclick="showDoc(${d.id})">Ver</button><button class="btn sm ghost" onclick="delDoc(${d.id})">Remover</button></td></tr>`}).join("")
+    :`<tr style="cursor:default"><td colspan="6"><div class="empty" style="padding:26px"><b style="color:var(--ink)">${q?"Nada encontrado":"A base está vazia"}</b><br>${q?"Tente outra palavra — a busca varre nome, tipo e tags.":"Comece pelas EFs e pelas duas documentações do Coupa, a de abril e a do Wellington."}</div></td></tr>`;
 }
 async function showDoc(id){
   let d;
@@ -766,13 +866,13 @@ async function showDoc(id){
   if(isPdf)initPdf(id);
 }
 let dpDoc=null,dpPage=1;
-async function initPdf(id){
+async function loadPdfFrom(url){
   dpDoc=null;dpPage=1;
   const view=$("#dp-view"),prev=$("#dp-prev"),next=$("#dp-next"),pg=$("#dp-page");
   if(!view)return;
   try{
     if(typeof pdfjsLib==="undefined")throw new Error("pdf.js não carregou.");
-    const buf=await (await fetch(`/api/documents/${id}/file`)).arrayBuffer();
+    const buf=await (await fetch(url)).arrayBuffer();
     pdfjsLib.GlobalWorkerOptions.workerSrc="/static/pdfjs/pdf.worker.min.js";
     dpDoc=await pdfjsLib.getDocument({data:buf}).promise;
     pg.textContent=`1 / ${dpDoc.numPages}`;
@@ -792,6 +892,7 @@ async function initPdf(id){
     if(prev)prev.disabled=true;if(next)next.disabled=true;
   }
 }
+function initPdf(id){return loadPdfFrom(`/api/documents/${id}/file`)}
 function dpGo(delta){
   if(!dpDoc)return;
   const n=Math.min(dpDoc.numPages,Math.max(1,dpPage+delta));

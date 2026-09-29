@@ -10,7 +10,8 @@ from email.header import decode_header, make_header
 from email.utils import getaddresses, parsedate_to_datetime
 from html import unescape
 
-from .db import Chunk, Email, SessionLocal, get_setting, set_setting
+from .db import Attachment, Chunk, Email, SessionLocal, get_setting, set_setting
+from .extract import extract_text_from_bytes
 from .retrieval import chunk_text, mark_dirty
 
 IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.com")
@@ -75,6 +76,31 @@ def extract_body(msg):
     return html_to_text(html) if html else ""
 
 
+def extract_attachments(msg):
+    """Anexos de verdade: partes com nome de arquivo, fora de imagens inline da assinatura."""
+    atts = []
+    for part in msg.walk() if msg.is_multipart() else [msg]:
+        if part.get_content_maintype() == "multipart":
+            continue
+        fn = part.get_filename()
+        if not fn:
+            continue
+        if part.get("Content-Id") and part.get_content_maintype() == "image":
+            continue  # imagem da assinatura/corpo (referenciada por <img cid:...>), não é anexo
+        raw = part.get_payload(decode=True)
+        if raw is None:
+            continue
+        atts.append((os.path.basename(fn) or fn, part.get_content_type() or "", raw))
+    seen, out = set(), []
+    for fn, ctype, raw in atts:
+        key = (fn.lower(), raw[:256])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((fn, ctype, raw))
+    return out
+
+
 QUOTE_MARKERS = [
     re.compile(r"^\s*Em .{5,200}escreveu:\s*$", re.I | re.M),
     re.compile(r"^\s*On .{5,200}wrote:\s*$", re.I | re.M),
@@ -118,6 +144,11 @@ def index_email(session, e):
     label = f"E-mail {d} | {who} | {e.subject}"
     for piece in chunk_text(e.body_clean or e.body):
         session.add(Chunk(source_kind="email", source_id=e.id, label=label, text=piece))
+    for att in e.attachments:
+        if att.extracted_text:
+            for piece in chunk_text(att.extracted_text):
+                session.add(Chunk(source_kind="email", source_id=e.id,
+                                  label=f"{label} (anexo: {att.filename})", text=piece))
 
 
 def _connect():
@@ -163,6 +194,11 @@ def _store_message(s, raw, folder, initial, log):
               cc_addr=", ".join(cc), subject=subject, date=dt, body=body,
               body_clean=strip_quoted(body), is_motiva=True, status=status)
     s.add(e)
+    s.flush()
+    for fn, ctype, raw in extract_attachments(msg):
+        text = extract_text_from_bytes(fn, raw)
+        s.add(Attachment(email_id=e.id, filename=fn[:500], content_type=ctype, size=len(raw),
+                         file_data=raw, extracted_text=text or None))
     s.flush()
     index_email(s, e)
     if direction == "out" and dt is not None:  # resposta enviada: fecha as pendências anteriores da thread

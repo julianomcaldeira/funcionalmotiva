@@ -44,6 +44,8 @@ class Email(Base):
     status = Column(String(20), default="novo", index=True)  # novo | analisado | respondido | ignorado
     created_at = Column(DateTime, default=now)
     analyses = relationship("Analysis", back_populates="email", order_by="Analysis.id")
+    attachments = relationship("Attachment", back_populates="email", order_by="Attachment.id",
+                               cascade="all, delete-orphan")
 
 
 class Analysis(Base):
@@ -86,7 +88,22 @@ class Document(Base):
     content = Column(Text)
     file_data = Column(LargeBinary)   # arquivo original (ex.: PDF) para preview renderizado
     file_name = Column(String(500))   # nome/original do arquivo anexado
+    tags = Column(String(300), default="")   # tags separadas por vírgula para filtrar e buscar
     created_at = Column(DateTime, default=now)
+
+
+class Attachment(Base):
+    """Anexo de e-mail: arquivo original + texto extraído (vira contexto e busca)."""
+    __tablename__ = "attachments"
+    id = Column(Integer, primary_key=True)
+    email_id = Column(Integer, ForeignKey("emails.id"), index=True)
+    filename = Column(String(500))
+    content_type = Column(String(200))
+    size = Column(Integer)
+    file_data = Column(LargeBinary)
+    extracted_text = Column(Text)
+    created_at = Column(DateTime, default=now)
+    email = relationship("Email", back_populates="attachments")
 
 
 class Chunk(Base):
@@ -134,6 +151,8 @@ def _ensure_columns():
         adds.append(f"ALTER TABLE documents ADD COLUMN file_data {t}")
     if "file_name" not in cols:
         adds.append("ALTER TABLE documents ADD COLUMN file_name VARCHAR(500)")
+    if "tags" not in cols:
+        adds.append("ALTER TABLE documents ADD COLUMN tags VARCHAR(300)")
     if adds:
         with engine.begin() as conn:
             for a in adds:
