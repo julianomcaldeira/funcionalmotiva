@@ -395,6 +395,17 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
   .msg{box-shadow:none;break-inside:avoid;border-color:#ddd;max-width:none}
   .msg.out{margin-left:0}
 }
+
+/* histórico do assistente */
+#chat-main .chat-log{min-height:0}
+.chat-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;color:var(--muted)}
+.hist-item{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh-1)}
+.hist-item .hi-t{flex:1;min-width:0}
+.hist-item .hi-t b{display:block;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-item .hi-t span{font-size:12px;color:var(--muted)}
+#chat-view .chat-msg{max-width:100%}
+#chat-view{min-height:340px}
+
 @media (max-width:560px){.form,.stats{grid-template-columns:1fr}.dash-top{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -508,11 +519,22 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
   <section class="view" id="v-assistente"><div class="page chat-page">
     <h2>Assistente</h2>
     <p class="lead">Pergunte qualquer coisa sobre o projeto: o que a Motiva já pediu, decisões registradas, documentos e histórico de e-mails. O assistente responde com base em todo o contexto do sistema, citando as fontes.</p>
-    <div class="chat-log" id="chat-log"><div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div></div>
-    <form class="chat-form" onsubmit="return sendChat(event)">
-      <textarea id="chat-in" rows="2" placeholder="Escreva sua pergunta…" aria-label="Pergunta"></textarea>
-      <button class="btn pri" type="submit" id="chat-btn">Enviar</button>
-    </form>
+    <div class="tabs" id="chat-tabs" style="margin-bottom:14px">
+      <button data-t="conversa" class="on">Conversa</button>
+      <button data-t="historico" onclick="openChatTab('historico')">Histórico</button>
+    </div>
+    <div id="chat-main" style="display:flex;flex-direction:column;flex:1;min-height:0">
+      <div class="chat-bar" id="chat-bar" hidden>
+        <b>Conversa atual</b>
+        <button class="btn sm ghost" onclick="newChat()" style="margin-left:auto">Nova conversa</button>
+      </div>
+      <div class="chat-log" id="chat-log"><div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div></div>
+      <form class="chat-form" onsubmit="return sendChat(event)">
+        <textarea id="chat-in" rows="2" placeholder="Escreva sua pergunta…" aria-label="Pergunta"></textarea>
+        <button class="btn pri" type="submit" id="chat-btn">Enviar</button>
+      </form>
+    </div>
+    <div id="chat-hist" hidden style="flex:1;min-height:0;overflow:auto"></div>
   </div></section>
 
   <section class="view" id="v-status"><div class="page">
@@ -1227,9 +1249,10 @@ async function loadStatus(){
 async function syncNow(b){b.disabled=true;b.textContent="Lendo…";try{await post("/api/sync");toast("Leitura iniciada.");setTimeout(loadStatus,4000)}catch(e){toast(e.message,"err");b.disabled=false}}
 
 /* ---------- assistente (chat) ---------- */
-let chat=[];
+let chat=[],chatSessionId=null;
 function renderChat(){
   const log=$("#chat-log");
+  $("#chat-bar").hidden=!chat.length;
   if(!chat.length){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div>`;return}
   log.innerHTML=chat.map(m=>{
     if(m.role==="user")return`<div class="chat-msg user">${esc(m.text)}</div>`;
@@ -1237,6 +1260,48 @@ function renderChat(){
     return`<div class="chat-msg ai">${esc(m.text)}${src}</div>`;
   }).join("");
   log.scrollTop=log.scrollHeight;
+}
+function newChat(){chat=[];chatSessionId=null;openChatTab("conversa");setTimeout(()=>$("#chat-in").focus(),30)}
+function openChatTab(t){
+  if(t!=="conversa"&&t!=="historico")return;
+  $$("#chat-tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  $("#chat-main").hidden=t!=="conversa";
+  $("#chat-hist").hidden=t!=="historico";
+  if(t==="conversa")setTimeout(()=>$("#chat-in").focus(),30);
+  else loadChatHistory();
+}
+async function loadChatHistory(){
+  const c=$("#chat-hist");if(!c)return;
+  try{
+    const ss=await api("/api/chat/sessions");
+    if(!ss.length){c.innerHTML=`<div class="empty" style="padding:40px"><b style="color:var(--ink)">Nenhuma conversa salva ainda</b><br>As conversas do assistente ficam aqui para você conferir depois.</div>`;return}
+    c.innerHTML=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${ss.length} ${ss.length>1?"conversas":"conversa"} salvas</div>`+
+      ss.map(x=>`<div class="hist-item"><div class="hi-t"><b>${esc(x.titulo)}</b><span>${x.n} ${x.n>1?"mensagens":"mensagem"} · ${fmt(x.updated_at)}</span></div>
+      <button class="btn sm" onclick="openChatHistory(${x.id})">Ver</button>
+      <button class="btn sm ghost" onclick="delChatHistory(${x.id},this)">Excluir</button></div>`).join("");
+  }catch(e){c.innerHTML=`<div class="empty">${esc(e.message||e)}</div>`}
+}
+async function openChatHistory(id){
+  const c=$("#chat-hist");
+  c.innerHTML=`<button class="btn sm ghost" onclick="loadChatHistory()">← Voltar ao histórico</button>
+    <div class="chat-log" id="chat-view"><div class="empty">Carregando…</div></div>`;
+  try{
+    const x=await api("/api/chat/sessions/"+id);
+    const log=$("#chat-view");
+    const msgs=x.messages||[];
+    if(!msgs.length){log.innerHTML=`<div class="empty">Conversa sem mensagens.</div>`;return}
+    log.innerHTML=msgs.map(m=>{
+      if(m.role==="user")return`<div class="chat-msg user">${esc(m.content)}</div>`;
+      const src=(m.fontes||[]).length?`<span class="src"><b>Fontes:</b> ${m.fontes.map(f=>esc(f.code)).join(" · ")}</span>`:"";
+      return`<div class="chat-msg ai">${esc(m.content)}${src}</div>`;
+    }).join("");
+    log.scrollTop=log.scrollHeight;
+  }catch(e){$("#chat-view").innerHTML=`<div class="empty">${esc(e.message||e)}</div>`}
+}
+async function delChatHistory(id,btn){
+  btn.disabled=true;
+  try{await api("/api/chat/sessions/"+id,{method:"DELETE"});toast("Conversa excluída.");loadChatHistory()}
+  catch(e){toast(e.message,"err");btn.disabled=false}
 }
 async function sendChat(ev){
   ev.preventDefault();
@@ -1247,7 +1312,8 @@ async function sendChat(ev){
   renderChat();
   btn.disabled=true;btn.textContent="Consultando o contexto…";
   try{
-    const r=await post("/api/chat",{pergunta:q});
+    const r=await post("/api/chat",{pergunta:q,session_id:chatSessionId});
+    chatSessionId=r.session_id||chatSessionId;
     chat.push({role:"ai",text:r.resposta,fontes:r.fontes});
   }catch(e){
     chat.push({role:"ai",text:"Não consegui responder: "+(e.message||e)});

@@ -133,6 +133,29 @@ class ChatMessage(Base):
     created_at = Column(DateTime, default=now)
 
 
+class AssistantSession(Base):
+    """Uma conversa com o assistente global (tela Assistente), salva no histórico."""
+    __tablename__ = "assistant_sessions"
+    id = Column(Integer, primary_key=True)
+    titulo = Column(String(500))       # primeira pergunta, truncada
+    created_at = Column(DateTime, default=now)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+    messages = relationship("AssistantChat", back_populates="session",
+                            order_by="AssistantChat.id", cascade="all, delete-orphan")
+
+
+class AssistantChat(Base):
+    """Troca de mensagens de uma conversa do assistente global."""
+    __tablename__ = "assistant_chat"
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, ForeignKey("assistant_sessions.id"), index=True)
+    role = Column(String(20))          # user | assistant
+    content = Column(Text)
+    sources_json = Column(Text)        # fontes citadas pela resposta
+    created_at = Column(DateTime, default=now)
+    session = relationship("AssistantSession", back_populates="messages")
+
+
 def init_db():
     Base.metadata.create_all(engine)
     _ensure_columns()

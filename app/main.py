@@ -18,8 +18,8 @@ from pydantic import BaseModel
 from sqlalchemy import func
 
 from . import ai, mail
-from .db import (Analysis, Attachment, ChatMessage, Decision, Document, Email,
-                 SessionLocal, get_setting, init_db)
+from .db import (Analysis, AssistantChat, AssistantSession, Attachment, ChatMessage,
+                 Decision, Document, Email, SessionLocal, get_setting, init_db, now)
 from .extract import extract_text_from_bytes
 from .mail import index_email, normalize_subject, strip_quoted
 from .retrieval import get_index, mark_dirty, rank_texts
@@ -752,6 +752,7 @@ da base de conhecimento. Regras:
 
 class ChatIn(BaseModel):
     pergunta: str
+    session_id: int | None = None
 
 
 @app.post("/api/chat")
@@ -811,4 +812,57 @@ def chat(body: ChatIn):
         if src["code"] not in seen:
             seen.add(src["code"])
             uniq.append(src)
-    return {"resposta": raw.strip(), "fontes": uniq}
+
+    with SessionLocal() as s:
+        sess = s.get(AssistantSession, body.session_id) if body.session_id else None
+        if not sess:
+            sess = AssistantSession(titulo=pergunta[:90])
+            s.add(sess)
+        sess.updated_at = now()
+        s.add(AssistantChat(session_id=sess.id, role="user", content=pergunta))
+        s.add(AssistantChat(session_id=sess.id, role="assistant", content=raw.strip(),
+                            sources_json=json.dumps(uniq, ensure_ascii=False)))
+        s.commit()
+        sid = sess.id
+    return {"resposta": raw.strip(), "fontes": uniq, "session_id": sid}
+
+
+# ---------- histórico de conversas do assistente ----------
+@app.get("/api/chat/sessions")
+def chat_sessions():
+    with SessionLocal() as s:
+        rows = (s.query(AssistantSession.id, AssistantSession.titulo, AssistantSession.updated_at,
+                        func.count(AssistantChat.id))
+                .outerjoin(AssistantChat)
+                .group_by(AssistantSession.id)
+                .order_by(AssistantSession.updated_at.desc(), AssistantSession.id.desc())
+                .all())
+        return [{"id": rid, "titulo": tit, "n": int(n),
+                 "updated_at": upd.isoformat() if upd else None}
+                for rid, tit, upd, n in rows]
+
+
+@app.get("/api/chat/sessions/{sid}")
+def chat_session(sid: int):
+    with SessionLocal() as s:
+        sess = s.get(AssistantSession, sid)
+        if not sess:
+            raise HTTPException(404, "Conversa não encontrada.")
+        msgs = (s.query(AssistantChat).filter(AssistantChat.session_id == sid)
+                .order_by(AssistantChat.id).all())
+        return {"id": sess.id, "titulo": sess.titulo,
+                "messages": [{"role": m.role, "content": m.content,
+                              "fontes": json.loads(m.sources_json) if m.sources_json else [],
+                              "created_at": m.created_at.isoformat() if m.created_at else None}
+                             for m in msgs]}
+
+
+@app.delete("/api/chat/sessions/{sid}")
+def chat_session_delete(sid: int):
+    with SessionLocal() as s:
+        sess = s.get(AssistantSession, sid)
+        if not sess:
+            raise HTTPException(404, "Conversa não encontrada.")
+        s.delete(sess)
+        s.commit()
+    return {"ok": True}
