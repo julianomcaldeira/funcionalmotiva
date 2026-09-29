@@ -1,5 +1,6 @@
 """Leitura do Zoho Mail via IMAP, somente leitura (abre as pastas com readonly=True)."""
 import email
+import hashlib
 import imaplib
 import os
 import re
@@ -104,13 +105,17 @@ def thread_key_for(session, msg, subject):
         known = session.query(Email.thread_key).filter(Email.message_id.in_(refs)).first()
         if known:
             return known[0]
+        # nada da cadeia está cadastrado: ancora na raiz para não fundir
+        # conversas diferentes que tenham o mesmo assunto
+        return f"{normalize_subject(subject)}|{refs[0]}"
     return normalize_subject(subject)
 
 
 def index_email(session, e):
     session.query(Chunk).filter(Chunk.source_kind == "email", Chunk.source_id == e.id).delete()
     who = "StartGi" if e.direction == "out" else e.from_addr
-    label = f"E-mail {e.date:%d/%m/%Y} | {who} | {e.subject}"
+    d = e.date.strftime("%d/%m/%Y") if e.date else "data desconhecida"
+    label = f"E-mail {d} | {who} | {e.subject}"
     for piece in chunk_text(e.body_clean or e.body):
         session.add(Chunk(source_kind="email", source_id=e.id, label=label, text=piece))
 
@@ -128,6 +133,8 @@ def _store_message(s, raw, folder, initial, log):
     """Grava um e-mail se ele envolver a Motiva. Retorna o Email criado ou None."""
     msg = email.message_from_bytes(raw)
     mid = (msg.get("Message-ID") or "").strip()
+    if not mid:  # mensagens sem Message-ID não podem simplesmente sumir
+        mid = f"syn-{hashlib.sha1(raw).hexdigest()}"
     if not mid or s.query(Email.id).filter(Email.message_id == mid).first():
         return None
     subject = dec(msg.get("Subject"))
@@ -141,13 +148,13 @@ def _store_message(s, raw, folder, initial, log):
     try:
         dt = parsedate_to_datetime(msg.get("Date")).astimezone(timezone.utc).replace(tzinfo=None)
     except Exception:
-        dt = datetime.utcnow()
+        dt = None  # data desconhecida: não inventa "hoje" nem cria pendência nova por causa disso
     body = extract_body(msg)
     sent_by_me = IMAP_USER.lower() in [a.lower() for a in frm]
     direction = "out" if (folder.lower() in SENT_FOLDERS or sent_by_me) else "in"
     if direction == "out":
         status = "respondido"
-    elif initial and dt < datetime.utcnow() - timedelta(days=HISTORY_DAYS):
+    elif initial and dt and dt < datetime.utcnow() - timedelta(days=HISTORY_DAYS):
         status = "arquivado"  # histórico da carga inicial: entra como contexto, não como pendência
     else:
         status = "novo"
@@ -158,7 +165,7 @@ def _store_message(s, raw, folder, initial, log):
     s.add(e)
     s.flush()
     index_email(s, e)
-    if direction == "out":  # resposta enviada: fecha as pendências anteriores da thread
+    if direction == "out" and dt is not None:  # resposta enviada: fecha as pendências anteriores da thread
         s.query(Email).filter(Email.thread_key == e.thread_key, Email.direction == "in",
                               Email.date <= dt, Email.status.in_(["novo", "analisado"])) \
             .update({"status": "respondido"}, synchronize_session=False)

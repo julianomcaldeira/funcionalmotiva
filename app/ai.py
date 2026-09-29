@@ -367,6 +367,9 @@ def analyze(email_id):
         user = f"{context}\n\n## Tarefa\nPrepare o briefing e o rascunho de resposta para o e-mail [E{e.id}]."
         raw = call_model(SYSTEM, user)
         data = parse_json(raw)
+        # uma análise ativa por e-mail: briefings antigos ainda não enviados são substituídos
+        s.query(Analysis).filter(Analysis.email_id == email_id, Analysis.final_body.is_(None)) \
+            .delete(synchronize_session=False)
         draft = data.get("rascunho") or {}
         a = Analysis(email_id=e.id, briefing_json=json.dumps(data, ensure_ascii=False),
                      draft_subject=draft.get("assunto") or f"RE: {e.subject}", draft_body=draft.get("corpo", ""),
@@ -374,6 +377,12 @@ def analyze(email_id):
         s.add(a)
         for dsug in data.get("decisoes_sugeridas") or []:
             if dsug.get("regra"):
+                dup = s.query(Decision.id).filter(
+                    Decision.titulo == (dsug.get("titulo") or "")[:500],
+                    Decision.modulo == (dsug.get("modulo") or ""),
+                    Decision.regra == dsug.get("regra")).first()
+                if dup:
+                    continue
                 s.add(Decision(titulo=dsug.get("titulo", "")[:500], modulo=dsug.get("modulo", ""),
                                regra=dsug.get("regra"), fonte=dsug.get("fonte") or f"E-mail E{e.id} de {fmt_date(e.date)}",
                                data_decisao=e.date.strftime("%d/%m/%Y") if e.date else "",

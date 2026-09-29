@@ -456,9 +456,11 @@ def mark_sent(analysis_id: int, body: RespondIn):
             raise HTTPException(404, "Análise não encontrada.")
         a.final_body = body.corpo_final
         e = a.email
-        s.query(Email).filter(Email.thread_key == e.thread_key, Email.direction == "in",
-                              Email.status.in_(["novo", "analisado"])).update({"status": "respondido"},
-                                                                              synchronize_session=False)
+        q = s.query(Email).filter(Email.thread_key == e.thread_key, Email.direction == "in",
+                                  Email.status.in_(["novo", "analisado"]))
+        if e.date:  # fecha só as pendências que a resposta já cobria, nunca as que chegaram depois
+            q = q.filter(Email.date <= e.date)
+        q.update({"status": "respondido"}, synchronize_session=False)
         s.commit()
     return {"ok": True}
 
@@ -487,7 +489,7 @@ def manual_email(body: ManualEmailIn):
     with SessionLocal() as s:
         now = datetime.utcnow()
         key = normalize_subject(body.assunto)
-        e = Email(message_id=f"manual-{now.timestamp()}", thread_key=key, folder="manual",
+        e = Email(message_id=f"manual-{now.timestamp()}-{secrets.token_hex(4)}", thread_key=key, folder="manual",
                   direction="out" if body.direcao == "out" else "in", from_addr=body.remetente,
                   to_addr="", cc_addr="", subject=body.assunto, date=now, body=body.corpo,
                   body_clean=strip_quoted(body.corpo) or body.corpo, is_motiva=True,
@@ -513,6 +515,19 @@ class DecisionIn(BaseModel):
     notas: str = ""
 
 
+DECISION_STATUSES = {"proposta", "vigente", "em_discussao", "substituida", "descartada"}
+
+
+def _validate_decision(s, body, self_id=None):
+    if body.status not in DECISION_STATUSES:
+        raise HTTPException(400, f"Status inválido: {body.status}")
+    if body.substituida_por:
+        if body.substituida_por == self_id:
+            raise HTTPException(400, "Uma decisão não pode substituir a si mesma.")
+        if not s.get(Decision, body.substituida_por):
+            raise HTTPException(400, f"A decisão D{body.substituida_por} referenciada em 'Substituída por' não existe.")
+
+
 def decision_dict(d):
     return {c: getattr(d, c) for c in ("id", "titulo", "modulo", "regra", "fonte", "data_decisao", "aprovado_por",
                                        "status", "substituida_por", "notas", "origem_email_id")} | {
@@ -531,6 +546,7 @@ def list_decisions(status: str = ""):
 @app.post("/api/decisions")
 def create_decision(body: DecisionIn):
     with SessionLocal() as s:
+        _validate_decision(s, body)
         d = Decision(**body.model_dump())
         s.add(d)
         s.commit()
@@ -543,6 +559,7 @@ def update_decision(decision_id: int, body: DecisionIn):
         d = s.get(Decision, decision_id)
         if not d:
             raise HTTPException(404, "Decisão não encontrada.")
+        _validate_decision(s, body, self_id=decision_id)
         for k, v in body.model_dump().items():
             setattr(d, k, v)
         if body.substituida_por:
