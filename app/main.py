@@ -735,6 +735,8 @@ def delete_document(doc_id: int):
 
 
 # ---------- assistente (pergunta sobre todo o contexto) ----------
+TIPO_LABEL = {"regras": "Regras", "especificacao": "Especificação (EF)", "documentacao": "Documentação técnica",
+              "whatsapp": "WhatsApp", "validador": "Validador de regras", "outro": "Documento"}
 CHAT_SYSTEM = """Você é o assistente do Funcional Lumos da StartGi (projeto Lumos, cliente Motiva).
 Você responde perguntas usando TODAS as fontes abaixo — e-mails históricos, decisões registradas e documentos
 da base de conhecimento. Regras:
@@ -788,9 +790,11 @@ def chat(body: ChatIn):
     parts.append("## Trechos dos documentos")
     if not docs:
         parts.append("(nenhum documento relacionado)")
+    docs_by_id = {did: (tipo, nome) for did, tipo, nome in docs_all}
     for sc, (cid, kind, sid, label, text) in docs:
         parts.append(f"[DOC{sid}] {label}\n{text}\n")
-        sources.append({"code": f"DOC{sid}", "label": label})
+        dt, dn = docs_by_id.get(sid, ("outro", label))
+        sources.append({"code": f"DOC{sid}", "label": f"{TIPO_LABEL.get(dt, dt)}: {dn}"})
     parts.append("## E-mails do histórico (ordem de relevância)")
     if not mails:
         parts.append("(nenhum e-mail relacionado)")
