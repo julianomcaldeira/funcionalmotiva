@@ -219,7 +219,10 @@ tbody tr:last-child td{border-bottom:0}
 .doc-lnk{cursor:pointer;color:var(--brand-ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .doc-lnk:hover{text-decoration-color:var(--brand-deep)}
 dialog .dp-meta{padding:6px 18px 0;font-size:12.5px}
-dialog .dp-body{margin:14px 18px 4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;white-space:pre-wrap;word-break:break-word;font-size:13.5px;line-height:1.6;max-height:58vh;overflow:auto;font-family:var(--read)}
+dialog.dlg-wide{width:min(980px,96vw)}
+dialog .dp-body{margin:14px 18px 4px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:26px 34px;white-space:pre-wrap;word-break:break-word;font-size:15.5px;line-height:1.75;max-height:min(64vh,720px);overflow:auto;font-family:var(--read);color:#1F2421;max-width:900px}
+dialog .dp-body .par{margin:0 0 14px}
+dialog .dp-body .par:last-child{margin-bottom:0}
 dialog .dp-empty{margin:14px 18px 4px;padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:8px}
 dialog .dp-tools{display:flex;gap:8px;align-items:center;padding:12px 18px 0;flex-wrap:wrap}
 dialog .dp-tools .pg{font-size:12.5px;color:var(--muted);min-width:64px;text-align:center;font-weight:600}
@@ -695,6 +698,16 @@ function srcChip(code,label){
   const has=label&&String(label).trim();
   return`<span class="src-chip"${has?` title="${esc(label)}"`:""}><b>${esc(code)}</b>${has?`<i>${esc(label)}</i>`:""}</span>`;
 }
+function dlgWide(wide){const d=$("#dlg");if(d)d.classList.toggle("dlg-wide",!!wide)}
+function cleanText(t){
+  const lines=String(t||"").replace(/\r/g,"").replace(/[ \t]+$/gm,"").split("\n");
+  const out=[];let blank=0;
+  for(const l of lines){
+    if(!l.trim()){blank++;if(blank>1||!out.length)continue;out.push("");continue}
+    blank=0;out.push(l);
+  }
+  return esc(out.join("\n"));
+}
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
 const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
 
@@ -948,7 +961,7 @@ async function rw(id,instr,btn){
 }
 function rwCustom(id,btn){
   const d=$("#dlg");d.innerHTML=`<form method="dialog"><h3>Como ajustar a resposta?</h3><div class="form"><label class="full">Instrução<textarea name="i" required placeholder="Ex.: deixe claro que a documentação de abril não tinha essa informação, sem soar defensivo"></textarea></label></div><div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Reescrever</button></div></form>`;
-  d.showModal();d.onclose=()=>{if(d.returnValue==="ok"){const v=d.querySelector("textarea").value.trim();if(v)rw(id,v,btn)}};
+  d.showModal();dlgWide(false);d.onclose=()=>{if(d.returnValue==="ok"){const v=d.querySelector("textarea").value.trim();if(v)rw(id,v,btn)}};
 }
 function copyDraft(){navigator.clipboard.writeText($("#d-body").value).then(()=>toast("Resposta copiada. Cole no Zoho para enviar."))}
 async function markSent(id){
@@ -984,12 +997,12 @@ async function showAttachment(id){
       <a class="btn sm ghost" href="${fileUrl}" target="_blank" rel="noopener">Baixar PDF</a>
     </div>
     <div class="dp-canvas" id="dp-view"><div class="conf" style="padding:26px">Carregando PDF…</div></div>
-    <div class="dp-body" id="dp-text" hidden>${esc(att.extracted_text||"")}</div>`;
+    <div class="dp-body" id="dp-text" hidden>${cleanText(att.extracted_text||"")}</div>`;
   }else if(isImg){
     body=`<div class="dp-canvas" style="background:#fff"><img src="${fileUrl}" alt="${esc(att.filename)}" style="max-width:100%;max-height:68vh;border-radius:6px"></div>
     <div class="dp-meta conf" style="margin:10px 0;text-align:center"><a href="${fileUrl}" target="_blank" rel="noopener">Baixar ${esc(att.filename)}</a></div>`;
   }else if(hasText){
-    body=`<div class="dp-body">${esc(att.extracted_text)}</div>
+    body=`<div class="dp-body">${cleanText(att.extracted_text)}</div>
     <div class="dp-meta conf" style="margin:10px 0;text-align:center"><a class="btn sm ghost" href="${fileUrl}" target="_blank" rel="noopener">Baixar arquivo original</a></div>`;
   }else{
     body=`<div class="dp-empty">Não dá para pré-visualizar este tipo de anexo.
@@ -1000,6 +1013,7 @@ async function showAttachment(id){
     ${body}
     <div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
   el.showModal();
+  dlgWide(true);
   if(isPdf)loadPdfFrom(fileUrl);
 }
 
@@ -1011,7 +1025,7 @@ function openManual(){
     <label class="full">Assunto<input name="assunto" required placeholder="Use o mesmo assunto para agrupar na conversa"></label>
     <label class="full">Mensagem<textarea name="corpo" required style="min-height:200px"></textarea></label></div>
     <div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar à caixa</button></div></form>`;
-  d.showModal();
+  d.showModal();dlgWide(false);
   d.onclose=async()=>{if(d.returnValue!=="ok")return;const f=Object.fromEntries(new FormData($("#mf")));
     try{const r=await post("/api/emails/manual",f);current=r.thread_key;await loadThreads();await openThread(r.thread_key);if(f.direcao==="in")runAnalyze(thread.target.id)}catch(e){toast(e.message,"err")}};
 }
@@ -1091,7 +1105,7 @@ function editDecision(id){
     <label>Substituída por<input name="substituida_por" value="${d.substituida_por||""}" placeholder="Código, ex.: 12"></label>
     <label>Notas<input name="notas" value="${esc(d.notas)}"></label></div>
     <div class="foot"><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${d.status==="proposta"?"Salvar":"Salvar decisão"}</button></div></form>`;
-  dlg.showModal();
+  dlg.showModal();dlgWide(false);
   dlg.onclose=async()=>{if(dlg.returnValue!=="ok")return;const f=Object.fromEntries(new FormData($("#df")));
     f.substituida_por=f.substituida_por?parseInt(f.substituida_por.replace(/\D/g,""))||null:null;
     try{if(d.id)await api("/api/decisions/"+d.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});else await post("/api/decisions",f);toast("Decisão salva.");loadDecisions()}catch(e){toast(e.message,"err")}};
@@ -1142,11 +1156,12 @@ async function showDoc(id){
         <a class="btn sm ghost" href="/api/documents/${id}/file" target="_blank" rel="noopener">Abrir original</a>
       </div>
       <div class="dp-canvas" id="dp-view"><div class="conf" style="padding:26px">Carregando PDF…</div></div>
-      <div class="dp-body" id="dp-text" hidden>${esc(d.content)}</div>`
-    :d.content?`<div class="dp-body">${esc(d.content)}</div>`
+      <div class="dp-body" id="dp-text" hidden>${cleanText(d.content)}</div>`
+    :d.content?`<div class="dp-body">${cleanText(d.content)}</div>`
     :`<div class="dp-empty">Documento sem conteúdo para visualizar.</div>`}
     <div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
   el.showModal();
+  dlgWide(true);
   if(isPdf)initPdf(id);
 }
 let dpDoc=null,dpPage=1;
