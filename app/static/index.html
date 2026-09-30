@@ -220,6 +220,25 @@ tbody tr:last-child td{border-bottom:0}
 .doc-lnk:hover{text-decoration-color:var(--brand-deep)}
 dialog .dp-meta{padding:6px 18px 0;font-size:12.5px}
 dialog.dlg-wide{width:min(980px,96vw)}
+dialog .dh-item{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0}
+dialog .dh-item summary{cursor:pointer;font-weight:600;font-size:13.5px}
+dialog .dh-item summary .conf{font-weight:400;margin-right:8px}
+dialog .dh-fields{display:grid;gap:6px;margin:10px 0;font-size:13px}
+dialog .dh-fields>div{display:grid;grid-template-columns:110px 1fr;gap:8px}
+dialog .dh-fields b{color:var(--muted);font-weight:600}
+dialog .dh-restore{margin-top:2px}
+dialog .vs-list{display:grid;gap:8px;margin:14px 0 4px}
+dialog .vs-item{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+dialog .vs-item .vnum{font-weight:700;font-size:13px}
+dialog .vs-item .vnum.badge-on{color:var(--accent,#0A7A3C)}
+dialog .vs-item .vnote{color:var(--muted);font-size:13px;white-space:pre-wrap;margin-top:4px}
+dialog .vs-new{border:1px dashed var(--line);border-radius:8px;padding:12px;margin-top:10px}
+dialog .vs-new h4{font-size:13px;margin:0 0 8px}
+dialog .vs-diff{margin:12px 0 4px;border:1px solid var(--line);border-radius:8px;max-height:44vh;overflow:auto;font-size:12.5px;font-family:ui-monospace,'SF Mono',Menlo,monospace;line-height:1.5;white-space:pre;background:#fff}
+dialog .vs-diff .a{background:#e7f4ea;color:#14532d}
+dialog .vs-diff .r{background:#fdeaea;color:#7f1d1d}
+dialog .vs-diff .a:before{content:"+ ";font-weight:700}
+dialog .vs-diff .r:before{content:"− ";font-weight:700}
 dialog .dp-body{margin:14px 18px 4px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:26px 34px;white-space:pre-wrap;word-break:break-word;font-size:15.5px;line-height:1.75;max-height:min(64vh,720px);overflow:auto;font-family:var(--read);color:#1F2421;max-width:900px}
 dialog .dp-body .par{margin:0 0 14px}
 dialog .dp-body .par:last-child{margin-bottom:0}
@@ -495,7 +514,7 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
       <button class="btn sm" onclick="printDecisions()" title="Imprimir ou salvar em PDF as decisões filtradas">Imprimir/PDF</button>
       <button class="btn pri" onclick="editDecision()" style="margin-left:auto">Registrar decisão</button>
     </div>
-    <div class="card"><table><thead><tr><th class="sort" data-k="id" style="width:64px">Código</th><th class="sort" data-k="titulo" style="width:26%">Assunto</th><th class="sort" data-k="regra">Regra</th><th class="sort" data-k="fonte" style="width:220px">Fonte</th><th class="sort" data-k="status" style="width:120px">Situação</th></tr></thead><tbody id="dec-body"></tbody></table></div>
+    <div class="card"><table><thead><tr><th class="sort" data-k="id" style="width:64px">Código</th><th class="sort" data-k="titulo" style="width:26%">Assunto</th><th class="sort" data-k="regra">Regra</th><th class="sort" data-k="fonte" style="width:220px">Fonte</th><th class="sort" data-k="status" style="width:120px">Situação</th><th style="width:96px"></th></tr></thead><tbody id="dec-body"></tbody></table></div>
   </div></section>
 
   <section class="view" id="v-base"><div class="page">
@@ -1068,8 +1087,9 @@ function renderDecisions(){
     <td><b>D${d.id}</b></td><td><div class="conf">${esc(d.modulo)}</div>${hl(d.titulo)}</td>
     <td style="white-space:pre-wrap">${hl(d.regra)}</td>
     <td class="conf" style="font-size:12.5px">${esc(d.fonte)}${d.data_decisao?"<br>"+esc(d.data_decisao):""}${d.aprovado_por?"<br>Aprovado por "+esc(d.aprovado_por):""}</td>
-    <td><span class="st ${d.status}">${ST[d.status]||d.status}</span>${d.substituida_por?`<div class="conf" style="margin-top:4px">por D${d.substituida_por}</div>`:""}</td></tr>`).join("")
-    :`<tr><td colspan="5"><div class="empty" style="padding:26px"><b style="color:var(--ink)">Nenhuma decisão aqui</b><br>Comece pelas regras em disputa: tracking de etapas, reprovação de estratégia no Coupa e LOF. Cada uma com a fonte e quem aprovou.</div></td></tr>`;
+    <td><span class="st ${d.status}">${ST[d.status]||d.status}</span>${d.substituida_por?`<div class="conf" style="margin-top:4px">por D${d.substituida_por}</div>`:""}</td>
+    <td><button class="btn sm ghost" onclick="event.stopPropagation();decisionHistory(${d.id})">Histórico</button></td></tr>`).join("")
+    :`<tr><td colspan="6"><div class="empty" style="padding:26px"><b style="color:var(--ink)">Nenhuma decisão aqui</b><br>Comece pelas regras em disputa: tracking de etapas, reprovação de estratégia no Coupa e LOF. Cada uma com a fonte e quem aprovou.</div></td></tr>`;
 }
 function exportDecisionsCSV(){
   const rows=filteredDecisions();
@@ -1110,6 +1130,30 @@ function editDecision(id){
     f.substituida_por=f.substituida_por?parseInt(f.substituida_por.replace(/\D/g,""))||null:null;
     try{if(d.id)await api("/api/decisions/"+d.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});else await post("/api/decisions",f);toast("Decisão salva.");loadDecisions()}catch(e){toast(e.message,"err")}};
 }
+async function decisionHistory(id){
+  const d=decCache.find(x=>x.id===id);
+  const d2=await api(`/api/decisions/${id}/revisions`).catch(()=>[]);
+  const dlg=$("#dlg");
+  dlg.innerHTML=`<form method="dialog" id="dhf"><h3>Histórico de revisões — D${id}${d?` · ${esc(d.titulo)}`:""}</h3>
+    <div class="conf" style="margin-top:-6px">Cada edição salva guarda automaticamente a versão anterior. Você pode restaurar qualquer uma delas.</div>
+    ${!d2.length?`<div class="dp-empty">Sem revisões ainda. Edite a decisão para começar o histórico.</div>`:
+    d2.map(r=>`<details class="dh-item"><summary><span class="conf">${ago(r.created_at)}</span>${esc(r.titulo||"(sem título)")} · ${esc(r.modulo||"—")}<span class="st ${r.status}" style="float:right">${ST[r.status]||r.status}</span></summary>
+      <div class="dh-fields">${[["Regra",r.regra],["Fonte",r.fonte],["Data",r.data_decisao],["Aprovado por",r.aprovado_por],["Substituída por",r.substituida_por?`D${r.substituida_por}`:""],["Notas",r.notas]]
+        .filter(p=>(p[1]||"").toString().trim()).map(([k,v])=>`<div><b>${k}</b><span style="white-space:pre-wrap">${esc(v)}</span></div>`).join("")}</div>
+      <button type="button" class="btn sm dh-restore" id="dhr-${r.id}">Restaurar esta versão</button></details>`).join("")}
+    <div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
+  dlg.showModal();dlgWide(true);
+  d2.forEach(r=>{const b=$("#dhf #dhr-"+r.id);
+    if(b)b.onclick=async()=>{
+      if(!confirm("Restaurar esta versão? A versão atual fica registrada no histórico."))return;
+      try{
+        await api(`/api/decisions/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          modulo:r.modulo,titulo:r.titulo,regra:r.regra,fonte:r.fonte,data_decisao:r.data_decisao,
+          aprovado_por:r.aprovado_por,status:r.status,substituida_por:r.substituida_por,notas:r.notas})});
+        toast("Versão restaurada.");dlg.close();loadDecisions();
+      }catch(e){toast(e.message,"err")}};
+  });
+}
 
 /* ---------- base ---------- */
 const TP={especificacao:"Especificação (EF)",documentacao:"Documentação técnica",whatsapp:"WhatsApp",validador:"Validador de regras",outro:"Outro"};
@@ -1137,7 +1181,7 @@ function renderDocs(){
     return !q||fold(`${d.nome} ${d.tipo} ${d.tags||""}`).includes(q);
   });
   $("#doc-body").innerHTML=docs.length?docs.map(d=>{const tags=(d.tags||"").split(",").map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join(" ");
-    return `<tr style="cursor:default"><td><span class="doc-lnk" onclick="showDoc(${d.id})">${esc(d.nome)}</span></td><td>${TP[d.tipo]||d.tipo}</td><td class="conf">${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td>${tags||'<span class="conf">—</span>'}</td><td class="conf">${ago(d.created_at)}</td><td><button class="btn sm ghost" onclick="showDoc(${d.id})">Ver</button><button class="btn sm ghost" onclick="delDoc(${d.id})">Remover</button></td></tr>`}).join("")
+    return `<tr style="cursor:default"><td><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="doc-lnk" onclick="showDoc(${d.id})">${esc(d.nome)}</span>${(d.versao||1)>1?`<span class="tag" title="Versão vigente">v${d.versao}</span>`:""}</div></td><td>${TP[d.tipo]||d.tipo}</td><td class="conf">${(d.tamanho/1000).toFixed(1)} mil caracteres</td><td>${tags||'<span class="conf">—</span>'}</td><td class="conf">${ago(d.created_at)}</td><td><button class="btn sm ghost" onclick="showDoc(${d.id})">Ver</button><button class="btn sm ghost" onclick="openDocVersions(${d.id})">Versões</button><button class="btn sm ghost" onclick="delDoc(${d.id})">Remover</button></td></tr>`}).join("")
     :`<tr style="cursor:default"><td colspan="6"><div class="empty" style="padding:26px"><b style="color:var(--ink)">${q?"Nada encontrado":"A base está vazia"}</b><br>${q?"Tente outra palavra — a busca varre nome, tipo e tags.":"Comece pelas EFs e pelas duas documentações do Coupa, a de abril e a do Wellington."}</div></td></tr>`;
 }
 async function showDoc(id){
@@ -1256,6 +1300,92 @@ async function uploadDoc(ev){ev.preventDefault();const b=$("#doc-btn");b.disable
   try{const r=await api("/api/documents",{method:"POST",body:new FormData($("#doc-form"))});toast(`Adicionado à base: ${r.nome}`);$("#doc-form").reset();showFile();await loadDocs();showDoc(r.id)}
   catch(e){toast(e.message,"err")}finally{b.disabled=false;b.textContent="Adicionar à base"}return false}
 async function delDoc(id){if(!confirm("Remover este documento da base?"))return;await api("/api/documents/"+id,{method:"DELETE"});toast("Documento removido.");loadDocs()}
+let docVersionsCache=null;
+async function openDocVersions(id){
+  const dlg=$("#dlg");
+  dlg.innerHTML=`<form method="dialog" id="vf"><h3>Versões do documento</h3>
+    <div class="conf" style="margin-top:-6px" id="vs-load">Carregando…</div>
+    <div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
+  dlg.showModal();dlgWide(true);
+  try{docVersionsCache=await api(`/api/documents/${id}/versions`)}catch(e){toast(e.message,"err");dlg.close();return}
+  renderDocVersions(id);
+}
+function renderDocVersions(id){
+  const info=docVersionsCache,vers=info.versoes.slice().sort((a,b)=>b.versao-a.versao);
+  const dlg=$("#dlg");
+  dlg.innerHTML=`<form method="dialog" id="vf"><h3>Versões — ${esc(info.nome)}</h3>
+    <details class="vs-new"><summary style="font-weight:600;cursor:pointer">Subir nova versão</summary>
+      <input name="nome" placeholder="Nome (mantém o atual se vazio)" style="margin-top:8px">
+      <textarea name="texto" placeholder="Ou cole o texto da nova versão…" rows="4"></textarea>
+      <input name="nota" placeholder="O que mudou nesta versão? (ex.: corrigido §3.2)">
+      <input type="file" name="arquivo" accept=".pdf,.doc,.docx,.xlsx,.xls,.txt,.md,.html,.eml,.msg,.csv">
+      <div style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn pri" id="vs-sub">Subir versão</button></div>
+    </details>
+    <div class="vs-list">${vers.map(v=>`<div class="vs-item">
+      <div><span class="vnum ${v.versao===info.versao_atual?"badge-on":""}">v${v.versao}</span>${v.versao===info.versao_atual?' <span class="tag">Vigente</span>':""} <span class="conf">· ${ago(v.created_at)} · ${(v.tamanho/1000).toFixed(1)} mil caracteres</span></div>
+      ${v.nota?`<div class="vnote">${esc(v.nota)}</div>`:""}
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="btn sm ghost" onclick="viewDocVersion(${id},${v.versao})">Ver texto</button>
+        <button type="button" class="btn sm ghost" onclick="diffDocVersions(${id})">Comparar</button>
+        ${v.tem_arquivo?`<a class="btn sm ghost" href="/api/documents/${id}/versions/${v.versao}/file" target="_blank" rel="noopener">Baixar original</a>`:""}</div></div>`).join("")}</div>
+    <div class="vs-diff" id="vs-diff" hidden></div>
+    <div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
+  $("#vs-sub").onclick=()=>uploadDocVersion(id);
+}
+async function uploadDocVersion(id){
+  const f=new FormData(),form=$("#vf");
+  const nome=form.nome.value.trim(),texto=form.texto.value,nota=form.nota.value.trim(),arq=form.arquivo.files[0];
+  if(!texto.trim()&&!arq){toast("Envie um arquivo ou cole o texto da nova versão.");return}
+  if(nome)f.append("nome",nome);if(texto.trim())f.append("texto",texto);if(nota)f.append("nota",nota);
+  if(arq)f.append("arquivo",arq);
+  const b=form.querySelector("#vs-sub");b.disabled=true;b.textContent="Subindo…";
+  try{const r=await api(`/api/documents/${id}/versions`,{method:"POST",body:f});
+    toast(`Versão v${r.versao} registrada.`);await loadDocs();await openDocVersions(id);}
+  catch(e){toast(e.message,"err");b.disabled=false;b.textContent="Subir versão"}
+}
+async function viewDocVersion(id,ver){
+  const v=await api(`/api/documents/${id}/versions/${ver}`);
+  const el=$("#vs-diff");el.hidden=false;el.style.whiteSpace="pre-wrap";el.innerHTML="";
+  const h=document.createElement("div");h.style.whiteSpace="normal";h.style.padding="8px 10px";
+  h.innerHTML=`<b>Conteúdo da v${ver}</b> <span class="conf">· ${(v.tamanho/1000).toFixed(1)} mil caracteres</span>`;
+  el.appendChild(h);
+  el.appendChild(document.createTextNode(v.content||"(versão sem texto)"));
+}
+async function diffDocVersions(id){
+  const info=docVersionsCache,vers=info.versoes.slice().sort((a,b)=>a.versao-b.versao);
+  if(vers.length<2){toast("Precisa de pelo menos duas versões para comparar.");return}
+  const el=$("#vs-diff");el.hidden=false;el.style.whiteSpace="pre-wrap";el.innerHTML="";
+  const h=document.createElement("div");h.style.whiteSpace="normal";h.style.padding="8px 10px";
+  h.innerHTML=`<b>Comparar versões</b>&nbsp;<select id="dv-a"></select>&nbsp;vs&nbsp;<select id="dv-b"></select><div id="dv-out" style="margin-top:8px"></div>`;
+  el.appendChild(h);
+  const sa=$("#dv-a"),sb=$("#dv-b");
+  vers.forEach(v=>{sa.add(new Option(`v${v.versao}`,v.versao));sb.add(new Option(`v${v.versao}${v.versao===info.versao_atual?" (vigente)":""}`,v.versao))});
+  sa.value=Math.min(...vers.map(v=>v.versao));sb.value=info.versao_atual;
+  const run=async()=>{
+    const va=+sa.value,vb=+sb.value,out=$("#dv-out");
+    if(va===vb){out.innerHTML=`<span class="conf">Selecione duas versões diferentes.</span>`;return}
+    const [ta,tb]=await Promise.all([api(`/api/documents/${id}/versions/${va}`),api(`/api/documents/${id}/versions/${vb}`)]);
+    const lines=diffLines((ta.content||"").split("\n"),(tb.content||"").split("\n"));
+    const adds=lines.filter(l=>l.t==="add").length,dels=lines.filter(l=>l.t==="del").length;
+    out.innerHTML=`<div class="conf" style="margin-bottom:6px;white-space:normal">v${va} → v${vb} · +${adds} / −${dels} linha${adds===1?"":"s"} ${dels===1?"":"s"}</div>`+
+      lines.map(l=>`<div class="${l.t==="add"?"a":l.t==="del"?"r":""}">${esc(l.text)}</div>`).join("");
+  };
+  sa.onchange=run;sb.onchange=run;run();
+}
+function diffLines(a,b){
+  const n=a.length,m=b.length;
+  const dp=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)dp[i][j]=a[i]===b[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  const out=[];let i=0,j=0;
+  while(i<n&&j<m){
+    if(a[i]===b[j]){out.push({t:"same",text:a[i]});i++;j++}
+    else if(dp[i+1][j]>=dp[i][j+1]){out.push({t:"del",text:a[i]});i++}
+    else{out.push({t:"add",text:b[j]});j++}
+  }
+  while(i<n){out.push({t:"del",text:a[i]});i++}
+  while(j<m){out.push({t:"add",text:b[j]});j++}
+  return out;
+}
 
 /* ---------- conexões ---------- */
 async function loadStatus(){

@@ -89,6 +89,7 @@ class Document(Base):
     file_data = Column(LargeBinary)   # arquivo original (ex.: PDF) para preview renderizado
     file_name = Column(String(500))   # nome/original do arquivo anexado
     tags = Column(String(300), default="")   # tags separadas por vírgula para filtrar e buscar
+    versao = Column(Integer, default=1)      # nº da versão vigente
     created_at = Column(DateTime, default=now)
 
 
@@ -156,6 +157,39 @@ class AssistantChat(Base):
     session = relationship("AssistantSession", back_populates="messages")
 
 
+class DecisionRevision(Base):
+    """Conteúdo anterior de uma decisão a cada edição (auditoria/histórico)."""
+    __tablename__ = "decision_revisions"
+    id = Column(Integer, primary_key=True)
+    decision_id = Column(Integer, ForeignKey("decisions.id"), index=True)
+    titulo = Column(String(500))
+    modulo = Column(String(200))
+    regra = Column(Text)
+    fonte = Column(Text)
+    data_decisao = Column(String(50))
+    aprovado_por = Column(String(300))
+    status = Column(String(30))
+    substituida_por = Column(Integer, nullable=True)
+    notas = Column(Text)
+    created_at = Column(DateTime, default=now)
+
+
+class DocumentVersion(Base):
+    """Estado histórico (snapshot) de um documento da base, com número de versão."""
+    __tablename__ = "document_versions"
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), index=True)
+    versao = Column(Integer)
+    nome = Column(String(500))
+    tipo = Column(String(50))
+    content = Column(Text)
+    file_data = Column(LargeBinary)
+    file_name = Column(String(500))
+    tags = Column(String(300), default="")
+    nota = Column(String(1000))        # descrição da mudança nesta versão
+    created_at = Column(DateTime, default=now)
+
+
 def init_db():
     Base.metadata.create_all(engine)
     _ensure_columns()
@@ -176,6 +210,8 @@ def _ensure_columns():
         adds.append("ALTER TABLE documents ADD COLUMN file_name VARCHAR(500)")
     if "tags" not in cols:
         adds.append("ALTER TABLE documents ADD COLUMN tags VARCHAR(300)")
+    if "versao" not in cols:
+        adds.append("ALTER TABLE documents ADD COLUMN versao INTEGER")
     if adds:
         with engine.begin() as conn:
             for a in adds:

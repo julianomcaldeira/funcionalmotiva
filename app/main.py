@@ -19,7 +19,8 @@ from sqlalchemy import func
 
 from . import ai, mail
 from .db import (Analysis, AssistantChat, AssistantSession, Attachment, ChatMessage,
-                 Decision, Document, Email, SessionLocal, get_setting, init_db, now)
+                 Decision, DecisionRevision, Document, DocumentVersion, Email,
+                 SessionLocal, get_setting, init_db, now)
 from .extract import extract_text_from_bytes
 from .mail import index_email, normalize_subject, strip_quoted
 from .retrieval import get_index, mark_dirty, rank_texts
@@ -599,6 +600,9 @@ def update_decision(decision_id: int, body: DecisionIn):
         if not d:
             raise HTTPException(404, "Decisão não encontrada.")
         _validate_decision(s, body, self_id=decision_id)
+        s.add(DecisionRevision(decision_id=d.id, titulo=d.titulo, modulo=d.modulo, regra=d.regra,
+                               fonte=d.fonte, data_decisao=d.data_decisao, aprovado_por=d.aprovado_por,
+                               status=d.status, substituida_por=d.substituida_por, notas=d.notas))
         for k, v in body.model_dump().items():
             setattr(d, k, v)
         if body.substituida_por:
@@ -607,30 +611,60 @@ def update_decision(decision_id: int, body: DecisionIn):
         return decision_dict(d)
 
 
+@app.get("/api/decisions/{decision_id}/revisions")
+def decision_revisions(decision_id: int):
+    with SessionLocal() as s:
+        if not s.get(Decision, decision_id):
+            raise HTTPException(404, "Decisão não encontrada.")
+        rows = (s.query(DecisionRevision)
+                .filter(DecisionRevision.decision_id == decision_id)
+                .order_by(DecisionRevision.id.desc()).all())
+        return [{"id": r.id, "titulo": r.titulo, "modulo": r.modulo, "regra": r.regra,
+                 "fonte": r.fonte, "data_decisao": r.data_decisao, "aprovado_por": r.aprovado_por,
+                 "status": r.status, "substituida_por": r.substituida_por, "notas": r.notas,
+                 "created_at": r.created_at.isoformat() if r.created_at else None} for r in rows]
+
+
 # ---------- base de conhecimento ----------
 def read_upload(name, raw):
     return extract_text_from_bytes(name, raw)
+
+
+async def _doc_payload(tipo: str, nome: str, texto: str, arquivo: UploadFile | None):
+    """Lê o upload (arquivo ou texto colado) e devolve (conteúdo, nome, bytes, nome original)."""
+    content, filename, raw_file, raw_name = texto, nome, None, None
+    if arquivo is not None and arquivo.filename:
+        raw = await arquivo.read()
+        if len(raw) > 25_000_000:
+            raise HTTPException(400, "Arquivo maior que 25 MB.")
+        try:
+            content = read_upload(arquivo.filename, raw)
+        except Exception as ex:
+            raise HTTPException(400, f"Não consegui ler o arquivo: {ex}")
+        filename = nome or arquivo.filename
+        raw_file, raw_name = raw, arquivo.filename
+    return (content or "").strip(), filename or "Sem nome", raw_file, raw_name
 
 
 @app.get("/api/documents")
 def list_documents():
     with SessionLocal() as s:
         rows = s.query(Document.id, Document.nome, Document.tipo, Document.content,
-                       Document.created_at, Document.file_name, Document.tags,
+                       Document.created_at, Document.file_name, Document.tags, Document.versao,
                        Document.file_data.isnot(None).label("tem_arquivo")) \
             .filter(Document.tipo != "regras") \
             .order_by(Document.id.desc()).all()
         return [{"id": r.id, "nome": r.nome, "tipo": r.tipo, "tamanho": len(r.content or ""),
                  "created_at": r.created_at.isoformat() if r.created_at else None,
                  "tem_arquivo": bool(r.tem_arquivo), "file_name": r.file_name,
-                 "tags": r.tags or ""} for r in rows]
+                 "tags": r.tags or "", "versao": r.versao or 1} for r in rows]
 
 
 @app.get("/api/documents/{doc_id}")
 def get_document(doc_id: int):
     with SessionLocal() as s:
         row = s.query(Document.id, Document.nome, Document.tipo, Document.content,
-                      Document.created_at, Document.file_name, Document.tags,
+                      Document.created_at, Document.file_name, Document.tags, Document.versao,
                       Document.file_data.isnot(None).label("tem_arquivo")) \
             .filter(Document.id == doc_id).first()
         if not row:
@@ -639,7 +673,7 @@ def get_document(doc_id: int):
                 "tamanho": len(row.content or ""),
                 "created_at": row.created_at.isoformat() if row.created_at else None,
                 "tem_arquivo": bool(row.tem_arquivo), "file_name": row.file_name,
-                "tags": row.tags or ""}
+                "tags": row.tags or "", "versao": row.versao or 1}
 
 
 @app.get("/api/documents/{doc_id}/file")
@@ -694,28 +728,92 @@ async def upload_document(tipo: str = Form("documentacao"), nome: str = Form("")
     if tipo == "regras":
         raise HTTPException(400, "As regras do sistema são editadas no cartão próprio "
                                  "\"Regras do sistema\", na Base de conhecimento.")
-    content, filename, raw_file, raw_name = texto, nome, None, None
-    if arquivo is not None and arquivo.filename:
-        raw = await arquivo.read()
-        if len(raw) > 25_000_000:
-            raise HTTPException(400, "Arquivo maior que 25 MB.")
-        try:
-            content = read_upload(arquivo.filename, raw)
-        except Exception as ex:
-            raise HTTPException(400, f"Não consegui ler o arquivo: {ex}")
-        filename = nome or arquivo.filename
-        raw_file, raw_name = raw, arquivo.filename
-    if not (content or "").strip():
+    content, filename, raw_file, raw_name = await _doc_payload(tipo, nome, texto, arquivo)
+    if not content.strip():
         raise HTTPException(400, "Envie um arquivo ou cole o texto.")
     with SessionLocal() as s:
-        d = Document(nome=filename or "Sem nome", tipo=tipo, content=content,
+        d = Document(nome=filename, tipo=tipo, content=content,
                      tags=", ".join(t.strip() for t in tags.split(",") if t.strip())[:300],
-                     file_data=raw_file, file_name=raw_name)
+                     file_data=raw_file, file_name=raw_name, versao=1)
         s.add(d)
+        s.flush()
+        s.add(DocumentVersion(document_id=d.id, versao=1, nome=d.nome, tipo=tipo,
+                              content=content, file_data=raw_file, file_name=raw_name,
+                              tags=d.tags or "", nota="Versão inicial"))
+        ai.index_document(s, d)
+        s.commit()
+        return {"id": d.id, "nome": d.nome, "tamanho": len(content), "versao": 1}
+
+
+@app.post("/api/documents/{doc_id}/versions")
+async def add_document_version(doc_id: int, nome: str = Form(""), texto: str = Form(""),
+                               tags: str = Form(""), nota: str = Form(""),
+                               arquivo: UploadFile | None = File(None)):
+    content, filename, raw_file, raw_name = await _doc_payload("", nome, texto, arquivo)
+    if not content.strip():
+        raise HTTPException(400, "Envie um arquivo ou cole o texto da nova versão.")
+    with SessionLocal() as s:
+        d = s.get(Document, doc_id)
+        if not d:
+            raise HTTPException(404, "Documento não encontrado.")
+        if d.tipo == "regras":
+            raise HTTPException(400, "As regras do sistema são editadas no cartão próprio.")
+        s.add(DocumentVersion(document_id=d.id, versao=d.versao or 1, nome=d.nome, tipo=d.tipo,
+                              content=d.content or "", file_data=d.file_data,
+                              file_name=d.file_name, tags=d.tags or ""))
+        d.nome = filename
+        d.tags = ", ".join(t.strip() for t in tags.split(",") if t.strip())[:300]
+        d.content = content
+        d.file_data = raw_file
+        d.file_name = raw_name
+        d.versao = (d.versao or 1) + 1
+        s.add(DocumentVersion(document_id=d.id, versao=d.versao, nome=d.nome, tipo=d.tipo,
+                              content=content, file_data=raw_file, file_name=raw_name,
+                              tags=d.tags or "", nota=(nota or "").strip()))
         s.flush()
         ai.index_document(s, d)
         s.commit()
-        return {"id": d.id, "nome": d.nome, "tamanho": len(content)}
+        return {"id": d.id, "versao": d.versao, "nome": d.nome, "tamanho": len(content)}
+
+
+@app.get("/api/documents/{doc_id}/versions")
+def document_versions(doc_id: int):
+    with SessionLocal() as s:
+        d = s.get(Document, doc_id)
+        if not d:
+            raise HTTPException(404, "Documento não encontrado.")
+        rows = (s.query(DocumentVersion).filter(DocumentVersion.document_id == doc_id)
+                .order_by(DocumentVersion.versao).all())
+        return {"id": d.id, "nome": d.nome, "versao_atual": d.versao or 1, "versoes": [
+            {"versao": r.versao, "nome": r.nome, "tamanho": len(r.content or ""),
+             "nota": r.nota or "", "tem_arquivo": bool(r.file_data),
+             "created_at": r.created_at.isoformat() if r.created_at else None} for r in rows]}
+
+
+@app.get("/api/documents/{doc_id}/versions/{ver}")
+def document_version_text(doc_id: int, ver: int):
+    with SessionLocal() as s:
+        v = (s.query(DocumentVersion).filter(DocumentVersion.document_id == doc_id,
+                                             DocumentVersion.versao == ver).first())
+        if not v:
+            raise HTTPException(404, "Versão não encontrada.")
+        return {"versao": v.versao, "nome": v.nome, "content": v.content or "",
+                "tamanho": len(v.content or ""),
+                "created_at": v.created_at.isoformat() if v.created_at else None}
+
+
+@app.get("/api/documents/{doc_id}/versions/{ver}/file")
+def document_version_file(doc_id: int, ver: int):
+    with SessionLocal() as s:
+        v = (s.query(DocumentVersion).filter(DocumentVersion.document_id == doc_id,
+                                             DocumentVersion.versao == ver).first())
+        if not v or not v.file_data:
+            raise HTTPException(404, "Arquivo original desta versão não encontrado.")
+        name = (v.file_name or v.nome or "documento").replace('"', "")
+        media = "application/pdf" if name.lower().endswith(".pdf") else "application/octet-stream"
+        return Response(content=bytes(v.file_data), media_type=media,
+                        headers={"Content-Disposition": f'inline; filename="{name}"',
+                                 "Cache-Control": "private, max-age=3600"})
 
 
 @app.delete("/api/documents/{doc_id}")
