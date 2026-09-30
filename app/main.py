@@ -758,9 +758,13 @@ async def add_document_version(doc_id: int, nome: str = Form(""), texto: str = F
             raise HTTPException(404, "Documento não encontrado.")
         if d.tipo == "regras":
             raise HTTPException(400, "As regras do sistema são editadas no cartão próprio.")
-        s.add(DocumentVersion(document_id=d.id, versao=d.versao or 1, nome=d.nome, tipo=d.tipo,
-                              content=d.content or "", file_data=d.file_data,
-                              file_name=d.file_name, tags=d.tags or ""))
+        # Documentos criados antes do versionamento não têm baseline: arquiva o estado atual como v1.
+        base_exists = (s.query(DocumentVersion)
+                       .filter(DocumentVersion.document_id == doc_id, DocumentVersion.versao == 1).first())
+        if not base_exists:
+            s.add(DocumentVersion(document_id=d.id, versao=1, nome=d.nome, tipo=d.tipo,
+                                  content=d.content or "", file_data=d.file_data,
+                                  file_name=d.file_name, tags=d.tags or "", nota="Versão inicial"))
         d.nome = filename
         d.tags = ", ".join(t.strip() for t in tags.split(",") if t.strip())[:300]
         d.content = content
@@ -920,6 +924,7 @@ def chat(body: ChatIn):
         if not sess:
             sess = AssistantSession(titulo=pergunta[:90])
             s.add(sess)
+        s.flush()   # materializa sess.id antes de gravar as mensagens da conversa
         sess.updated_at = now()
         s.add(AssistantChat(session_id=sess.id, role="user", content=pergunta))
         s.add(AssistantChat(session_id=sess.id, role="assistant", content=raw.strip(),

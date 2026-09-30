@@ -1,0 +1,2 @@
+# Dependências apenas de desenvolvimento/teste (o runtime do Render usa requirements.txt)
+pytest==8.3.3
