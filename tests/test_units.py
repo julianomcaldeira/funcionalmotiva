@@ -2,6 +2,38 @@ from app.extract import extract_text_from_bytes
 from app.main import fold, make_snippet
 from app.mail import html_to_text, is_motiva, normalize_subject, strip_quoted
 from app.retrieval import rank_texts
+from app.db import Decision, Document, Email, SessionLocal
+from app.ai import enrich_sources
+
+
+def _seed():
+    with SessionLocal() as s:
+        e = Email(message_id="m1", thread_key="t1", folder="INBOX", direction="in",
+                  from_addr="juliana@motiva.com.br", to_addr="startgi@startgi.com.br",
+                  subject="Cotação", date=None, body="corpo", body_clean="corpo",
+                  is_motiva=True, status="novo")
+        d = Document(nome="EF-Coupa-004", tipo="especificacao", content="x", file_data=None)
+        dec = Decision(titulo="Tracking aprovado", modulo="Tracking", regra="regra",
+                       fonte="E-mail", status="vigente")
+        s.add_all([e, d, dec])
+        s.commit()
+        return e.id, d.id, dec.id
+
+
+def test_enrich_sources():
+    eid, did, dec_id = _seed()
+    raw = [{"code": f"E{eid}", "label": "velho"},
+           {"code": f"DOC{did}", "label": "velho"},
+           {"code": f"D{dec_id}", "label": "velho"}]
+    with SessionLocal() as s:
+        out = enrich_sources(s, raw)
+    by = {x["code"]: x for x in out}
+    assert by[f"E{eid}"]["tipo"] == "email"
+    assert "Cotação" in by[f"E{eid}"]["label"]
+    assert by[f"DOC{did}"]["tipo"] == "documento"
+    assert "EF-Coupa-004" in by[f"DOC{did}"]["label"]
+    assert by[f"D{dec_id}"]["tipo"] == "decisao"
+    assert by[f"D{dec_id}"]["label"] == "Tracking aprovado"
 
 
 def test_fold():

@@ -436,6 +436,13 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
 .src-chip{display:inline-flex;align-items:baseline;gap:5px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px;color:var(--muted)}
 .src-chip b{font-weight:700;color:var(--ink)}
 .src-chip i{font-style:normal;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-chip::before{content:"";width:7px;height:7px;border-radius:50%;align-self:center;background:var(--muted);flex:none}
+.src-chip.k-email::before{background:#2563eb}
+.src-chip.k-documento::before{background:#0e9f6e}
+.src-chip.k-decisao::before{background:#b45309}
+.src-chip.k-regras::before{background:#7c3aed}
+.src-h{color:var(--ink)}
+.chat-msg .src .src-h{color:var(--ink)}
 #chat-main .chat-log{min-height:0}
 .chat-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;color:var(--muted)}
 .hist-item{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh-1)}
@@ -761,9 +768,19 @@ function toast(m,type="info"){
 function skelLines(cols,n=6){let r="";for(let i=0;i<n;i++)r+=`<tr style="cursor:default">${Array.from({length:cols},(_,c)=>`<td><div class="skel sk-ln" style="width:${[45,70,55,38,30,50][c%6]}%"></div></td>`).join("")}</tr>`;return r}
 function skelThreads(n=6){let r="";for(let i=0;i<n;i++)r+=`<div class="sk-th"><div class="skel sk-c"></div><div><div class="skel sk-ln" style="width:72%"></div><div class="skel sk-ln" style="width:42%"></div></div></div>`;return r}
 function skelDash(n=6){let r="";for(let i=0;i<n;i++)r+=`<div class="dash-card" style="cursor:default;pointer-events:none"><div class="skel sk-ln" style="width:55%"></div><div class="skel sk-ln" style="width:85%;height:28px;margin:12px 0 6px"></div><div class="skel sk-ln" style="width:45%"></div></div>`;return r}
-function srcChip(code,label){
+function srcKind(code){
+  if(code==="REGRAS")return["regras","Regras"];
+  if(/^E\d+$/.test(code))return["email","E-mail"];
+  if(/^DOC\d+$/.test(code))return["documento","Documento"];
+  if(/^D\d+$/.test(code))return["decisao","Decisão"];
+  return["outro","Fonte"];
+}
+function srcChip(code,label,tipo){
   const has=label&&String(label).trim();
-  return`<span class="src-chip"${has?` title="${esc(label)}"`:""}><b>${esc(code)}</b>${has?`<i>${esc(label)}</i>`:""}</span>`;
+  const [kind,klabel]=srcKind(code);
+  const k=tipo||kind;
+  const title=has?`${klabel} · ${label}`:klabel;
+  return`<span class="src-chip k-${esc(k)}" title="${esc(title)}"><b>${esc(klabel)} ${esc(code)}</b>${has?`<i>${esc(label)}</i>`:""}</span>`;
 }
 function dlgWide(wide){const d=$("#dlg");if(d)d.classList.toggle("dlg-wide",!!wide)}
 function cleanText(t){
@@ -975,7 +992,7 @@ function briefingHTML(a,b,c,val,done){
   <div class="sec"><h4>Questionamentos de processo</h4>${items(b.questionamentos_de_processo,"neutral")}</div>
   <div class="sec"><h4>Riscos para a StartGi</h4>${items(b.riscos,"red")}</div>
   <div class="sec"><h4>Histórico relevante</h4>${items(b.historico_relevante,"neutral")}</div>
-  <div class="sec"><h4>Fontes consultadas</h4><div class="srcs">${(a.sources||[]).map(s=>`<span><b>${esc(s.code)}</b> ${esc(s.label)}</span>`).join("")||'<div class="none">Nenhuma.</div>'}</div></div>`;
+  <div class="sec"><h4>Fontes consultadas</h4><div class="srcs">${(a.sources||[]).map(s=>srcChip(s.code,s.label,s.tipo)).join("")||'<div class="none">Nenhuma.</div>'}</div></div>`;
 }
 function draftHTML(a,val,done){
   const open=val.length-done.size;
@@ -992,7 +1009,7 @@ function saveDraftLocal(a){if($("#d-body")){a._body=$("#d-body").value;a._subj=$
 
 /* ---------- chat da cadeia (uma conversa por corrente de e-mails) ---------- */
 function tcBubble(m){
-  const src=(m.sources||[]).length?`<span class="src"><b>Fontes:</b> ${m.sources.map(s=>srcChip(s.code,s.label)).join("")}</span>`:"";
+  const src=(m.sources||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.sources.map(s=>srcChip(s.code,s.label,s.tipo)).join("")}</span>`:"";
   return`<div class="chat-msg ${m.role==="user"?"user":"ai"}">${esc(m.content)}${src}</div>`;
 }
 async function renderThreadChatTab(){
@@ -1525,7 +1542,7 @@ function renderChat(){
   if(!chat.length){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div>`;return}
   log.innerHTML=chat.map(m=>{
     if(m.role==="user")return`<div class="chat-msg user">${esc(m.text)}</div>`;
-    const src=(m.fontes||[]).length?`<span class="src"><b>Fontes:</b> ${m.fontes.map(f=>srcChip(f.code,f.label)).join("")}</span>`:"";
+    const src=(m.fontes||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.fontes.map(f=>srcChip(f.code,f.label,f.tipo)).join("")}</span>`:"";
     return`<div class="chat-msg ai">${esc(m.text)}${src}</div>`;
   }).join("");
   log.scrollTop=log.scrollHeight;
@@ -1561,7 +1578,7 @@ async function openChatHistory(id){
     if(!msgs.length){log.innerHTML=`<div class="empty">Conversa sem mensagens.</div>`;return}
     log.innerHTML=msgs.map(m=>{
       if(m.role==="user")return`<div class="chat-msg user">${esc(m.content)}</div>`;
-      const src=(m.fontes||[]).length?`<span class="src"><b>Fontes:</b> ${m.fontes.map(f=>srcChip(f.code,f.label)).join("")}</span>`:"";
+      const src=(m.fontes||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.fontes.map(f=>srcChip(f.code,f.label,f.tipo)).join("")}</span>`:"";
       return`<div class="chat-msg ai">${esc(m.content)}${src}</div>`;
     }).join("");
     log.scrollTop=log.scrollHeight;

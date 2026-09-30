@@ -1034,6 +1034,7 @@ def chat(body: ChatIn):
             s.add(sess)
         s.flush()   # materializa sess.id antes de gravar as mensagens da conversa
         sess.updated_at = now()
+        uniq = ai.enrich_sources(s, uniq)
         s.add(AssistantChat(session_id=sess.id, role="user", content=pergunta))
         s.add(AssistantChat(session_id=sess.id, role="assistant", content=raw.strip(),
                             sources_json=json.dumps(uniq, ensure_ascii=False)))

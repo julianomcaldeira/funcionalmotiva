@@ -78,6 +78,56 @@ def fmt_date(d):
     return d.strftime("%d/%m/%Y %H:%M") if d else "?"
 
 
+TIPO_LABEL = {"regras": "Regras", "especificacao": "Especificação (EF)", "documentacao": "Documentação técnica",
+              "whatsapp": "WhatsApp", "validador": "Validador de regras", "outro": "Documento"}
+
+
+def enrich_sources(session, sources):
+    """Torna as fontes legíveis: identifica o tipo de cada fonte (e-mail, documento, decisão)
+    e monta um rótulo claro de onde a informação saiu — ex.: 'E-mail de 28/07 · Juliana: Cotação'."""
+    em, doc, dec, rules = [], [], [], []
+    for s_ in sources:
+        code = s_.get("code", "")
+        if code.startswith("E") and code[1:].isdigit():
+            em.append((int(code[1:]), s_))
+        elif code.startswith("DOC") and code[3:].isdigit():
+            doc.append((int(code[3:]), s_))
+        elif code.startswith("D") and code[1:].isdigit():
+            dec.append((int(code[1:]), s_))
+    if em:
+        ids = [i for i, _ in em]
+        rows = dict(session.query(Email.id, Email).filter(Email.id.in_(ids)).all())
+        for eid, s_ in em:
+            e = rows.get(eid)
+            if not e:
+                continue
+            who = "StartGi (enviado)" if e.direction == "out" else e.from_addr
+            s_["tipo"] = "email"
+            s_["label"] = f"E-mail de {fmt_date(e.date)} · {who}: {e.subject}"
+    if doc:
+        ids = [i for i, _ in doc]
+        rows = dict(session.query(Document.id, Document).filter(Document.id.in_(ids)).all())
+        for did, s_ in doc:
+            d = rows.get(did)
+            if not d:
+                continue
+            s_["tipo"] = "documento"
+            if d.tipo == "regras":
+                s_["label"] = f"Regras do sistema: {d.nome}"
+            else:
+                s_["label"] = f"Documento {TIPO_LABEL.get(d.tipo, d.tipo)}: {d.nome}"
+    if dec:
+        ids = [i for i, _ in dec]
+        rows = dict(session.query(Decision.id, Decision).filter(Decision.id.in_(ids)).all())
+        for did, s_ in dec:
+            d = rows.get(did)
+            if not d:
+                continue
+            s_["tipo"] = "decisao"
+            s_["label"] = d.titulo
+    return sources
+
+
 def search_docs(session, idx, query, exclude=None, k=12, min_hits=4):
     """Busca na base de conhecimento: BM25 com no máximo 3 trechos por documento e,
     se a busca acertar poucos, completa com o início dos documentos restantes (mais recentes
@@ -172,7 +222,7 @@ def build_context(session, email_obj):
         if s_["code"] not in seen:
             seen.add(s_["code"])
             uniq.append(s_)
-    return "\n\n".join(parts), uniq
+    return "\n\n".join(parts), enrich_sources(session, uniq)
 
 
 CHAT_THREAD_SYSTEM = """Você é o assistente do funcional sênior da StartGi no projeto Lumos (cliente Motiva) e conversa
@@ -265,7 +315,7 @@ def build_thread_context(session, thread_key, question, history=None):
         if s_["code"] not in seen:
             seen.add(s_["code"])
             uniq.append(s_)
-    return "\n\n".join(parts), uniq
+    return "\n\n".join(parts), enrich_sources(session, uniq)
 
 
 def thread_chat(session, thread_key, question, history=None):
@@ -284,7 +334,7 @@ def thread_chat(session, thread_key, question, history=None):
             who = "StartGi (enviado)" if e.direction == "out" else e.from_addr
             sources.append({"code": code, "label": f"{fmt_date(e.date)} {who}"})
             have.add(code)
-    return raw, sources
+    return raw, enrich_sources(session, sources)
 
 
 def call_model(system, user):
