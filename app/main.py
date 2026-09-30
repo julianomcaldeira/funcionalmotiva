@@ -19,7 +19,7 @@ from sqlalchemy import func
 
 from . import ai, mail
 from .db import (Analysis, AssistantChat, AssistantSession, Attachment, ChatMessage,
-                 Decision, DecisionRevision, Document, DocumentVersion, Email,
+                 Chunk, Decision, DecisionRevision, Document, DocumentVersion, Email,
                  SessionLocal, get_setting, init_db, now)
 from .extract import extract_text_from_bytes
 from .mail import index_email, normalize_subject, strip_quoted
@@ -160,6 +160,43 @@ def dashboard():
             dia_total[str(dia)] = total
         por_dia = [{"dia": d.isoformat(), "total": dia_total.get(d.isoformat(), 0)}
                    for d in (since + timedelta(days=i) for i in range(days))]
+        # tempo médio de resposta: intervalo entre o recebido da Motiva e a próxima resposta (out) na mesma conversa
+        since_resp = datetime.utcnow() - timedelta(days=120)
+        resp_rows = (s.query(Email.thread_key, Email.direction, Email.date)
+                     .filter(Email.date >= since_resp, Email.date.isnot(None))
+                     .order_by(Email.thread_key, Email.date).all())
+        last_in, gaps = {}, []
+        for key, direction, date in resp_rows:
+            if direction == "in":
+                last_in[key] = date
+            else:
+                prev = last_in.get(key)
+                if prev and date:
+                    gap = (date - prev).total_seconds() / 3600
+                    if 0 < gap <= 7 * 24:
+                        gaps.append(gap)
+        tempo_medio_resp_h = int(sum(gaps) / len(gaps)) if gaps else None
+        # decisões ativas agrupadas por módulo
+        mod_status = ["vigente", "em_discussao", "proposta"]
+        decisoes_por_modulo = [{"modulo": m or "Sem módulo", "total": int(c)}
+                               for m, c in s.query(Decision.modulo, func.count(Decision.id))
+                               .filter(Decision.status.in_(mod_status)).group_by(Decision.modulo).all() if c]
+        decisoes_por_modulo.sort(key=lambda x: x["total"], reverse=True)
+        # volume de e-mails por mês (últimos 6 meses)
+        today = datetime.utcnow().date()
+        month_rows = s.query(func.date(Email.date).label("dia")).filter(Email.date >= today - timedelta(days=183))
+        mes_count = {}
+        for (dia,) in month_rows.all():
+            d0 = dia if isinstance(dia, datetime) else datetime.strptime(str(dia)[:10], "%Y-%m-%d")
+            key = (d0.year, d0.month)
+            mes_count[key] = mes_count.get(key, 0) + 1
+        por_mes, y, mo = [], today.year, today.month
+        for _ in range(6):
+            por_mes.append({"mes": f"{y:04d}-{mo:02d}", "total": mes_count.get((y, mo), 0)})
+            mo -= 1
+            if mo == 0:
+                mo, y = 12, y - 1
+        por_mes.reverse()
         pend = s.query(Email).filter(Email.direction == "in",
                                      Email.status.in_(["novo", "analisado"])).order_by(Email.date.desc()).limit(400).all()
         resp = {}
@@ -191,6 +228,9 @@ def dashboard():
         "analyses": analyses_total,
         "conversas": conversas,
         "por_dia": por_dia,
+        "por_mes": por_mes,
+        "tempo_medio_resposta_h": tempo_medio_resp_h,
+        "decisoes_por_modulo": decisoes_por_modulo,
         "para_responder": para_responder,
         "ultima_sync": last_sync,
         "zoho_state": zoho_state,
@@ -257,7 +297,8 @@ def make_snippet(text, query, width=170):
 
 
 @app.get("/api/threads")
-def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim: str = "", remetente: str = ""):
+def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim: str = "",
+            remetente: str = "", page: int = 1, per: int = 60):
     with SessionLocal() as s:
         query = s.query(Email).order_by(Email.date.desc())
         if data_inicio:
@@ -353,13 +394,18 @@ def threads(filtro: str = "todas", q: str = "", data_inicio: str = "", data_fim:
     prio = {"novo": 0, "pronto": 1, "aguardando": 2, "arquivado": 3}
     out.sort(key=lambda t: t["last_date"] or datetime.min, reverse=True)
     out.sort(key=lambda t: prio.get(t["status"], 9))
-    return {"counts": counts, "items": [{
+    total = len(out)
+    per = min(max(per, 1), 100)
+    page = max(page, 1)
+    start = (page - 1) * per
+    return {"counts": counts, "total": total, "page": page, "per": per,
+            "items": [{
         "thread_key": t["thread_key"], "subject": t["subject"], "count": t["count"],
         "pending": t["pending"], "analyzed": t["analyzed"], "last_from": t["last_from"],
         "last_date": t["last_date"].isoformat() if t["last_date"] else None,
         "classificacao": t["classificacao"], "status": t["status"],
         "preview": t["preview"], "snippet": snippet.get(t["thread_key"]),
-    } for t in out[:400]]}
+    } for t in out[start:start + per]]}
 
 
 def email_dict(e, full=True):
@@ -834,6 +880,68 @@ def delete_document(doc_id: int):
         s.commit()
     mark_dirty()
     return {"ok": True}
+
+
+# ---------- cobertura da base ----------
+@app.get("/api/cobertura")
+def cobertura():
+    """O que a IA enxerga e cita: documentos com trechos indexados, quantas vezes cada um
+    foi citado como fonte (em briefings e no assistente) e decisões sem fonte ou sem citação."""
+    with SessionLocal() as s:
+        docs = s.query(Document).filter(Document.tipo != "regras").order_by(Document.id.desc()).all()
+        chunk_map = dict(s.query(Chunk.source_id, func.count(Chunk.id))
+                         .filter(Chunk.source_kind == "document").group_by(Chunk.source_id).all())
+        doc_cit, doc_last, dec_cit = {}, {}, {}
+
+        def count_codes(rows):
+            for js, dt in rows:
+                if not js:
+                    continue
+                try:
+                    arr = json.loads(js)
+                except Exception:
+                    continue
+                if not isinstance(arr, list):
+                    continue
+                for item in arr:
+                    if not isinstance(item, dict):
+                        continue
+                    code = str(item.get("code", ""))
+                    if code.startswith("DOC") and code[3:].isdigit():
+                        did = int(code[3:])
+                        doc_cit[did] = doc_cit.get(did, 0) + 1
+                        if dt and dt > doc_last.get(did, datetime.min):
+                            doc_last[did] = dt
+                    elif code.startswith("D") and code[1:].isdigit():
+                        did = int(code[1:])
+                        dec_cit[did] = dec_cit.get(did, 0) + 1
+
+        count_codes(s.query(Analysis.sources_json, Analysis.created_at)
+                    .filter(Analysis.sources_json.isnot(None)).all())
+        count_codes(s.query(AssistantChat.sources_json, AssistantChat.created_at)
+                    .filter(AssistantChat.sources_json.isnot(None)).all())
+
+        regras = s.query(Document).filter(Document.tipo == "regras").order_by(Document.id.desc()).first()
+        documentos = [{
+            "id": d.id, "nome": d.nome, "tipo": d.tipo, "tamanho": len(d.content or ""),
+            "tem_arquivo": bool(d.file_data), "tags": d.tags or "", "versao": d.versao or 1,
+            "chunks": int(chunk_map.get(d.id, 0)),
+            "citacoes": doc_cit.get(d.id, 0),
+            "ultima_citacao": doc_last.get(d.id).isoformat() if doc_last.get(d.id) else None,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        } for d in docs]
+
+        active = ["vigente", "em_discussao", "proposta"]
+        decs = s.query(Decision).filter(Decision.status.in_(active)).order_by(Decision.id.desc()).all()
+        sem_fonte = [{"id": d.id, "titulo": d.titulo, "modulo": d.modulo, "status": d.status}
+                     for d in decs if not (d.fonte or "").strip()]
+        nunca_citadas = [{"id": d.id, "titulo": d.titulo, "modulo": d.modulo, "status": d.status}
+                         for d in decs if dec_cit.get(d.id, 0) == 0]
+        return {
+            "documentos": documentos,
+            "regras": {"exists": bool(regras), "tamanho": len((regras.content or "")) if regras else 0},
+            "decisoes": {"ativas": len(decs), "sem_fonte": sem_fonte, "nunca_citadas": nunca_citadas},
+        }
 
 
 # ---------- assistente (pergunta sobre todo o contexto) ----------

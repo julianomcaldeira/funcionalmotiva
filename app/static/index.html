@@ -305,6 +305,20 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 .dash-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
 .dash-bar i{display:block;width:100%;background:var(--brand);border-radius:5px 5px 0 0;min-height:2px;opacity:.9;transition:height .3s}
 .dash-bar b{font-size:10px;color:var(--muted);font-weight:600;margin-top:5px;white-space:nowrap}
+.dash-analytic{font-size:26px;font-weight:800;color:var(--ink);padding:20px 18px 8px}
+.dash-analytic .sub{font-size:12px;color:var(--muted);font-weight:500;margin-top:4px}
+.dash-modules{display:grid;gap:10px;padding:14px 18px 18px}
+.mod-line{display:grid;grid-template-columns:minmax(0,1fr) 90px 24px;align-items:center;gap:10px;font-size:12.5px}
+.mod-line .ml{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.mod-line b{color:var(--muted);text-align:right;font-size:12px}
+.mod-track{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.mod-track i{display:block;height:100%;background:var(--brand);border-radius:99px}
+.dash-analytic .sub{font-size:12px;color:var(--muted);font-weight:500;margin-top:4px}
+.cov-filters{display:flex;gap:6px;padding:10px 18px 0;flex-wrap:wrap}
+.cov-filters .dchip{font-size:12px;padding:4px 10px}
+.cov-list{display:grid;gap:6px;padding:12px 18px 18px;max-height:300px;overflow:auto}
+.cov-list .cov-item{font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.cov-list .cov-item b{color:var(--ink)}
 
 @media (max-width:1280px){.dash-top{grid-template-columns:repeat(3,1fr)}.dash-main{grid-template-columns:1fr 1fr}}
 @media (max-width:1020px){.dash-bottom{grid-template-columns:1fr}.dash-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.dash-main{grid-template-columns:1fr}}
@@ -444,6 +458,7 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
    <button class="nv" data-v="caixa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>Caixa<span class="ct" id="c-pend" hidden></span></button>
    <button class="nv" data-v="decisoes"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Decisões<span class="ct warn" id="c-prop" hidden></span></button>
    <button class="nv" data-v="base"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Base de conhecimento</button>
+   <button class="nv" data-v="cobertura"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12a9 9 0 0 1 18 0"/><path d="M12 3a9 9 0 0 1 0 18"/></svg>Cobertura</button>
    <button class="nv" data-v="assistente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Assistente</button>
    <button class="nv" data-v="status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Conexões</button>
    <div class="health" id="health"></div>
@@ -476,9 +491,41 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
         <pre class="log" id="dash-log"></pre>
       </div>
     </div>
+    <div class="dash-main">
+      <div class="dash-panel">
+        <div class="dash-ph">Tempo médio de resposta</div>
+        <div class="dash-analytic" id="dash-tempo"><span class="conf">—</span></div>
+        <div class="dash-ph" style="border-top:1px solid var(--line)">Volume por mês · últimos 6 meses</div>
+        <div class="dash-chart" id="dash-month"></div>
+      </div>
+      <div class="dash-panel">
+        <div class="dash-ph">Decisões ativas por módulo</div>
+        <div class="dash-modules" id="dash-modules"></div>
+      </div>
+    </div>
     <div class="dash-panel">
       <div class="dash-ph">Volume de e-mails · últimos 21 dias</div>
       <div class="dash-chart" id="dash-chart"></div>
+    </div>
+  </div></section>
+  <section class="view" id="v-cobertura"><div class="page">
+    <h2>Cobertura da base</h2>
+    <p class="lead">O que a IA enxerga e cita ao responder: quais documentos têm trechos indexados e quantas vezes foram citados como fonte, além de decisões sem fonte ou fora do alcance do assistente.</p>
+    <div class="stats" id="cov-stats"></div>
+    <div class="card">
+      <div class="dash-ph"><h4 style="margin:0;font-size:14px">Documentos da base</h4><span class="conf" id="cov-doc-count"></span></div>
+      <div class="cov-filters" id="cov-filters"></div>
+      <table><thead><tr><th>Documento</th><th>Tipo</th><th>Conteúdo</th><th>Trechos</th><th>Citado</th><th>Situação</th></tr></thead><tbody id="cov-body"></tbody></table>
+    </div>
+    <div class="dash-main">
+      <div class="dash-panel">
+        <div class="dash-ph" style="font-weight:600">Decisões sem fonte</div>
+        <div class="cov-list" id="cov-semfonte"></div>
+      </div>
+      <div class="dash-panel">
+        <div class="dash-ph" style="font-weight:600">Decisões nunca citadas pela IA</div>
+        <div class="cov-list" id="cov-nuncan"></div>
+      </div>
     </div>
   </div></section>
   <section class="view" id="v-caixa">
@@ -495,6 +542,7 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
         <div class="tabs" id="ftabs"><button data-f="pendentes" class="on">A responder<span id="tb-pend"></span></button><button data-f="aguardando">Aguardando retorno<span id="tb-aguard"></span></button><button data-f="todas">Tudo</button></div>
       </div>
       <div class="threads" id="threads"></div>
+      <button class="btn sm ghost" id="threads-more" style="width:100%;justify-content:center;margin-top:10px" hidden onclick="loadThreads(+1)">Carregar mais conversas</button>
       <div class="list-foot"><button class="btn sm" style="width:100%;justify-content:center" onclick="openManual()">Colar um e-mail</button></div>
     </div>
     <div class="conv" id="conv"></div>
@@ -730,14 +778,14 @@ function cleanText(t){
 async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
 const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
 
-function go(v){$$(".nv").forEach(x=>x.classList.toggle("on",x.dataset.v===v));$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));({dashboard:loadDashboard,caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,status:loadStatus,assistente:()=>{}})[v]();loadHealth()}
+function go(v){$$(".nv").forEach(x=>x.classList.toggle("on",x.dataset.v===v));$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));({dashboard:loadDashboard,caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,cobertura:loadCobertura,status:loadStatus,assistente:()=>{}})[v]();loadHealth()}
 $$(".nv").forEach(b=>b.onclick=()=>go(b.dataset.v));
 $$("#ftabs button").forEach(b=>b.onclick=()=>{filtro=b.dataset.f;$$("#ftabs button").forEach(x=>x.classList.toggle("on",x===b));loadThreads()});
 $("#q").oninput=()=>{clearTimeout($("#q")._h);$("#q")._h=setTimeout(loadThreads,250)};
 function aplicarFiltros(){loadThreads()};
 ["#di","#df","#remetente"].forEach(id=>{$(id).onkeydown=e=>{if(e.key==="Enter")loadThreads()}});
 
-let threadsLoaded=false,dashLoaded=false;
+let threadsLoaded=false,dashLoaded=false,threadPage=1;
 async function loadDashboard(){
   try{
   if(!dashLoaded)$("#dash-top").innerHTML=skelDash(6);
@@ -766,6 +814,20 @@ async function loadDashboard(){
   $("#dash-chart").innerHTML=(d.por_dia||[]).map(p=>`
     <div class="dash-bar" title="${p.dia} · ${p.total} e-mails"><i style="height:${Math.max(3,p.total/mx*100)}%"></i><b>${new Date(p.dia+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</b></div>`).join("");
   $("#dash-range").textContent=(d.por_dia&&d.por_dia.length)?d.por_dia[0].dia+" a "+d.por_dia[d.por_dia.length-1].dia:"";
+  const tmp=d.tempo_medio_resposta_h,tsm=$("#dash-tempo");
+  if(tsm)tsm.innerHTML=tmp!=null?`${Math.floor(tmp/24)} dias e ${tmp%24} horas<div class="sub">Recebida da Motiva → resposta da StartGi, última análise</div>`:`<span class="conf">Sem respostas suficientes ainda</span>`;
+  const mm=$("#dash-month");
+  if(mm&&d.por_mes){
+    const mx2=Math.max(1,...d.por_mes.map(p=>p.total||0));
+    mm.innerHTML=d.por_mes.map(p=>`<div class="dash-bar" title="${p.mes} · ${p.total} e-mails"><i style="height:${Math.max(3,p.total/mx2*100)}%"></i><b>${p.mes.slice(5,7)}/${p.mes.slice(2,4)}</b></div>`).join("");
+  }
+  const dm=$("#dash-modules");
+  if(dm){
+    const mods=d.decisoes_por_modulo||[];
+    dm.innerHTML=mods.length?mods.slice(0,6).map((m,i)=>{const mx3=mods[0].total;
+      return`<div class="mod-line"><span class="ml">${esc(m.modulo)}</span><div class="mod-track"><i style="width:${Math.max(4,m.total/mx3*100).toFixed(0)}%"></i></div><b>${m.total}</b></div>`}).join("")
+      :`<div class="empty"><b style="color:var(--ink)">Nenhuma decisão ativa</b><br>Registre as regras vigentes em Decisões para ver a distribuição por módulo.</div>`;
+  }
   $("#dash-log").textContent=d.log_count?d.log.slice(-30).join("\n"):"Sem atividade ainda.";
   const lastSync=d.ultima_sync?new Date(d.ultima_sync).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
   $("#dash-sync").innerHTML=`${lastSync}<div class="sub">${d.zoho_state==="ok"?"Zoho sincronizado":"Zoho "+d.zoho_state}</div>`;
@@ -813,38 +875,47 @@ function setupSteps(){
 }
 
 /* ---------- caixa ---------- */
-async function loadThreads(){
-  await loadHealth();
-  if(!threadsLoaded)$("#threads").innerHTML=skelThreads();
-  const q=$("#q").value;
-  const di=$("#di").value;
-  const df=$("#df").value;
-  const rem=$("#remetente").value;
-  const data=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}`);
-  const list=data.items||[];
-  threadsLoaded=true;
-  const cnt=data.counts||{};
-  const tbp=$("#tb-pend");if(tbp)tbp.textContent=cnt.pendentes?` (${cnt.pendentes})`:"";
-  const tba=$("#tb-aguard");if(tba)tba.textContent=cnt.aguardando?` (${cnt.aguardando})`:"";
+let threadItems=[],threadMore=false;
+function threadRowHTML(t,q){
   const nowY=new Date().getFullYear();
   const STTAG={novo:'<span class="tag novo">Novo</span>',pronto:'<span class="tag pronto">Briefing pronto</span>',
     aguardando:'<span class="tag st-aguardando">Aguardando retorno</span>',arquivado:'<span class="tag st-arquivado">Arquivado</span>'};
-  $("#threads").innerHTML=list.length?list.map(t=>{
-    const d=asDate(t.last_date);
-    const dt=d?`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`:"";
-    const yr=d&&d.getFullYear()!==nowY?`<span class="y">${String(d.getFullYear()).slice(2)}</span>`:"";
-    const st=STTAG[t.status]||"";
-    const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
-    const body=t.snippet||t.preview||"";
-    return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button" title="${esc(t.last_date?fmt(t.last_date):"")}">
+  const d=asDate(t.last_date);
+  const dt=d?`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`:"";
+  const yr=d&&d.getFullYear()!==nowY?`<span class="y">${String(d.getFullYear()).slice(2)}</span>`:"";
+  const st=STTAG[t.status]||"";
+  const cl=t.classificacao?`<span class="tag ${t.classificacao}">${CLS[t.classificacao]||t.classificacao}</span>`:"";
+  const body=t.snippet||t.preview||"";
+  return`<div class="th ${current===t.thread_key?"on":""}" data-k="${esc(t.thread_key)}" tabindex="0" role="button" title="${esc(t.last_date?fmt(t.last_date):"")}">
       <div class="dt">${dt}${yr}</div>
       <div class="tw">
         <div class="s">${esc(t.subject)}</div>
         <div class="m">${st}${cl}<span>${esc((t.last_from||"").split("@")[0])} · ${t.count} ${t.count>1?"e-mails":"e-mail"}</span></div>
         ${body?`<div class="pv">${hl(body,q)}</div>`:""}
-      </div></div>`}).join("")
+      </div></div>`;
+}
+async function loadThreads(delta){
+  await loadHealth();
+  const q=$("#q").value;
+  const di=$("#di").value;
+  const df=$("#df").value;
+  const rem=$("#remetente").value;
+  if(!delta)threadItems=[];
+  const page=delta?(threadPage||1)+delta:1;
+  const data=await api(`/api/threads?filtro=${filtro}&q=${encodeURIComponent(q)}&data_inicio=${encodeURIComponent(di)}&data_fim=${encodeURIComponent(df)}&remetente=${encodeURIComponent(rem)}&page=${page}`);
+  threadPage=page;
+  const list=data.items||[];
+  threadMore=list.length>0&&threadItems.length+list.length<(data.total||0);
+  threadItems=delta?threadItems.concat(list):list;
+  threadsLoaded=true;
+  const cnt=data.counts||{};
+  const tbp=$("#tb-pend");if(tbp)tbp.textContent=cnt.pendentes?` (${cnt.pendentes})`:"";
+  const tba=$("#tb-aguard");if(tba)tba.textContent=cnt.aguardando?` (${cnt.aguardando})`:"";
+  $("#threads").innerHTML=threadItems.length?threadItems.map(t=>threadRowHTML(t,q)).join("")
     :`<div class="empty" style="padding:30px 18px"><b style="color:var(--ink)">${q?"Nada encontrado":filtro==="pendentes"?"Nada a responder agora":filtro==="aguardando"?"Nenhuma conversa aguardando retorno":"Nenhuma conversa encontrada"}</b><br>${q?"Tente outra palavra — a busca varre assunto, remetente e o corpo de todos os e-mails, inclusive os arquivados.":filtro==="pendentes"?"Quando a Motiva escrever, o e-mail aparece aqui com o briefing pronto.":filtro==="aguardando"?"Quando a StartGi responder uma conversa, ela sai de \"A responder\" e fica aqui até a Motiva voltar a escrever.":"Nada com esses filtros. Ajuste a busca ou conecte o Zoho para começar."}</div>`;
   $$(".th").forEach(el=>{el.onclick=()=>openThread(el.dataset.k);el.onkeydown=e=>{if(e.key==="Enter")openThread(el.dataset.k)}});
+  const moreBtn=$("#threads-more");
+  if(moreBtn)moreBtn.hidden=!threadMore;
   if(!current){$("#conv").innerHTML=`<div class="empty"><img src="/static/icon.png" alt=""><h3>Escolha uma conversa</h3>Cada e-mail da Motiva chega com um briefing do funcional: classificação, o que validar antes de enviar, contradições e um rascunho de resposta.</div>`;$("#desk").hidden=true}
 }
 
@@ -1387,6 +1458,52 @@ function diffLines(a,b){
   return out;
 }
 
+/* ---------- cobertura ---------- */
+let cov={documentos:[],covFilter:""};
+async function loadCobertura(){
+  try{
+    const d=await api("/api/cobertura");
+    cov=d;
+    renderCobertura();
+  }catch(e){toast(e.message,"err")}
+}
+function covBadge(x,cit){
+  if(cit>0)return'<span class="tag" style="background:#e7f4ea;color:#14532d">Em uso</span>';
+  if(x.chunks===0)return'<span class="tag" style="background:#fdeaea;color:#7f1d1d" title="Sem trechos indexados: a IA não enxerga este documento">Sem índice</span>';
+  return'<span class="tag" title="Indexado, mas nunca citado como fonte">Nunca citado</span>';
+}
+function renderCobertura(){
+  const docs=cov.documentos||[];
+  const semf=(cov.decisoes&&cov.decisoes.sem_fonte)||[];
+  const nunc=(cov.decisoes&&cov.decisoes.nunca_citadas)||[];
+  $("#cov-stats").innerHTML=[
+    ["Documentos",docs.length],["Em uso",docs.filter(x=>x.citacoes>0).length],
+    ["Nunca citados",docs.filter(x=>x.citacoes===0).length],
+    ["Sem índice",docs.filter(x=>x.chunks===0).length],
+    ["Decisões ativas",(cov.decisoes&&cov.decisoes.ativas)||0],["Sem fonte",semf.length],
+  ].map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");
+  const filters=[["","Todos"],["uso","Em uso"],["nunca","Nunca citados"],["idx","Sem índice"]];
+  $("#cov-filters").innerHTML=filters.map(([v,t])=>`<button class="dchip ${cov.covFilter===v?"on":""}" data-f="${v}">${t}</button>`).join("");
+  $$("#cov-filters .dchip").forEach(c=>c.onclick=()=>{cov.covFilter=c.dataset.f;renderCobertura()});
+  $("#cov-doc-count").textContent=`${docs.length} ${docs.length===1?"documento":"documentos"} · base exportada para busca${cov.regras&&cov.regras.exists?` · regras de referência com ${(cov.regras.tamanho/1000).toFixed(1)} mil caracteres`:""}`;
+  let list=docs;
+  if(cov.covFilter==="uso")list=docs.filter(x=>x.citacoes>0);
+  else if(cov.covFilter==="nunca")list=docs.filter(x=>x.citacoes===0&&x.chunks>0);
+  else if(cov.covFilter==="idx")list=docs.filter(x=>x.chunks===0);
+  const tp=TP||{};
+  $("#cov-body").innerHTML=list.length?list.map(x=>`<tr style="cursor:pointer" onclick="showDoc(${x.id})">
+    <td><span class="doc-lnk">${esc(x.nome)}</span>${(x.versao||1)>1?` <span class="tag">v${x.versao}</span>`:""}</td>
+    <td class="conf">${tp[x.tipo]||x.tipo}</td>
+    <td class="conf">${(x.tamanho/1000).toFixed(1)} mil</td>
+    <td>${x.chunks>0?`<span class="tag" title="Trechos que a IA usa na busca">${x.chunks} trechos</span>`:'<span class="conf">—</span>'}</td>
+    <td>${x.citacoes>0?`<b style="color:var(--brand)">${x.citacoes}×</b><span class="conf" style="font-size:11px"> ${x.ultima_citacao?ago(x.ultima_citacao):""}</span>`:'<span class="conf">0</span>'}</td>
+    <td>${covBadge(x,x.citacoes)}</td></tr>`).join("")
+    :`<tr><td colspan="6"><div class="empty" style="padding:26px"><b style="color:var(--ink)">Nada para essa situação</b></div></td></tr>`;
+  const li=(arr,extra)=>arr.length?arr.map(d=>`<div class="cov-item"><b>D${d.id}</b> · ${esc(d.titulo||"(sem título)")}<span class="conf" style="float:right">${ST[d.status]||d.status}${d.modulo?" · "+esc(d.modulo):""}</span></div>`).join("")+`<div class="conf" style="font-size:12px;margin-top:10px;padding-bottom:4px">${extra}</div>`:`<div class="empty"><b style="color:var(--ink)">Tudo certo</b><br>Nenhuma decisão nessa condição.</div>`;
+  $("#cov-semfonte").innerHTML=li(semf,`<p class="conf" style="font-size:12px;margin-top:8px">Fonte registrada pela IA com base nos e-mails; editar em Decisões para preencher.</p>`);
+  $("#cov-nuncan").innerHTML=li(nunc,`<p class="conf" style="font-size:12px;margin-top:8px">A IA cita uma decisão quando a pergunta se relaciona a ela. Sem citação pode indicar assunto em que as regras não estão sendo consideradas.</p>`);
+}
+
 /* ---------- conexões ---------- */
 async function loadStatus(){
   await loadHealth();const s=status;
@@ -1476,7 +1593,7 @@ async function sendChat(ev){
 $("#chat-in").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat(e)}};
 
 loadDashboard();
-setInterval(()=>{const v=["dashboard","caixa","decisoes","base","status"].find(x=>$(`#v-${x}`).classList.contains("on"));if(v==="dashboard")loadDashboard();else if(v==="caixa")loadThreads();else loadHealth()},30000);
+setInterval(()=>{const v=["dashboard","caixa","decisoes","base","cobertura","status"].find(x=>$(`#v-${x}`).classList.contains("on"));if(v==="dashboard")loadDashboard();else if(v==="caixa")loadThreads();else if(v==="cobertura")loadCobertura();else loadHealth()},30000);
 </script>
 </body>
 </html>
