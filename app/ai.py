@@ -54,6 +54,10 @@ Seu trabalho, a cada e-mail da Motiva, é preparar o Juliano (CEO da StartGi) pa
     consta no sistema. Sempre que o e-mail citar, pressupor ou questionar uma regra, confere nele e registra
     em "historico_relevante" se a regra CONSTA (com citação [DOC#]) ou NÃO CONSTA — isso alimenta a
     classificação da regra 6.
+11. Em "pedidos", separe item por item tudo o que a Motiva pede neste e-mail — uma frase curta por pedido —
+    com urgência "alta" (prazo imediato, bloqueio ou crítica), "media" ou "baixa". Em "perguntas", liste
+    TODAS as perguntas abertas que precisam de resposta, uma por item. O rascunho precisa cobrir cada pedido
+    e responder cada pergunta dessas listas.
 Estilo do rascunho: português, curto, direto, informal-profissional, sem parágrafos longos, sem listas com
 hífen, sem jargão desnecessário, sem se justificar demais nem soar defensivo. Fecha com "Tks,".
 
@@ -61,6 +65,8 @@ Responda SOMENTE com um objeto JSON válido, sem texto antes ou depois, neste fo
 {
   "resumo": "o que a Motiva está dizendo/pedindo, em 2 a 4 frases",
   "classificacao": {"tipo": "sustentacao|melhoria|duvida|fora_do_escopo_lumos", "justificativa": "..."},
+  "pedidos": [{"texto": "o que a Motiva pede, item por item", "urgencia": "alta|media|baixa"}],
+  "perguntas": ["pergunta aberta da Motiva que precisa de resposta", "..."],
   "historico_relevante": ["fato com citação [..]", "..."],
   "contradicoes": ["contradição encontrada, com citações", "..."],
   "questionamentos_de_processo": ["o que não faz sentido na regra ou precisa ser perguntado", "..."],
