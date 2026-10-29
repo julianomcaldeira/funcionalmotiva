@@ -76,6 +76,8 @@ class Decision(Base):
     substituida_por = Column(Integer, nullable=True)
     notas = Column(Text)
     origem_email_id = Column(Integer, nullable=True)
+    sugestao_json = Column(Text)            # sugestão da triagem da IA (ação, justificativa, confiança)
+    sugestao_em = Column(DateTime)
     created_at = Column(DateTime, default=now)
     updated_at = Column(DateTime, default=now, onupdate=now)
 
@@ -157,6 +159,18 @@ class AssistantChat(Base):
     session = relationship("AssistantSession", back_populates="messages")
 
 
+class AIUsage(Base):
+    """Uma linha por chamada ao modelo de IA: tokens gastos e para quê."""
+    __tablename__ = "ai_usage"
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=now, index=True)
+    tipo = Column(String(40), index=True)   # analise | assistente | chat_conversa | reescrita | triagem
+    modelo = Column(String(200))
+    tokens_entrada = Column(Integer, default=0)
+    tokens_saida = Column(Integer, default=0)
+    ok = Column(Boolean, default=True)
+
+
 class DecisionRevision(Base):
     """Conteúdo anterior de uma decisão a cada edição (auditoria/histórico)."""
     __tablename__ = "decision_revisions"
@@ -212,6 +226,16 @@ def _ensure_columns():
         adds.append("ALTER TABLE documents ADD COLUMN tags VARCHAR(300)")
     if "versao" not in cols:
         adds.append("ALTER TABLE documents ADD COLUMN versao INTEGER")
+    try:
+        dcols = {c["name"] for c in inspect(engine).get_columns("decisions")}
+    except Exception:
+        dcols = None
+    if dcols is not None:
+        if "sugestao_json" not in dcols:
+            adds.append("ALTER TABLE decisions ADD COLUMN sugestao_json TEXT")
+        if "sugestao_em" not in dcols:
+            t = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
+            adds.append(f"ALTER TABLE decisions ADD COLUMN sugestao_em {t}")
     if adds:
         with engine.begin() as conn:
             for a in adds:

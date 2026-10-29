@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 
 from . import ai, mail
-from .db import (Analysis, AssistantChat, AssistantSession, Attachment, ChatMessage,
+from .db import (AIUsage, Analysis, AssistantChat, AssistantSession, Attachment, ChatMessage,
                  Chunk, Decision, DecisionRevision, Document, DocumentVersion, Email,
                  SessionLocal, get_setting, init_db, now)
 from .extract import extract_text_from_bytes
@@ -173,6 +173,12 @@ def run_sync():
                     log(f"Briefing gerado para o e-mail {eid}")
                 except Exception as ex:
                     log(f"Falha ao analisar o e-mail {eid}: {ex}")
+                try:
+                    n = ai.review_thread_decisions(eid)
+                    if n:
+                        log(f"{n} decisão(ões) pendente(s) reavaliada(s) com o e-mail {eid}")
+                except Exception as ex:
+                    log(f"Falha ao reavaliar decisões do e-mail {eid}: {ex}")
     except Exception as ex:
         state["last_error"] = humanize_error(ex)
         log(f"Erro na sincronização: {state['last_error']}")
@@ -705,7 +711,149 @@ def _validate_decision(s, body, self_id=None):
 def decision_dict(d):
     return {c: getattr(d, c) for c in ("id", "titulo", "modulo", "regra", "fonte", "data_decisao", "aprovado_por",
                                        "status", "substituida_por", "notas", "origem_email_id")} | {
-        "updated_at": d.updated_at.isoformat() if d.updated_at else None}
+        "updated_at": d.updated_at.isoformat() if d.updated_at else None,
+        "sugestao": json.loads(d.sugestao_json) if d.sugestao_json and d.status == "proposta" else None}
+
+
+# ---------- triagem das decisões pendentes (IA sugere, usuário confirma) ----------
+triage_state = {"running": False, "total": 0, "feitas": 0, "erros": 0, "ultimo_erro": None}
+
+
+def run_triage(ids):
+    triage_state.update(running=True, total=len(ids), feitas=0, erros=0, ultimo_erro=None)
+    try:
+        for did in ids:
+            try:
+                ai.review_decision(did)
+            except Exception as ex:
+                triage_state["erros"] += 1
+                triage_state["ultimo_erro"] = str(ex)[:300]
+                log(f"Triagem: falha na decisão D{did}: {ex}")
+            triage_state["feitas"] += 1
+        log(f"Triagem concluída: {triage_state['feitas']} decisões revisadas pela IA.")
+    finally:
+        triage_state["running"] = False
+
+
+@app.get("/api/decisions/triagem")
+def triage_status():
+    with SessionLocal() as s:
+        pend = s.query(Decision).filter(Decision.status == "proposta").all()
+        com = sum(1 for d in pend if d.sugestao_json)
+    return triage_state | {"pendentes": len(pend), "com_sugestao": com}
+
+
+class TriageIn(BaseModel):
+    refazer: bool = False
+
+
+@app.post("/api/decisions/triagem")
+def start_triage(body: TriageIn):
+    if not ai.API_KEY:
+        raise HTTPException(400, "IA não configurada: defina AI_API_KEY nas variáveis do Render.")
+    if triage_state["running"]:
+        return triage_status()
+    with SessionLocal() as s:
+        q = s.query(Decision.id).filter(Decision.status == "proposta")
+        if not body.refazer:
+            q = q.filter(Decision.sugestao_json.is_(None))
+        ids = [i for (i,) in q.order_by(Decision.id).all()]
+    if not ids:
+        return triage_status()
+    triage_state.update(running=True, total=len(ids), feitas=0, erros=0)
+    threading.Thread(target=run_triage, args=(ids,), daemon=True).start()
+    return triage_status()
+
+
+TRIAGE_STATUS = {"vigente": "vigente", "descartada": "descartada", "duplicada": "substituida",
+                 "em_discussao": "em_discussao"}
+
+
+class ApplyIn(BaseModel):
+    ids: list[int]
+
+
+@app.post("/api/decisions/aplicar-sugestoes")
+def apply_suggestions(body: ApplyIn):
+    feitas = 0
+    with SessionLocal() as s:
+        for d in s.query(Decision).filter(Decision.id.in_(body.ids), Decision.status == "proposta").all():
+            if not d.sugestao_json:
+                continue
+            sug = json.loads(d.sugestao_json)
+            novo = TRIAGE_STATUS.get(sug.get("acao"))
+            if not novo:
+                continue
+            s.add(DecisionRevision(decision_id=d.id, titulo=d.titulo, modulo=d.modulo, regra=d.regra,
+                                   fonte=d.fonte, data_decisao=d.data_decisao, aprovado_por=d.aprovado_por,
+                                   status=d.status, substituida_por=d.substituida_por, notas=d.notas))
+            d.status = novo
+            if sug.get("acao") == "duplicada" and sug.get("duplicada_de"):
+                d.substituida_por = sug["duplicada_de"]
+            nota = f"Triagem IA ({sug.get('confianca', '?')}): {sug.get('justificativa', '')}".strip()
+            d.notas = ((d.notas or "") + "\n" + nota).strip()
+            d.sugestao_json = None
+            feitas += 1
+        s.commit()
+    return {"aplicadas": feitas}
+
+
+@app.post("/api/decisions/ignorar-sugestoes")
+def dismiss_suggestions(body: ApplyIn):
+    with SessionLocal() as s:
+        n = 0
+        for d in s.query(Decision).filter(Decision.id.in_(body.ids)).all():
+            d.sugestao_json = None
+            n += 1
+        s.commit()
+    return {"ignoradas": n}
+
+
+# ---------- consumo da IA ----------
+TZ_OFFSET_H = int(os.getenv("TZ_OFFSET_H", "-3"))
+PRICE_IN = float(os.getenv("AI_PRICE_IN_PER_M", "0.24"))    # US$ por 1 milhão de tokens de entrada
+PRICE_OUT = float(os.getenv("AI_PRICE_OUT_PER_M", "0.46"))  # US$ por 1 milhão de tokens de saída
+USAGE_LABEL = {"analise": "Análise de e-mails", "assistente": "Assistente", "chat_conversa": "Chat das conversas",
+               "reescrita": "Reescrita de rascunho", "triagem": "Triagem de decisões", "outro": "Outros"}
+
+
+def _cost(tin, tout):
+    return round((tin or 0) / 1e6 * PRICE_IN + (tout or 0) / 1e6 * PRICE_OUT, 4)
+
+
+@app.get("/api/uso-ia")
+def ai_usage(dias: int = 30):
+    dias = max(1, min(dias, 365))
+    tz = timedelta(hours=TZ_OFFSET_H)            # dias contados no horário de Brasília
+    hoje_local = (now() + tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    hoje = hoje_local - tz
+    inicio = hoje - timedelta(days=dias - 1)
+    mes = hoje_local.replace(day=1) - tz
+    with SessionLocal() as s:
+        rows = s.query(AIUsage).filter(AIUsage.created_at >= min(inicio, mes)).all()
+
+    def resumo(lst):
+        tin = sum(r.tokens_entrada or 0 for r in lst)
+        tout = sum(r.tokens_saida or 0 for r in lst)
+        return {"chamadas": len(lst), "falhas": sum(1 for r in lst if not r.ok),
+                "tokens_entrada": tin, "tokens_saida": tout, "tokens": tin + tout, "custo_usd": _cost(tin, tout)}
+
+    periodo = [r for r in rows if r.created_at >= inicio]
+    por_tipo = {}
+    for r in periodo:
+        por_tipo.setdefault(r.tipo or "outro", []).append(r)
+    por_dia = []
+    for i in range(dias):
+        d0 = inicio + timedelta(days=i)
+        d1 = d0 + timedelta(days=1)
+        por_dia.append({"dia": (d0 + tz).date().isoformat(), **resumo([r for r in periodo if d0 <= r.created_at < d1])})
+    return {"dias": dias, "modelo": ai.MODEL, "preco": {"entrada_por_milhao": PRICE_IN, "saida_por_milhao": PRICE_OUT},
+            "hoje": resumo([r for r in rows if r.created_at >= hoje]),
+            "mes": resumo([r for r in rows if r.created_at >= mes]),
+            "periodo": resumo(periodo),
+            "por_tipo": sorted([{"tipo": k, "nome": USAGE_LABEL.get(k, k), **resumo(v)} for k, v in por_tipo.items()],
+                               key=lambda x: -x["tokens"]),
+            "por_dia": por_dia}
 
 
 @app.get("/api/decisions")
@@ -1120,7 +1268,7 @@ def _chat(body: ChatIn):
 
     user = f"{chr(10).join(parts)}\n\n## Pergunta do usuário\n{pergunta}"
     try:
-        raw = ai.call_model(CHAT_SYSTEM, user)
+        raw = ai.call_model(CHAT_SYSTEM, user, kind="assistente")
     except Exception as ex:
         traceback.print_exc()
         raise HTTPException(502, f"A IA não respondeu: {ex}")

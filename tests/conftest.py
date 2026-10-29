@@ -9,7 +9,7 @@ os.environ["AI_API_KEY"] = ""        # cada teste configura o que precisa
 import pytest
 from fastapi.testclient import TestClient
 
-from app.db import (Analysis, AssistantChat, AssistantSession, Attachment, ChatMessage,
+from app.db import (AIUsage, Analysis, AssistantChat, AssistantSession, Attachment, ChatMessage,
                     Chunk, Decision, DecisionRevision, Document, DocumentVersion, Email,
                     SessionLocal, Setting, init_db)
 from app.main import app
@@ -18,7 +18,7 @@ from app.retrieval import mark_dirty
 init_db()
 
 TABLES = [Analysis, Attachment, ChatMessage, AssistantChat, AssistantSession,
-          DocumentVersion, DecisionRevision, Chunk, Email, Decision, Document, Setting]
+          DocumentVersion, DecisionRevision, Chunk, Email, Decision, Document, Setting, AIUsage]
 
 
 @pytest.fixture(autouse=True)

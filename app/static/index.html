@@ -227,8 +227,40 @@ tbody tr:last-child td{border-bottom:0}
 .doc-lnk:hover{text-decoration-color:var(--brand-deep)}
 dialog .dp-meta{padding:6px 18px 0;font-size:12.5px}
 dialog.dlg-wide{width:min(980px,96vw)}
+.tri-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--amber-wash);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:0 0 14px}
+.tri-bar .tx{flex:1;min-width:220px;font-size:13.5px}
+.tri-bar .tx b{font-size:14.5px}
+.tri-prog{height:6px;background:#fff;border-radius:4px;overflow:hidden;margin-top:6px;max-width:360px}
+.tri-prog i{display:block;height:100%;background:var(--brand-deep);transition:width .4s}
+.tri-list{display:grid;gap:8px;margin:12px 0;max-height:62vh;overflow:auto;padding-right:4px}
+.tri-item{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.tri-item input{margin-top:4px}
+.tri-item .t{font-weight:600;font-size:13.5px}
+.tri-item .r{font-size:12.5px;color:var(--muted);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tri-item .j{font-size:13px;margin-top:6px}
+.tri-acts{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.tri-tag{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.tri-tag.vigente{background:var(--brand-wash);color:var(--brand-ink)}
+.tri-tag.descartada{background:#F1F2F1;color:#5C665F}
+.tri-tag.duplicada{background:#EEF2FF;color:#3730A3}
+.tri-tag.em_discussao{background:var(--amber-wash);color:var(--amber)}
+.tri-conf{font-size:11px;color:var(--muted)}
+.tri-filter{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sug-mini{display:block;margin-top:4px;font-size:11.5px;color:var(--muted)}
+.uso-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.uso-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.uso-card .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.uso-card .v{font-size:22px;font-weight:700;margin-top:2px}
+.uso-card .s{font-size:12px;color:var(--muted)}
+.uso-bars{display:flex;align-items:flex-end;gap:3px;height:70px;margin:12px 0 4px}
+.uso-bars i{flex:1;background:var(--brand);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+.uso-bars i:hover{opacity:1;background:var(--brand-deep)}
+.uso-tab{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+.uso-tab td,.uso-tab th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+.uso-tab td:first-child,.uso-tab th:first-child{text-align:left}
+.uso-tab th{font-size:11.5px;color:var(--muted);font-weight:600}
 .logout-btn{margin-top:6px;text-decoration:none}
-#srcdlg form{padding:6px 20px 4px}
+#srcdlg form,#trif{padding:6px 20px 4px}
 #srcdlg h3{padding-left:0;padding-right:0}
 dialog .dh-item{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0}
 dialog .dh-item summary{cursor:pointer;font-weight:600;font-size:13.5px}
@@ -608,6 +640,7 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
       <button class="btn sm" onclick="printDecisions()" title="Imprimir ou salvar em PDF as decisões filtradas">Imprimir/PDF</button>
       <button class="btn pri" onclick="editDecision()" style="margin-left:auto">Registrar decisão</button>
     </div>
+    <div id="triage-bar"></div>
     <div class="card"><table><thead><tr><th class="sort" data-k="id" style="width:64px">Código</th><th class="sort" data-k="titulo" style="width:26%">Assunto</th><th class="sort" data-k="regra">Regra</th><th class="sort" data-k="fonte" style="width:220px">Fonte</th><th class="sort" data-k="status" style="width:120px">Situação</th><th style="width:96px"></th></tr></thead><tbody id="dec-body"></tbody></table></div>
   </div></section>
 
@@ -661,6 +694,8 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
     <p class="lead">O acesso ao Zoho é somente leitura e nenhuma resposta é enviada pelo sistema. As credenciais ficam nas variáveis de ambiente do Render.</p>
     <div class="conn" id="conn"></div>
     <div class="stats" id="stats"></div>
+    <h4 style="margin:18px 0 8px">Consumo da IA</h4>
+    <div id="uso-ia"><div class="conf">Carregando…</div></div>
     <h4 style="margin:18px 0 8px">Atividade recente</h4>
     <pre class="log" id="log"></pre>
   </div></section>
@@ -1293,7 +1328,7 @@ $$("#dtabs button").forEach(b=>b.onclick=()=>{decFilter=b.dataset.s;$$("#dtabs b
   renderDecisions();
 })})();
 $("#dq").oninput=()=>renderDecisions();
-async function loadDecisions(){loadHealth();if(!decLoaded)$("#dec-body").innerHTML=skelLines(5,6);decCache=await api("/api/decisions?status="+decFilter);decLoaded=true;renderDecisions()}
+async function loadDecisions(){loadHealth();loadTriage();if(!decLoaded)$("#dec-body").innerHTML=skelLines(5,6);decCache=await api("/api/decisions?status="+decFilter);decLoaded=true;renderDecisions()}
 function filteredDecisions(){
   const q=fold($("#dq").value);
   const rows=decCache.filter(d=>{
@@ -1319,7 +1354,7 @@ function renderDecisions(){
     <td><b>D${d.id}</b></td><td><div class="conf">${esc(d.modulo)}</div>${hl(d.titulo)}</td>
     <td style="white-space:pre-wrap">${hl(d.regra)}</td>
     <td class="conf" style="font-size:12.5px">${esc(d.fonte)}${d.data_decisao?"<br>"+esc(d.data_decisao):""}${d.aprovado_por?"<br>Aprovado por "+esc(d.aprovado_por):""}</td>
-    <td><span class="st ${d.status}">${ST[d.status]||d.status}</span>${d.substituida_por?`<div class="conf" style="margin-top:4px">por D${d.substituida_por}</div>`:""}</td>
+    <td><span class="st ${d.status}">${ST[d.status]||d.status}</span>${d.sugestao?`<span class="sug-mini">IA sugere: <b>${TRI[d.sugestao.acao]||d.sugestao.acao}</b></span>`:""}${d.substituida_por?`<div class="conf" style="margin-top:4px">por D${d.substituida_por}</div>`:""}</td>
     <td><button class="btn sm ghost" onclick="event.stopPropagation();decisionHistory(${d.id})">Histórico</button></td></tr>`).join("")
     :`<tr><td colspan="6"><div class="empty" style="padding:26px"><b style="color:var(--ink)">Nenhuma decisão aqui</b><br>Comece pelas regras em disputa: tracking de etapas, reprovação de estratégia no Coupa e LOF. Cada uma com a fonte e quem aprovou.</div></td></tr>`;
 }
@@ -1675,6 +1710,91 @@ async function loadStatus(){
     <div class="card"><span class="dot ok" style="margin-top:7px"></span><div class="tx"><b>Domínios da Motiva</b><div>${esc(s.dominios_motiva.join(", "))}. Só e-mails com esses domínios entram no sistema.</div></div></div>`;
   $("#stats").innerHTML=[["E-mails",s.emails],["Documentos",s.documentos],["Decisões vigentes",s.decisoes_vigentes],["Para revisar",s.decisoes_propostas]].map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");
   $("#log").textContent=(s.log||[]).join("\n")||"Sem atividade ainda.";
+  loadUsage();
+}
+/* ---------- triagem de decisões pendentes (IA sugere, você confirma) ---------- */
+const TRI={vigente:"Vigente",descartada:"Descartar",duplicada:"Duplicada",em_discussao:"Em discussão"};
+let triTimer=null;
+async function loadTriage(){
+  const el=$("#triage-bar");if(!el)return;
+  let t;try{t=await api("/api/decisions/triagem")}catch{return}
+  if(!t.pendentes&&!t.running){el.innerHTML="";return}
+  const pct=t.total?Math.round(100*t.feitas/t.total):0;
+  el.innerHTML=`<div class="tri-bar"><div class="tx">
+      <b>${t.pendentes} ${t.pendentes===1?"decisão para revisar":"decisões para revisar"}</b>
+      ${t.running?`<div class="conf">A IA está revisando: ${t.feitas} de ${t.total}…</div><div class="tri-prog"><i style="width:${pct}%"></i></div>`
+        :`<div class="conf">${t.com_sugestao?`${t.com_sugestao} já ${t.com_sugestao===1?"tem":"têm"} sugestão da IA. Confira e aplique em lote.`:"A IA lê os e-mails seguintes de cada uma e sugere o que fazer."}${t.erros?` · ${t.erros} com erro`:""}</div>`}
+    </div>
+    ${t.running?"":`${t.pendentes>t.com_sugestao?`<button class="btn" onclick="startTriage(this)">Revisar ${t.pendentes-t.com_sugestao} com IA</button>`:""}
+      ${t.com_sugestao?`<button class="btn pri" onclick="openTriage()">Ver sugestões (${t.com_sugestao})</button>`:""}`}
+  </div>`;
+  clearTimeout(triTimer);
+  if(t.running)triTimer=setTimeout(async()=>{await loadTriage();if(!$("#v-decisoes").classList.contains("on"))return;decCache=await api("/api/decisions?status="+decFilter);renderDecisions()},3000);
+  else if(el.dataset.wasRunning==="1"){toast("Triagem concluída.");loadDecisions()}
+  el.dataset.wasRunning=t.running?"1":"0";
+}
+async function startTriage(b){
+  b.disabled=true;b.textContent="Iniciando…";
+  try{await post("/api/decisions/triagem",{});loadTriage()}catch(e){toast(e.message,"err");b.disabled=false}
+}
+let triFilter="";
+async function openTriage(){
+  const all=await api("/api/decisions?status=proposta");
+  const rows=all.filter(d=>d.sugestao);
+  const dlg=$("#dlg");
+  const counts={};rows.forEach(d=>counts[d.sugestao.acao]=(counts[d.sugestao.acao]||0)+1);
+  const draw=()=>{
+    const list=rows.filter(d=>!triFilter||d.sugestao.acao===triFilter);
+    dlg.innerHTML=`<form method="dialog" id="trif"><h3>Sugestões da IA para as decisões pendentes</h3>
+      <div class="conf" style="margin-top:-6px">Marque as que concorda e aplique. As de confiança alta já vêm marcadas. Nada muda sem você aplicar; cada mudança fica no histórico da decisão.</div>
+      <div class="tri-filter" style="margin-top:10px"><button type="button" class="dchip ${triFilter===""?"on":""}" data-f="">Todas (${rows.length})</button>
+        ${Object.keys(TRI).filter(k=>counts[k]).map(k=>`<button type="button" class="dchip ${triFilter===k?"on":""}" data-f="${k}">${TRI[k]} (${counts[k]})</button>`).join("")}
+        <label class="conf" style="margin-left:auto;display:flex;gap:6px;align-items:center"><input type="checkbox" id="tri-all"> marcar todas</label></div>
+      <div class="tri-list">${list.map(d=>{const g=d.sugestao;return`<div class="tri-item">
+        <input type="checkbox" class="tri-ck" value="${d.id}" ${g.confianca==="alta"?"checked":""} aria-label="Selecionar D${d.id}">
+        <div><div class="t"><a href="#" onclick="openSource('D${d.id}');return false">D${d.id}</a> · ${esc(d.titulo||"")} <span class="conf">· ${esc(d.modulo||"")}</span></div>
+          <div class="r">${esc(d.regra||"")}</div>
+          <div class="j">${linkCodes(esc(g.justificativa||""))}</div></div>
+        <div class="tri-acts"><span class="tri-tag ${g.acao}">${TRI[g.acao]||g.acao}${g.acao==="duplicada"&&g.duplicada_de?` de D${g.duplicada_de}`:""}</span>
+          <span class="tri-conf">confiança ${esc(g.confianca||"?")}</span>
+          <button type="button" class="btn sm ghost" data-ig="${d.id}">Ignorar</button></div></div>`}).join("")||'<div class="empty">Nenhuma sugestão aqui.</div>'}</div>
+      <div class="foot"><span class="conf" id="tri-n" style="margin-right:auto"></span><button class="btn" value="close">Fechar</button><button type="button" class="btn pri" id="tri-apply">Aplicar selecionadas</button></div></form>`;
+    const upd=()=>{const n=$$("#trif .tri-ck:checked").length;$("#tri-n").textContent=`${n} selecionada${n===1?"":"s"}`;$("#tri-apply").disabled=!n};
+    $$("#trif .tri-ck").forEach(c=>c.onchange=upd);upd();
+    $("#tri-all").onchange=e=>{$$("#trif .tri-ck").forEach(c=>c.checked=e.target.checked);upd()};
+    $$("#trif .dchip").forEach(b=>b.onclick=()=>{triFilter=b.dataset.f;draw()});
+    $$("#trif [data-ig]").forEach(b=>b.onclick=async()=>{
+      const id=+b.dataset.ig;await post("/api/decisions/ignorar-sugestoes",{ids:[id]});
+      const i=rows.findIndex(r=>r.id===id);if(i>=0){counts[rows[i].sugestao.acao]--;rows.splice(i,1)}draw();loadTriage()});
+    $("#tri-apply").onclick=async()=>{
+      const ids=$$("#trif .tri-ck:checked").map(c=>+c.value);if(!ids.length)return;
+      $("#tri-apply").disabled=true;
+      try{const r=await post("/api/decisions/aplicar-sugestoes",{ids});toast(`${r.aplicadas} ${r.aplicadas===1?"decisão atualizada":"decisões atualizadas"}.`);
+        ids.forEach(id=>{const i=rows.findIndex(x=>x.id===id);if(i>=0){counts[rows[i].sugestao.acao]--;rows.splice(i,1)}});
+        loadDecisions();loadTriage();loadHealth();if(rows.length)draw();else dlg.close()}
+      catch(e){toast(e.message,"err");$("#tri-apply").disabled=false}};
+  };
+  draw();dlg.showModal();dlgWide(true);
+}
+
+/* ---------- consumo da IA (tokens e custo estimado) ---------- */
+const nf=n=>Number(n||0).toLocaleString("pt-BR");
+const usd=n=>"US$ "+Number(n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:n<1?3:2});
+const ktok=n=>n>=1e6?(n/1e6).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mi":n>=1e3?(n/1e3).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":nf(n);
+async function loadUsage(){
+  const el=$("#uso-ia");if(!el)return;
+  let u;try{u=await api("/api/uso-ia?dias=30")}catch(e){el.innerHTML=`<div class="conf">${esc(e.message)}</div>`;return}
+  const card=(k,r,extra)=>`<div class="uso-card"><div class="k">${k}</div><div class="v">${ktok(r.tokens)}</div><div class="s">tokens · ${nf(r.chamadas)} chamadas${r.falhas?` · ${r.falhas} falharam`:""}</div><div class="s"><b style="color:var(--ink)">${usd(r.custo_usd)}</b> estimado${extra||""}</div></div>`;
+  const mx=Math.max(1,...u.por_dia.map(d=>d.tokens));
+  el.innerHTML=`<div class="uso-grid">${card("Hoje",u.hoje)}${card("Este mês",u.mes)}${card("Últimos 30 dias",u.periodo)}</div>
+    <div class="card" style="display:block;margin-top:10px;padding:12px 16px">
+      <div class="conf" style="font-size:12px">Tokens por dia · últimos 30 dias</div>
+      <div class="uso-bars">${u.por_dia.map(d=>`<i style="height:${Math.round(100*d.tokens/mx)}%" title="${new Date(d.dia+"T12:00").toLocaleDateString("pt-BR")}: ${nf(d.tokens)} tokens · ${d.chamadas} chamadas · ${usd(d.custo_usd)}"></i>`).join("")}</div>
+      ${u.por_tipo.length?`<table class="uso-tab"><thead><tr><th>Para quê (30 dias)</th><th>Chamadas</th><th>Entrada</th><th>Saída</th><th>Custo estimado</th></tr></thead><tbody>
+        ${u.por_tipo.map(t=>`<tr><td>${esc(t.nome)}</td><td>${nf(t.chamadas)}</td><td>${ktok(t.tokens_entrada)}</td><td>${ktok(t.tokens_saida)}</td><td>${usd(t.custo_usd)}</td></tr>`).join("")}</tbody></table>`
+        :`<div class="conf">Nenhuma chamada registrada ainda. O registro começa a partir desta versão do sistema.</div>`}
+      <div class="conf" style="font-size:11.5px;margin-top:8px">Modelo ${esc(u.modelo)}. Custo estimado com US$ ${u.preco.entrada_por_milhao} por milhão de tokens de entrada e US$ ${u.preco.saida_por_milhao} de saída; o valor exato está no painel do Command Code.</div>
+    </div>`;
 }
 async function syncNow(b){b.disabled=true;b.textContent="Lendo…";try{await post("/api/sync");toast("Leitura iniciada.");setTimeout(loadStatus,4000)}catch(e){toast(e.message,"err");b.disabled=false}}
 

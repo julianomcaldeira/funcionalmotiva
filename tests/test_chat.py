@@ -10,7 +10,7 @@ def test_requer_ia_configurada(client, monkeypatch):
 
 def test_conversa_cria_sessao_e_historico(client, monkeypatch):
     monkeypatch.setattr(ai, "API_KEY", "test")
-    monkeypatch.setattr(ai, "call_model", lambda system, user: "Resposta de teste.")
+    monkeypatch.setattr(ai, "call_model", lambda system, user, **k: "Resposta de teste.")
     monkeypatch.setattr(ai, "search_docs", lambda *a, **k: [])
 
     r = client.post("/api/chat", json={"pergunta": "O que é o Lumos?"})

@@ -5,8 +5,8 @@ import re
 
 import httpx
 
-from .db import Analysis, Chunk, Decision, Document, Email, SessionLocal
-from .retrieval import get_index, rank_texts
+from .db import AIUsage, Analysis, Chunk, Decision, Document, Email, SessionLocal, now
+from .retrieval import get_index, rank_texts, tokens as _tokens
 
 PROVIDER = os.getenv("AI_PROVIDER", "anthropic").lower()  # anthropic | openai | gemini
 API_KEY = os.getenv("AI_API_KEY", "")
@@ -330,7 +330,7 @@ def thread_chat(session, thread_key, question, history=None):
     if not emails:
         raise ValueError("Cadeia de e-mails não encontrada.")
     user, sources = build_thread_context(session, thread_key, question, history=history)
-    raw = call_model(CHAT_THREAD_SYSTEM, user).strip()
+    raw = call_model(CHAT_THREAD_SYSTEM, user, kind="chat_conversa").strip()
     cited = set(re.findall(r"\[([A-Z]+?\d+)\]", raw))
     sources = [s for s in sources if s["code"] in cited]
     have = {s["code"] for s in sources}
@@ -343,7 +343,7 @@ def thread_chat(session, thread_key, question, history=None):
     return raw, enrich_sources(session, sources)
 
 
-def call_model(system, user):
+def call_model(system, user, kind="outro"):
     if not API_KEY:
         raise RuntimeError("IA não configurada: defina AI_API_KEY (e AI_PROVIDER/AI_MODEL).")
     use_gemini = PROVIDER in ("gemini", "google") or (
@@ -359,8 +359,11 @@ def call_model(system, user):
                   "contents": [{"role": "user", "parts": [{"text": user}]}],
                   "generationConfig": {"maxOutputTokens": MAX_TOKENS}})
         if r.status_code >= 400:
+            _record_usage(kind, None, ok=False)
             raise http_error(r)
         data = r.json()
+        um = data.get("usageMetadata") or {}
+        _record_usage(kind, (um.get("promptTokenCount"), um.get("candidatesTokenCount")))
         try:
             return "".join(p.get("text", "") for c in data.get("candidates", [])
                            for p in (c.get("content") or {}).get("parts", [])).strip()
@@ -373,15 +376,22 @@ def call_model(system, user):
             json={"model": MODEL, "max_tokens": MAX_TOKENS, "system": system,
                   "messages": [{"role": "user", "content": user}]})
         if r.status_code >= 400:
+            _record_usage(kind, None, ok=False)
             raise http_error(r)
-        return "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+        data = r.json()
+        u = data.get("usage") or {}
+        _record_usage(kind, (u.get("input_tokens"), u.get("output_tokens")))
+        return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     url = (BASE_URL or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
     r = httpx.post(url, timeout=TIMEOUT, headers={"Authorization": f"Bearer {API_KEY}"},
                    json={"model": MODEL, "max_tokens": MAX_TOKENS,
                          "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
     if r.status_code >= 400:
+        _record_usage(kind, None, ok=False)
         raise http_error(r)
     data = r.json()
+    u = data.get("usage") or {}
+    _record_usage(kind, (u.get("prompt_tokens"), u.get("completion_tokens")))
     try:
         choice = data["choices"][0]
         msg = choice.get("message") or {}
@@ -394,6 +404,18 @@ def call_model(system, user):
             f"A IA retornou conteúdo vazio (finish_reason={finish}, modelo={MODEL}). "
             f"Resposta: {str(data)[:400]}")
     return content
+
+
+def _record_usage(kind, toks, ok=True):
+    """Guarda quantos tokens cada chamada gastou (nunca derruba a chamada se falhar)."""
+    try:
+        tin, tout = toks or (0, 0)
+        with SessionLocal() as s:
+            s.add(AIUsage(tipo=kind, modelo=MODEL, tokens_entrada=int(tin or 0),
+                          tokens_saida=int(tout or 0), ok=ok))
+            s.commit()
+    except Exception as ex:
+        print(f"Falha ao registrar consumo da IA: {ex}", flush=True)
 
 
 def http_error(r):
@@ -421,7 +443,7 @@ def analyze(email_id):
             raise ValueError("E-mail não encontrado.")
         context, sources = build_context(s, e)
         user = f"{context}\n\n## Tarefa\nPrepare o briefing e o rascunho de resposta para o e-mail [E{e.id}]."
-        raw = call_model(SYSTEM, user)
+        raw = call_model(SYSTEM, user, kind="analise")
         data = parse_json(raw)
         # uma análise ativa por e-mail: briefings antigos ainda não enviados são substituídos
         s.query(Analysis).filter(Analysis.email_id == email_id, Analysis.final_body.is_(None)) \
@@ -431,13 +453,15 @@ def analyze(email_id):
                      draft_subject=draft.get("assunto") or f"RE: {e.subject}", draft_body=draft.get("corpo", ""),
                      model=f"{PROVIDER}:{MODEL}", sources_json=json.dumps(sources, ensure_ascii=False))
         s.add(a)
+        ativas = s.query(Decision).filter(Decision.status.in_(ACTIVE_STATUSES)).all()
         for dsug in data.get("decisoes_sugeridas") or []:
             if dsug.get("regra"):
-                dup = s.query(Decision.id).filter(
-                    Decision.titulo == (dsug.get("titulo") or "")[:500],
-                    Decision.modulo == (dsug.get("modulo") or ""),
-                    Decision.regra == dsug.get("regra")).first()
-                if dup:
+                parecida = find_similar_decision(ativas, dsug.get("titulo", ""), dsug.get("regra", ""))
+                if parecida:
+                    # já existe uma decisão sobre o mesmo assunto: registra a nova menção em vez de duplicar
+                    nota = f"Também citada no e-mail E{e.id} de {fmt_date(e.date)}."
+                    if nota not in (parecida.notas or ""):
+                        parecida.notas = ((parecida.notas or "") + "\n" + nota).strip()
                     continue
                 s.add(Decision(titulo=dsug.get("titulo", "")[:500], modulo=dsug.get("modulo", ""),
                                regra=dsug.get("regra"), fonte=dsug.get("fonte") or f"E-mail E{e.id} de {fmt_date(e.date)}",
@@ -447,6 +471,107 @@ def analyze(email_id):
             e.status = "analisado"
         s.commit()
         return a.id
+
+
+ACTIVE_STATUSES = ("proposta", "vigente", "em_discussao")
+
+
+def _similarity(a, b):
+    ta, tb = set(_tokens(a)), set(_tokens(b))
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
+
+
+def find_similar_decision(decisions, titulo, regra, threshold=0.55):
+    """Decisão já registrada sobre o mesmo assunto (título + regra parecidos), se houver."""
+    best, best_sc = None, 0.0
+    for d in decisions:
+        sc = 0.4 * _similarity(titulo, d.titulo or "") + 0.6 * _similarity(regra, d.regra or "")
+        if sc > best_sc:
+            best, best_sc = d, sc
+    return best if best_sc >= threshold else None
+
+
+TRIAGE_SYSTEM = """Você revisa o registro de decisões do projeto Lumos (StartGi × Motiva).
+Recebe UMA decisão que está "para revisar", o e-mail de onde ela saiu, os e-mails que vieram depois na mesma
+conversa e outras decisões parecidas já registradas. Diga o que fazer com ela:
+- "vigente": a regra foi confirmada/acordada e continua valendo.
+- "descartada": o assunto foi encerrado, mudou, foi negado ou não era uma decisão de fato.
+- "duplicada": já existe outra decisão registrada dizendo o mesmo (informe o número em "duplicada_de").
+- "em_discussao": ainda não há acordo; o assunto continua em aberto.
+Use só as fontes fornecidas e cite-as entre colchetes ([E#] e-mail, [D#] decisão). Sem evidência clara de
+acordo, prefira "em_discussao" com confiança baixa. Responda SOMENTE com JSON:
+{"acao": "vigente|descartada|duplicada|em_discussao", "duplicada_de": null, "confianca": "alta|media|baixa",
+ "justificativa": "uma ou duas frases curtas, com citações"}"""
+
+TRIAGE_ACTIONS = {"vigente", "descartada", "duplicada", "em_discussao"}
+
+
+def review_decision(decision_id):
+    """Pede à IA uma sugestão para uma decisão pendente e guarda em decision.sugestao_json."""
+    with SessionLocal() as s:
+        d = s.get(Decision, decision_id)
+        if not d:
+            raise ValueError("Decisão não encontrada.")
+        parts = [f"## Decisão para revisar\n[D{d.id}] {d.modulo} | {d.titulo}\nRegra: {d.regra}\n"
+                 f"Fonte: {d.fonte} | Data: {d.data_decisao}\nNotas: {d.notas or '-'}"]
+        origem = s.get(Email, d.origem_email_id) if d.origem_email_id else None
+        if origem:
+            mails = (s.query(Email).filter(Email.thread_key == origem.thread_key)
+                     .order_by(Email.date).all())
+            depois = [m for m in mails if not origem.date or not m.date or m.date >= origem.date][-8:]
+            parts.append("## E-mail de origem e o que veio depois na conversa")
+            for m in depois:
+                who = "StartGi (enviado)" if m.direction == "out" else m.from_addr
+                parts.append(f"[E{m.id}] {fmt_date(m.date)} · {who} · {m.subject}\n"
+                             f"{(m.body_clean or m.body or '')[:3000]}")
+        else:
+            parts.append("## E-mail de origem\n(não há e-mail de origem registrado)")
+        outras = [x for x in s.query(Decision).filter(Decision.status.in_(ACTIVE_STATUSES),
+                                                          Decision.id != d.id).all()]
+        ranked = rank_texts(f"{d.titulo} {d.modulo} {d.regra}", outras,
+                            key=lambda x: f"{x.titulo} {x.modulo} {x.regra}")
+        parecidas = [x for sc, x in ranked if sc > 0][:8]
+        parts.append("## Outras decisões parecidas já registradas")
+        parts += [f"[D{x.id}] {x.status.upper()} | {x.modulo} | {x.titulo}\nRegra: {x.regra}" for x in parecidas] \
+            or ["(nenhuma)"]
+        raw = call_model(TRIAGE_SYSTEM, "\n\n".join(parts), kind="triagem")
+        data = parse_json(raw)
+        acao = str(data.get("acao") or "").strip().lower()
+        if acao not in TRIAGE_ACTIONS:
+            acao = "em_discussao"
+        dup = data.get("duplicada_de")
+        try:
+            dup = int(str(dup).lstrip("Dd")) if dup not in (None, "", "null") else None
+        except ValueError:
+            dup = None
+        if acao == "duplicada" and (not dup or dup == d.id or not s.get(Decision, dup)):
+            acao, dup = "em_discussao", None
+        sug = {"acao": acao, "duplicada_de": dup if acao == "duplicada" else None,
+               "confianca": data.get("confianca") if data.get("confianca") in ("alta", "media", "baixa") else "baixa",
+               "justificativa": str(data.get("justificativa") or "")[:1200]}
+        d.sugestao_json = json.dumps(sug, ensure_ascii=False)
+        d.sugestao_em = now()
+        s.commit()
+        return sug
+
+
+def review_thread_decisions(email_id, limit=5):
+    """E-mail novo numa conversa: reavalia as decisões ainda pendentes que saíram dessa conversa."""
+    with SessionLocal() as s:
+        e = s.get(Email, email_id)
+        if not e:
+            return 0
+        ids = [i for (i,) in s.query(Email.id).filter(Email.thread_key == e.thread_key).all() if i != email_id]
+        if not ids:
+            return 0
+        pend = [d.id for d in s.query(Decision).filter(Decision.status == "proposta",
+                                                       Decision.origem_email_id.in_(ids))
+                .order_by(Decision.id.desc()).limit(limit).all()]
+    for did in pend:
+        review_decision(did)
+    return len(pend)
 
 
 REWRITE_SYSTEM = """Você reescreve rascunhos de e-mail do Juliano (CEO da StartGi) para a Motiva.
@@ -461,7 +586,7 @@ def rewrite(analysis_id, instruction, current_body=None):
         body = current_body or a.draft_body
         user = (f"## Briefing\n{a.briefing_json}\n\n## E-mail recebido\n{a.email.body_clean or a.email.body}\n\n"
                 f"## Rascunho atual\n{body}\n\n## Instrução\n{instruction}")
-        new = call_model(REWRITE_SYSTEM, user).strip()
+        new = call_model(REWRITE_SYSTEM, user, kind="reescrita").strip()
         a.draft_body = new
         s.commit()
         return new
