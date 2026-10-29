@@ -2,6 +2,7 @@
 import email
 import hashlib
 import imaplib
+import json
 import os
 import re
 import time
@@ -25,6 +26,13 @@ HISTORY_DAYS = int(os.getenv("HISTORY_DAYS", "30"))  # na carga inicial, recebid
 BATCH = int(os.getenv("ZOHO_BATCH", "100"))
 MAX_RETRIES = int(os.getenv("ZOHO_MAX_RETRIES", "8"))
 SUBJECT_FILTER = os.getenv("SUBJECT_FILTER", "").strip().lower()  # opcional: só assuntos que contenham este termo
+# Lê TODAS as pastas da conta (menos lixeira, spam e rascunhos), para não perder e-mail movido por regra/filtro.
+# ZOHO_ALL_FOLDERS=false volta a ler só as pastas de ZOHO_FOLDERS.
+ALL_FOLDERS = os.getenv("ZOHO_ALL_FOLDERS", "true").lower() == "true"
+SKIP_FOLDERS = {f.strip().lower() for f in os.getenv(
+    "ZOHO_SKIP_FOLDERS", "Trash,Spam,Junk,Drafts,Templates,Outbox,Lixeira,Rascunhos,Notification").split(",") if f.strip()}
+RECHECK_DAYS = int(os.getenv("ZOHO_RECHECK_DAYS", "3"))  # rede de segurança: reconfere os últimos N dias
+LIST_RE = re.compile(r'\((?P<flags>[^)]*)\) (?P<delim>"[^"]*"|NIL) (?P<name>.+)$')
 
 PREFIX_RE = re.compile(r"^\s*((re|res|enc|fw|fwd|rv|tr)\s*:\s*)+", re.I)
 
@@ -209,8 +217,75 @@ def _store_message(s, raw, folder, initial, log):
     return e
 
 
+def list_folders(M=None):
+    """Pastas a ler: todas as selecionáveis da conta (menos as de SKIP_FOLDERS) ou só ZOHO_FOLDERS."""
+    if not ALL_FOLDERS:
+        return list(FOLDERS)
+    own = M is None
+    M = M or _connect()
+    try:
+        typ, data = M.list()
+        names = []
+        for raw in data or []:
+            line = raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw)
+            m = LIST_RE.match(line)
+            if not m or "\\noselect" in m.group("flags").lower():
+                continue
+            name = m.group("name").strip()
+            if name.startswith('"') and name.endswith('"'):
+                name = name[1:-1].replace('\\"', '"')
+            leaf = re.split(r"[/.]", name)[-1].strip().lower()
+            if name.lower() in SKIP_FOLDERS or leaf in SKIP_FOLDERS:
+                continue
+            names.append(name)
+        # garante as pastas configuradas mesmo se o LIST vier incompleto
+        for f in FOLDERS:
+            if f not in names:
+                names.append(f)
+        return names
+    finally:
+        if own:
+            try:
+                M.logout()
+            except Exception:
+                pass
+
+
+def _fetch_and_store(M, s, uid, folder, initial, log, new_inbound):
+    typ, full = M.uid("fetch", str(uid), "(BODY.PEEK[])")
+    raw = next((it[1] for it in (full or []) if isinstance(it, tuple)), None)
+    if not raw:
+        return None
+    e = _store_message(s, raw, folder, initial, log)
+    if e and e.direction == "in" and e.status == "novo" and not initial:
+        new_inbound.append(e.id)
+    return e
+
+
+def _motiva_uids(M, s, uids):
+    """Dos UIDs informados, os que envolvem a Motiva e ainda não estão no sistema (só lê cabeçalhos)."""
+    wanted = []
+    for i in range(0, len(uids), BATCH):
+        chunk = uids[i:i + BATCH]
+        typ, data = M.uid("fetch", ",".join(map(str, chunk)),
+                          "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID FROM TO CC DATE SUBJECT)])")
+        for item in data or []:
+            if not isinstance(item, tuple):
+                continue
+            m = UID_RE.search(item[0])
+            if not m:
+                continue
+            hdr = email.message_from_bytes(item[1])
+            addrs = [a for _, a in getaddresses([dec(hdr.get("From")), dec(hdr.get("To")), dec(hdr.get("Cc"))])]
+            mid = (hdr.get("Message-ID") or "").strip()
+            if is_motiva(addrs) and not (mid and s.query(Email.id).filter(Email.message_id == mid).first()):
+                wanted.append((int(m.group(1)), hdr))
+    return wanted
+
+
 def _sync_folder(s, folder, since_str, initial, log, new_inbound):
-    """Lê uma pasta em lotes, por UID, guardando o progresso. Retorna False se a pasta não existe."""
+    """Lê uma pasta por UID guardando o progresso, e reconfere os últimos dias como rede de segurança.
+    Um e-mail com problema é registrado e pulado (tenta de novo na próxima leitura) sem travar os demais."""
     M = _connect()
     try:
         typ, _ = M.select(f'"{folder}"', readonly=True)
@@ -219,46 +294,62 @@ def _sync_folder(s, folder, since_str, initial, log, new_inbound):
             return False
         uidv = (M.untagged_responses.get("UIDVALIDITY") or [b"0"])[0]
         uidv = uidv.decode() if isinstance(uidv, bytes) else str(uidv)
-        if get_setting(s, f"uidv:{folder}") != uidv:  # pasta recriada no servidor: recomeça a contagem
+        if get_setting(s, f"uidv:{folder}") != uidv:  # pasta nova ou recriada no servidor: recomeça a contagem
             set_setting(s, f"uidv:{folder}", uidv)
             set_setting(s, f"uid:{folder}", "0")
         last_uid = int(get_setting(s, f"uid:{folder}", "0") or 0)
+        # pasta lida pela primeira vez: o que é antigo entra como histórico, não como pendência
+        folder_initial = initial or not last_uid
         if last_uid:
             typ, data = M.uid("search", None, "UID", f"{last_uid + 1}:*")
         else:
             typ, data = M.uid("search", None, "SINCE", since_str)
         uids = sorted(int(u) for u in (data[0].split() if typ == "OK" and data and data[0] else []) if int(u) > last_uid)
-        if not uids:
-            return True
-        log(f"{folder}: {len(uids)} mensagens para verificar")
+        try:
+            falhas = set(json.loads(get_setting(s, f"falhas:{folder}", "[]") or "[]"))
+        except ValueError:
+            falhas = set()
         saved = 0
+        if uids:
+            log(f"{folder}: {len(uids)} mensagens novas para verificar")
         for i in range(0, len(uids), BATCH):
             chunk = uids[i:i + BATCH]
-            typ, data = M.uid("fetch", ",".join(map(str, chunk)),
-                              "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID FROM TO CC)])")
-            wanted = []
-            for item in data or []:
-                if not isinstance(item, tuple):
-                    continue
-                m = UID_RE.search(item[0])
-                if not m:
-                    continue
-                hdr = email.message_from_bytes(item[1])
-                addrs = [a for _, a in getaddresses([dec(hdr.get("From")), dec(hdr.get("To")), dec(hdr.get("Cc"))])]
-                mid = (hdr.get("Message-ID") or "").strip()
-                if is_motiva(addrs) and not (mid and s.query(Email.id).filter(Email.message_id == mid).first()):
-                    wanted.append(m.group(1).decode())
-            for uid in wanted:
-                typ, full = M.uid("fetch", uid, "(BODY.PEEK[])")
-                raw = next((it[1] for it in (full or []) if isinstance(it, tuple)), None)
-                if raw:
-                    e = _store_message(s, raw, folder, initial, log)
-                    if e:
+            for uid, _hdr in _motiva_uids(M, s, chunk):
+                try:
+                    if _fetch_and_store(M, s, uid, folder, folder_initial, log, new_inbound):
                         saved += 1
-                        if e.direction == "in" and e.status == "novo" and not initial:
-                            new_inbound.append(e.id)
+                    falhas.discard(uid)
+                except (imaplib.IMAP4.abort, OSError, EOFError):
+                    raise
+                except Exception as ex:
+                    s.rollback()
+                    falhas.add(uid)
+                    log(f"{folder}: e-mail UID {uid} não pôde ser importado ({ex}). Vai tentar de novo.")
             set_setting(s, f"uid:{folder}", str(chunk[-1]))  # progresso salvo a cada lote
-        log(f"{folder}: {saved} e-mails da Motiva importados")
+            set_setting(s, f"falhas:{folder}", json.dumps(sorted(falhas)))
+        # rede de segurança: reconfere os últimos dias e as falhas anteriores
+        desde = (datetime.now(timezone.utc) - timedelta(days=RECHECK_DAYS)).strftime("%d-%b-%Y")
+        typ, data = M.uid("search", None, "SINCE", desde)
+        recentes = sorted(int(u) for u in (data[0].split() if typ == "OK" and data and data[0] else []))
+        alvo = sorted(set(recentes) | falhas)
+        recuperados = 0
+        for uid, _hdr in _motiva_uids(M, s, alvo) if alvo else []:
+            try:
+                if _fetch_and_store(M, s, uid, folder, False, log, new_inbound):
+                    recuperados += 1
+                falhas.discard(uid)
+            except (imaplib.IMAP4.abort, OSError, EOFError):
+                raise
+            except Exception as ex:
+                s.rollback()
+                falhas.add(uid)
+                log(f"{folder}: e-mail UID {uid} segue com erro ({ex}).")
+        set_setting(s, f"falhas:{folder}", json.dumps(sorted(falhas)))
+        if saved or recuperados:
+            log(f"{folder}: {saved} e-mails da Motiva importados"
+                + (f", {recuperados} recuperados na conferência" if recuperados else ""))
+        if falhas:
+            log(f"{folder}: {len(falhas)} e-mail(s) com erro aguardando nova tentativa")
         return True
     finally:
         try:
@@ -284,7 +375,10 @@ def sync(log=print):
             s.query(Email).filter(Email.direction == "in", Email.status == "novo", Email.date < cutoff) \
                 .update({"status": "arquivado"}, synchronize_session=False)
             s.commit()
-        for folder in FOLDERS:
+        folders = list_folders()
+        set_setting(s, "pastas_lidas", json.dumps(folders, ensure_ascii=False))
+        erros = []
+        for folder in folders:  # uma pasta com problema não impede a leitura das outras
             for attempt in range(1, MAX_RETRIES + 1):
                 try:
                     _sync_folder(s, folder, since_str, initial, log, new_inbound)
@@ -293,9 +387,61 @@ def sync(log=print):
                     s.rollback()
                     log(f"{folder}: conexão interrompida pelo Zoho ({ex}). Retomando de onde parou ({attempt}/{MAX_RETRIES})")
                     time.sleep(3 * attempt)
+                except Exception as ex:
+                    s.rollback()
+                    log(f"{folder}: erro na leitura ({ex})")
+                    erros.append(f"{folder}: {ex}")
+                    break
             else:
-                raise RuntimeError(f"O Zoho interrompeu a leitura da pasta {folder} várias vezes. "
-                                   "O progresso foi salvo; a próxima leitura continua de onde parou.")
+                erros.append(f"O Zoho interrompeu a leitura da pasta {folder} várias vezes.")
         set_setting(s, "last_sync", datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
     mark_dirty()
+    if erros:
+        raise RuntimeError("Leitura parcial. " + " | ".join(erros)[:600])
     return new_inbound
+
+
+def check_missing(days=1):
+    """Conferência: compara o que está no Zoho (todas as pastas lidas) com o que está no sistema."""
+    if not configured():
+        raise RuntimeError("Zoho não configurado.")
+    desde = (datetime.now(timezone.utc) - timedelta(days=max(0, days - 1))).strftime("%d-%b-%Y")
+    pastas, faltando = [], []
+    M = _connect()
+    try:
+        folders = list_folders(M)
+        with SessionLocal() as s:
+            for folder in folders:
+                typ, _ = M.select(f'"{folder}"', readonly=True)
+                if typ != "OK":
+                    pastas.append({"pasta": folder, "erro": "não abriu"})
+                    continue
+                typ, data = M.uid("search", None, "SINCE", desde)
+                uids = sorted(int(u) for u in (data[0].split() if typ == "OK" and data and data[0] else []))
+                total_motiva = 0
+                falt = 0
+                for i in range(0, len(uids), BATCH):
+                    chunk = uids[i:i + BATCH]
+                    typ, hd = M.uid("fetch", ",".join(map(str, chunk)),
+                                    "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID FROM TO CC DATE SUBJECT)])")
+                    for item in hd or []:
+                        if not isinstance(item, tuple):
+                            continue
+                        hdr = email.message_from_bytes(item[1])
+                        addrs = [a for _, a in getaddresses([dec(hdr.get("From")), dec(hdr.get("To")), dec(hdr.get("Cc"))])]
+                        if not is_motiva(addrs):
+                            continue
+                        total_motiva += 1
+                        mid = (hdr.get("Message-ID") or "").strip()
+                        if mid and s.query(Email.id).filter(Email.message_id == mid).first():
+                            continue
+                        falt += 1
+                        faltando.append({"pasta": folder, "assunto": dec(hdr.get("Subject")),
+                                         "de": dec(hdr.get("From")), "data": hdr.get("Date") or ""})
+                pastas.append({"pasta": folder, "mensagens": len(uids), "motiva": total_motiva, "faltando": falt})
+    finally:
+        try:
+            M.logout()
+        except Exception:
+            pass
+    return {"desde": desde, "pastas": pastas, "faltando": faltando[:200], "total_faltando": len(faltando)}

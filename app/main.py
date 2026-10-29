@@ -409,12 +409,26 @@ def status():
             "documentos": s.query(Document).count(),
         }
         last_db = get_setting(s, "last_sync")
+        try:
+            pastas = json.loads(get_setting(s, "pastas_lidas", "[]") or "[]")
+        except ValueError:
+            pastas = []
     zoho_state = "nao_configurado" if not mail.configured() else ("erro" if state["last_error"] else ("ok" if last_db else "aguardando"))
     return {"zoho": mail.configured(), "zoho_state": zoho_state, "zoho_user": mail.IMAP_USER, "ia": bool(ai.API_KEY),
             "ia_saude": ai.health(),
             "modelo": f"{ai.PROVIDER}:{ai.MODEL}", "dominios_motiva": mail.MOTIVA_DOMAINS,
             "poll_minutos": POLL_MINUTES, "auto_analise": AUTO_ANALYZE, "ultima_sync": last_db,
-            "sincronizando": state["running"], "erro": state["last_error"], "log": state["log"][-25:], **counts}
+            "sincronizando": state["running"], "erro": state["last_error"], "log": state["log"][-25:],
+            "pastas_lidas": pastas, **counts}
+
+
+@app.get("/api/sync/conferencia")
+def sync_check(dias: int = 1):
+    """Compara o Zoho com o sistema: e-mails da Motiva que estão no Zoho e ainda não entraram."""
+    try:
+        return mail.check_missing(max(1, min(dias, 30)))
+    except Exception as ex:
+        raise HTTPException(502, f"Não foi possível conferir no Zoho: {humanize_error(ex)}")
 
 
 @app.post("/api/sync")

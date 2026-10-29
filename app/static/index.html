@@ -444,6 +444,7 @@ em.up{color:var(--amber)}em.down{color:var(--red)}
 .leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 .leg i.in{background:var(--brand)}.leg i.out{background:#9FB7A9}
 .ia-mes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 18px}
+.ok-box{background:var(--brand-wash);color:var(--brand-ink);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600}
 .ia-mes b{display:block;font-size:18px}.ia-mes span{font-size:11.5px;color:var(--muted)}
 #health button.hl-bad{color:var(--red);font-weight:700}
 @media (max-width:1180px){.dash-grid2{grid-template-columns:1fr}.dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -765,6 +766,13 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
     <p class="lead">O acesso ao Zoho é somente leitura e nenhuma resposta é enviada pelo sistema. As credenciais ficam nas variáveis de ambiente do Render.</p>
     <div class="conn" id="conn"></div>
     <div class="stats" id="stats"></div>
+    <h4 style="margin:18px 0 8px">Conferência dos e-mails</h4>
+    <div class="card" style="display:block;padding:14px 16px">
+      <div class="conf" style="font-size:13px">Compara o Zoho com o sistema e mostra os e-mails da Motiva que ainda não entraram. A cada leitura o sistema já reconfere sozinho os últimos 3 dias.</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm pri" onclick="checkMail(1,this)">Conferir hoje</button><button class="btn sm" onclick="checkMail(3,this)">Últimos 3 dias</button><button class="btn sm" onclick="checkMail(7,this)">Últimos 7 dias</button></div>
+      <div id="mail-check" style="margin-top:10px"></div>
+      <div class="conf" id="mail-folders" style="font-size:12px;margin-top:8px"></div>
+    </div>
     <h4 style="margin:18px 0 8px">Consumo da IA</h4>
     <div id="uso-ia"><div class="conf">Carregando…</div></div>
     <h4 style="margin:18px 0 8px">Atividade recente</h4>
@@ -1801,6 +1809,7 @@ async function loadStatus(){
     <div class="card"><span class="dot ok" style="margin-top:7px"></span><div class="tx"><b>Domínios da Motiva</b><div>${esc(s.dominios_motiva.join(", "))}. Só e-mails com esses domínios entram no sistema.</div></div></div>`;
   $("#stats").innerHTML=[["E-mails",s.emails],["Documentos",s.documentos],["Decisões vigentes",s.decisoes_vigentes],["Para revisar",s.decisoes_propostas]].map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");
   $("#log").textContent=(s.log||[]).join("\n")||"Sem atividade ainda.";
+  const mf=$("#mail-folders");if(mf)mf.textContent=(s.pastas_lidas||[]).length?`Pastas lidas (${s.pastas_lidas.length}): ${s.pastas_lidas.join(" · ")}`:"";
   loadUsage();
 }
 /* ---------- triagem de decisões pendentes (IA sugere, você confirma) ---------- */
@@ -1886,6 +1895,20 @@ async function loadUsage(){
         :`<div class="conf">Nenhuma chamada registrada ainda. O registro começa a partir desta versão do sistema.</div>`}
       <div class="conf" style="font-size:11.5px;margin-top:8px">Modelo ${esc(u.modelo)}. Custo estimado com US$ ${u.preco.entrada_por_milhao} por milhão de tokens de entrada e US$ ${u.preco.saida_por_milhao} de saída; o valor exato está no painel do Command Code.</div>
     </div>`;
+}
+async function checkMail(dias,b){
+  const el=$("#mail-check"),t=b.textContent;b.disabled=true;b.textContent="Conferindo no Zoho…";
+  el.innerHTML=`<div class="conf">Lendo os cabeçalhos de todas as pastas. Pode levar até 1 minuto.</div>`;
+  try{
+    const r=await api("/api/sync/conferencia?dias="+dias);
+    const tot=r.pastas.reduce((a,p)=>a+(p.motiva||0),0);
+    el.innerHTML=(r.total_faltando
+      ?`<div class="sys-alert err"><b>${r.total_faltando} ${r.total_faltando===1?"e-mail da Motiva ainda não entrou":"e-mails da Motiva ainda não entraram"}</b><span>A próxima leitura importa. Clique em "Ler e-mails agora" para importar já.</span><button class="btn sm" onclick="syncNow(this)">Ler e-mails agora</button></div>
+        <table class="uso-tab"><thead><tr><th>Assunto</th><th>De</th><th>Pasta</th><th>Data</th></tr></thead><tbody>${r.faltando.map(f=>`<tr><td>${esc(f.assunto)}</td><td>${esc(f.de)}</td><td>${esc(f.pasta)}</td><td>${esc(f.data)}</td></tr>`).join("")}</tbody></table>`
+      :`<div class="ok-box">Tudo certo: os ${tot} e-mails da Motiva no Zoho desde ${esc(r.desde)} estão no sistema.</div>`)
+      +`<table class="uso-tab"><thead><tr><th>Pasta</th><th>Mensagens</th><th>Da Motiva</th><th>Faltando</th></tr></thead><tbody>${r.pastas.map(p=>`<tr><td>${esc(p.pasta)}</td><td>${p.erro?esc(p.erro):nf(p.mensagens)}</td><td>${nf(p.motiva)}</td><td${p.faltando?' style="color:var(--red);font-weight:700"':""}>${nf(p.faltando)}</td></tr>`).join("")}</tbody></table>`;
+  }catch(e){el.innerHTML=`<div class="sys-alert err"><b>Não foi possível conferir</b><span>${esc(e.message)}</span></div>`}
+  b.disabled=false;b.textContent=t;
 }
 async function syncNow(b){b.disabled=true;b.textContent="Lendo…";try{await post("/api/sync");toast("Leitura iniciada.");setTimeout(loadStatus,4000)}catch(e){toast(e.message,"err");b.disabled=false}}
 
