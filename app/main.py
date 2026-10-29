@@ -1,5 +1,8 @@
 """Funcional Lumos: servidor web, rotas da API e sincronização em segundo plano."""
 import base64
+import hashlib
+import hmac
+import html
 import json
 import os
 import re
@@ -12,7 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -42,21 +45,95 @@ def log(msg):
     state["log"] = (state["log"] + [line])[-60:]
 
 
+# ---------- login por sessão (cookie assinado) ----------
+SESSION_COOKIE = "fl_sessao"
+SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))
+PUBLIC_PATHS = {"/healthz", "/login", "/logout", "/static/logo.png", "/static/icon.png"}
+
+
+def _sign(payload: str) -> str:
+    key = hashlib.sha256(f"fl-sessao|{APP_PASSWORD}".encode()).digest()
+    return hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
+
+
+def make_session_token() -> str:
+    exp = str(int(time.time()) + SESSION_DAYS * 86400)
+    return f"{exp}.{_sign(exp)}"
+
+
+def valid_session(token: str) -> bool:
+    exp, _, sig = (token or "").partition(".")
+    if not exp.isdigit() or not sig:
+        return False
+    return hmac.compare_digest(sig, _sign(exp)) and int(exp) > time.time()
+
+
 @app.middleware("http")
-async def basic_auth(request: Request, call_next):
-    if request.url.path == "/healthz" or not APP_PASSWORD:
+async def session_auth(request: Request, call_next):
+    path = request.url.path
+    if not APP_PASSWORD or path in PUBLIC_PATHS:
         return await call_next(request)
-    header = request.headers.get("authorization", "")
-    ok = False
-    if header.lower().startswith("basic "):
-        try:
-            user, _, pwd = base64.b64decode(header[6:]).decode().partition(":")
-            ok = secrets.compare_digest(user, APP_USER) and secrets.compare_digest(pwd, APP_PASSWORD)
-        except Exception:
-            ok = False
+    if valid_session(request.cookies.get(SESSION_COOKIE, "")):
+        return await call_next(request)
+    if path.startswith("/api/"):
+        return JSONResponse({"detail": "Sessão expirada. Entre novamente."}, status_code=401)
+    return RedirectResponse("/login", status_code=303)
+
+
+LOGIN_HTML = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Entrar · Funcional Lumos</title>
+<link rel="icon" href="/static/icon.png">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F6F7F6;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#13201A}
+.card{width:min(380px,92vw);background:#fff;border:1px solid #E3E7E4;border-radius:14px;padding:32px 28px}
+.logo{display:block;height:54px;margin:0 auto 6px}h1{font-size:18px;text-align:center;margin:8px 0 2px}
+.sub{text-align:center;color:#5C665F;font-size:13px;margin:0 0 22px}
+label{display:block;font-size:13px;font-weight:600;margin:12px 0 5px}
+input{width:100%;padding:10px 12px;border:1px solid #D5DBD7;border-radius:8px;font:inherit;font-size:14px}
+input:focus{outline:2px solid #1AD56D;border-color:#0B8A45}
+button{width:100%;margin-top:20px;padding:11px;border:0;border-radius:8px;background:#0B8A45;color:#fff;
+font:inherit;font-size:14px;font-weight:700;cursor:pointer}button:hover{background:#0A6B36}
+.err{background:#FDECEC;color:#9B1C1C;border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:6px}
+.ok{background:#E7FAF0;color:#08361D;border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:6px}
+</style></head><body><form class="card" method="post" action="/login">
+<img class="logo" src="/static/logo.png" alt="StartGi"><h1>Funcional Lumos</h1><p class="sub">Projeto Motiva</p>
+{msg}<label for="u">Usuário</label><input id="u" name="usuario" autocomplete="username" value="{user}" required autofocus>
+<label for="p">Senha</label><input id="p" name="senha" type="password" autocomplete="current-password" required>
+<button type="submit">Entrar</button></form></body></html>"""
+
+
+def login_page(msg="", kind="err", user="", status=200):
+    box = f'<div class="{kind}">{html.escape(msg)}</div>' if msg else ""
+    body = LOGIN_HTML.replace("{msg}", box).replace("{user}", html.escape(user))
+    return HTMLResponse(body, status_code=status, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/login")
+def login_form(request: Request, saiu: int = 0):
+    if not APP_PASSWORD or valid_session(request.cookies.get(SESSION_COOKIE, "")):
+        return RedirectResponse("/", status_code=303)
+    return login_page("Você saiu do sistema." if saiu else "", kind="ok")
+
+
+@app.post("/login")
+def login_submit(request: Request, usuario: str = Form(""), senha: str = Form("")):
+    ok = secrets.compare_digest(usuario.strip(), APP_USER) and secrets.compare_digest(senha, APP_PASSWORD)
     if not ok:
-        return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Funcional Lumos"'})
-    return await call_next(request)
+        time.sleep(1)  # freia tentativas em sequência
+        return login_page("Usuário ou senha incorretos.", user=usuario, status=401)
+    resp = RedirectResponse("/", status_code=303)
+    secure = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+    resp.set_cookie(SESSION_COOKIE, make_session_token(), max_age=SESSION_DAYS * 86400,
+                    httponly=True, samesite="lax", secure=secure)
+    return resp
+
+
+@app.get("/logout")
+def logout():
+    resp = RedirectResponse("/login?saiu=1", status_code=303)
+    resp.delete_cookie(SESSION_COOKIE)
+    return resp
 
 
 def humanize_error(ex):
