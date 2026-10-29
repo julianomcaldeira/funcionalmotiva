@@ -169,6 +169,7 @@ class AIUsage(Base):
     tokens_entrada = Column(Integer, default=0)
     tokens_saida = Column(Integer, default=0)
     ok = Column(Boolean, default=True)
+    erro = Column(Text)                     # mensagem quando a chamada falhou
 
 
 class DecisionRevision(Base):
@@ -236,6 +237,12 @@ def _ensure_columns():
         if "sugestao_em" not in dcols:
             t = "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME"
             adds.append(f"ALTER TABLE decisions ADD COLUMN sugestao_em {t}")
+    try:
+        ucols = {c["name"] for c in inspect(engine).get_columns("ai_usage")}
+        if "erro" not in ucols:
+            adds.append("ALTER TABLE ai_usage ADD COLUMN erro TEXT")
+    except Exception:
+        pass
     if adds:
         with engine.begin() as conn:
             for a in adds:

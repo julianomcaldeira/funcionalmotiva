@@ -282,19 +282,23 @@ def dashboard():
             if mo == 0:
                 mo, y = 12, y - 1
         por_mes.reverse()
-        pend = s.query(Email).filter(Email.direction == "in",
-                                     Email.status.in_(["novo", "analisado"])).order_by(Email.date.desc()).limit(400).all()
-        resp = {}
-        for e in pend:
-            t = resp.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject,
-                                               "count": 0, "analyzed": 0, "last_date": e.date,
-                                               "last_from": e.from_addr})
-            t["count"] += 1
-            if e.status == "analisado":
-                t["analyzed"] += 1
-        para_responder = sorted(resp.values(), key=lambda t: t["last_date"] or datetime.min, reverse=True)[:8]
-        for t in para_responder:
-            t["last_date"] = t["last_date"].isoformat() if t["last_date"] else None
+        fila = response_queue(s)
+        agora = datetime.utcnow()
+        sete = agora - timedelta(days=7)
+        quatorze = agora - timedelta(days=14)
+        recebidos_7d = s.query(Email).filter(Email.direction == "in", Email.date >= sete).count()
+        recebidos_7d_ant = s.query(Email).filter(Email.direction == "in", Email.date >= quatorze,
+                                                 Email.date < sete).count()
+        enviados_7d = s.query(Email).filter(Email.direction == "out", Email.date >= sete).count()
+        dia_dir = {}
+        for dia, direction, total in s.query(func.date(Email.date).label("dia"), Email.direction, func.count(Email.id)) \
+                .filter(Email.date >= since, Email.date.isnot(None)).group_by("dia", Email.direction).all():
+            dia_dir[(str(dia), direction)] = total
+        for p in por_dia:
+            p["in"] = dia_dir.get((p["dia"], "in"), 0)
+            p["out"] = dia_dir.get((p["dia"], "out"), 0)
+        triagem_sug = s.query(Decision).filter(Decision.status == "proposta",
+                                               Decision.sugestao_json.isnot(None)).count()
     zoho_state = "nao_configurado" if not mail.configured() else ("erro" if state["last_error"] else ("ok" if last_sync else "aguardando"))
     log_count = len(state.get("log", []))
     return {
@@ -316,7 +320,15 @@ def dashboard():
         "por_mes": por_mes,
         "tempo_medio_resposta_h": tempo_medio_resp_h,
         "decisoes_por_modulo": decisoes_por_modulo,
-        "para_responder": para_responder,
+        "fila": fila,
+        "prazos_h": {"alta": SLA_URGENTE_H, "padrao": SLA_PADRAO_H},
+        "ritmo": {"recebidos_7d": recebidos_7d, "recebidos_7d_anterior": recebidos_7d_ant,
+                  "enviados_7d": enviados_7d},
+        "triagem_com_sugestao": triagem_sug,
+        "ia_saude": ai.health(),
+        "uso_ia_mes": ai_usage(dias=1)["mes"],
+        "sincronizando": state["running"],
+        "erro_zoho": state["last_error"],
         "ultima_sync": last_sync,
         "zoho_state": zoho_state,
         "ia": bool(ai.API_KEY),
@@ -326,6 +338,62 @@ def dashboard():
         "first_email_date": ed,
         "last_email_date": ld,
     }
+
+
+# ---------- fila de resposta (o que a Motiva está esperando da StartGi) ----------
+SLA_URGENTE_H = int(os.getenv("SLA_URGENTE_H", "24"))   # pedido urgente: responder em até 1 dia
+SLA_PADRAO_H = int(os.getenv("SLA_PADRAO_H", "72"))     # demais: até 3 dias
+URG_RANK = {"alta": 3, "media": 2, "baixa": 1}
+
+
+def response_queue(s, limit=60):
+    """Conversas com e-mail da Motiva sem resposta, com tempo de espera, urgência e se passou do prazo."""
+    pend = (s.query(Email).filter(Email.direction == "in", Email.status.in_(["novo", "analisado"]))
+            .order_by(Email.date.asc()).limit(600).all())
+    if not pend:
+        return []
+    ids = [e.id for e in pend]
+    ultima = {}
+    for a in s.query(Analysis).filter(Analysis.email_id.in_(ids)).order_by(Analysis.id).all():
+        ultima[a.email_id] = a
+    agora = datetime.utcnow()
+    th = {}
+    for e in pend:
+        t = th.setdefault(e.thread_key, {"thread_key": e.thread_key, "subject": e.subject, "count": 0,
+                                         "desde": e.date, "ultimo": e.date, "de": e.from_addr,
+                                         "urgencia": None, "pedidos": 0, "perguntas": 0,
+                                         "briefing": False, "resumo": ""})
+        t["count"] += 1
+        if e.date and (not t["ultimo"] or e.date >= t["ultimo"]):
+            t["ultimo"], t["de"], t["subject"] = e.date, e.from_addr, e.subject
+        a = ultima.get(e.id)
+        if a:
+            t["briefing"] = True
+            try:
+                b = json.loads(a.briefing_json or "{}")
+            except ValueError:
+                b = {}
+            peds = [p for p in (b.get("pedidos") or []) if isinstance(p, dict)]
+            t["pedidos"] += len(peds)
+            t["perguntas"] += len(b.get("perguntas") or [])
+            t["resumo"] = (b.get("resumo") or t["resumo"])[:260]
+            for p in peds:
+                u = str(p.get("urgencia") or "").lower().replace("é", "e")
+                if URG_RANK.get(u, 0) > URG_RANK.get(t["urgencia"] or "", 0):
+                    t["urgencia"] = u
+    out = []
+    for t in th.values():
+        horas = (agora - t["desde"]).total_seconds() / 3600 if t["desde"] else 0
+        prazo = SLA_URGENTE_H if t["urgencia"] == "alta" else SLA_PADRAO_H
+        t["espera_h"] = int(horas)
+        t["prazo_h"] = prazo
+        t["atrasado"] = horas > prazo
+        t["vence_em_h"] = int(prazo - horas)
+        t["desde"] = t["desde"].isoformat() if t["desde"] else None
+        t["ultimo"] = t["ultimo"].isoformat() if t["ultimo"] else None
+        out.append(t)
+    out.sort(key=lambda t: (not t["atrasado"], -URG_RANK.get(t["urgencia"] or "", 0), -t["espera_h"]))
+    return out[:limit]
 
 
 # ---------- status ----------
@@ -343,6 +411,7 @@ def status():
         last_db = get_setting(s, "last_sync")
     zoho_state = "nao_configurado" if not mail.configured() else ("erro" if state["last_error"] else ("ok" if last_db else "aguardando"))
     return {"zoho": mail.configured(), "zoho_state": zoho_state, "zoho_user": mail.IMAP_USER, "ia": bool(ai.API_KEY),
+            "ia_saude": ai.health(),
             "modelo": f"{ai.PROVIDER}:{ai.MODEL}", "dominios_motiva": mail.MOTIVA_DOMAINS,
             "poll_minutos": POLL_MINUTES, "auto_analise": AUTO_ANALYZE, "ultima_sync": last_db,
             "sincronizando": state["running"], "erro": state["last_error"], "log": state["log"][-25:], **counts}

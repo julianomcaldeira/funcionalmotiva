@@ -344,6 +344,15 @@ def thread_chat(session, thread_key, question, history=None):
 
 
 def call_model(system, user, kind="outro"):
+    """Chama o modelo e registra falhas (chave inválida, timeout, resposta vazia) para o alerta do sistema."""
+    try:
+        return _call_model(system, user, kind)
+    except Exception as ex:
+        _record_usage(kind, None, ok=False, erro=str(ex))
+        raise
+
+
+def _call_model(system, user, kind):
     if not API_KEY:
         raise RuntimeError("IA não configurada: defina AI_API_KEY (e AI_PROVIDER/AI_MODEL).")
     use_gemini = PROVIDER in ("gemini", "google") or (
@@ -359,7 +368,6 @@ def call_model(system, user, kind="outro"):
                   "contents": [{"role": "user", "parts": [{"text": user}]}],
                   "generationConfig": {"maxOutputTokens": MAX_TOKENS}})
         if r.status_code >= 400:
-            _record_usage(kind, None, ok=False)
             raise http_error(r)
         data = r.json()
         um = data.get("usageMetadata") or {}
@@ -376,7 +384,6 @@ def call_model(system, user, kind="outro"):
             json={"model": MODEL, "max_tokens": MAX_TOKENS, "system": system,
                   "messages": [{"role": "user", "content": user}]})
         if r.status_code >= 400:
-            _record_usage(kind, None, ok=False)
             raise http_error(r)
         data = r.json()
         u = data.get("usage") or {}
@@ -387,7 +394,6 @@ def call_model(system, user, kind="outro"):
                    json={"model": MODEL, "max_tokens": MAX_TOKENS,
                          "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
     if r.status_code >= 400:
-        _record_usage(kind, None, ok=False)
         raise http_error(r)
     data = r.json()
     u = data.get("usage") or {}
@@ -406,16 +412,53 @@ def call_model(system, user, kind="outro"):
     return content
 
 
-def _record_usage(kind, toks, ok=True):
+def _record_usage(kind, toks, ok=True, erro=None):
     """Guarda quantos tokens cada chamada gastou (nunca derruba a chamada se falhar)."""
     try:
         tin, tout = toks or (0, 0)
         with SessionLocal() as s:
             s.add(AIUsage(tipo=kind, modelo=MODEL, tokens_entrada=int(tin or 0),
-                          tokens_saida=int(tout or 0), ok=ok))
+                          tokens_saida=int(tout or 0), ok=ok, erro=(erro or None) and erro[:1000]))
             s.commit()
     except Exception as ex:
         print(f"Falha ao registrar consumo da IA: {ex}", flush=True)
+
+
+def health():
+    """Estado da IA pelas últimas chamadas: ok, erro (com desde quando e a mensagem) ou sem_uso."""
+    if not API_KEY:
+        return {"estado": "nao_configurado", "mensagem": "Defina AI_API_KEY nas variáveis do Render."}
+    with SessionLocal() as s:
+        ult = s.query(AIUsage).order_by(AIUsage.id.desc()).limit(40).all()
+    if not ult:
+        return {"estado": "sem_uso"}
+    if ult[0].ok:
+        return {"estado": "ok", "ultima": ult[0].created_at.isoformat() + "Z"}
+    falhas = []
+    for u in ult:
+        if u.ok:
+            break
+        falhas.append(u)
+    return {"estado": "erro", "falhas": len(falhas), "desde": falhas[-1].created_at.isoformat() + "Z",
+            "mensagem": explain_error(falhas[0].erro or ""), "detalhe": (falhas[0].erro or "")[:400]}
+
+
+def explain_error(msg):
+    """Traduz o erro técnico da IA para o que fazer."""
+    low = (msg or "").lower()
+    if "401" in low or "unauthorized" in low or "invalid" in low and "key" in low or "authorization" in low:
+        return "A chave da IA foi recusada. Gere uma chave nova no provedor e atualize AI_API_KEY no Render."
+    if "402" in low or "quota" in low or "insufficient" in low or "billing" in low or "credit" in low:
+        return "A IA recusou por falta de crédito ou limite do plano. Confira o saldo no provedor."
+    if "429" in low or "rate" in low:
+        return "A IA está limitando o número de chamadas. Costuma passar sozinho em alguns minutos."
+    if "timed out" in low or "timeout" in low:
+        return "A IA demorou demais para responder. Se repetir, aumente AI_TIMEOUT no Render."
+    if "404" in low or "model" in low and "not" in low:
+        return "O modelo configurado não foi encontrado. Confira AI_MODEL no Render."
+    if any(c in low for c in ("500", "502", "503", "504")):
+        return "O provedor da IA está instável. Costuma voltar sozinho."
+    return "A IA não está respondendo. Veja o detalhe abaixo."
 
 
 def http_error(r):

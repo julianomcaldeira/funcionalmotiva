@@ -373,6 +373,81 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
   #v-caixa.on{flex-direction:column}.list{width:auto;max-height:38vh}.desk{width:auto;border-left:0;min-height:60vh}
   .form,.stats{grid-template-columns:1fr 1fr}
 }
+/* ---------- dashboard (v2) ---------- */
+.dash-page{gap:14px}
+.dash-header{align-items:flex-end}
+.dash-sub::first-letter{text-transform:uppercase}
+.dash-hright{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dash-health{display:flex;gap:6px;flex-wrap:wrap}
+.hpill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:20px;padding:5px 11px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+.hpill .dot{width:7px;height:7px}
+.hpill.bad{background:var(--red-wash);border-color:#F2C9C1;color:var(--red)}
+.hpill.wait{background:var(--amber-wash);color:var(--amber)}
+.hpill:hover{border-color:var(--brand-deep)}
+#dash-syncbtn{display:inline-flex;align-items:center;gap:6px}
+.sys-alert{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;border-radius:12px;padding:12px 16px;margin-bottom:10px;border:1px solid}
+.sys-alert.err{background:var(--red-wash);border-color:#F2C9C1;color:#6E1D12}
+.sys-alert b{font-size:14px;width:100%}
+.sys-alert span{font-size:13px;flex:1;min-width:240px}
+.sys-alert details{width:100%;font-size:12px}
+.sys-alert summary{cursor:pointer;opacity:.8}
+.sys-alert code{display:block;margin-top:6px;white-space:pre-wrap;word-break:break-word;background:#fff;border-radius:6px;padding:8px;font-size:11.5px;color:var(--ink)}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;position:relative;overflow:hidden;transition:border-color .12s,box-shadow .12s}
+.kpi:hover{border-color:#CDD9D2;box-shadow:var(--sh-2)}
+.kpi:focus-visible{outline:2px solid var(--brand-deep)}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--line)}
+.kpi.bad::before{background:var(--red)}.kpi.warn::before{background:var(--amber)}.kpi.good::before{background:var(--brand)}
+.kpi .k{font-size:12px;font-weight:600;color:var(--muted)}
+.kpi .v{font-size:30px;font-weight:700;line-height:1.1;color:var(--ink)}
+.kpi.bad .v{color:var(--red)}
+.kpi .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-grid2{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(300px,1fr);gap:14px;align-items:start}
+.dash-side{display:grid;gap:14px}
+.dash-queue{min-height:420px}
+.dash-queue .dash-ph .tabs{margin-left:6px}
+.dash-queue .dash-ph .btn{margin-left:auto}
+.qc{display:inline-block;min-width:18px;font-size:11px;background:var(--bg);border-radius:9px;padding:0 5px;margin-left:2px;color:var(--muted)}
+.tabs button.on .qc{background:rgba(255,255,255,.2);color:#fff}
+.q-list{display:flex;flex-direction:column}
+.q-row{all:unset;box-sizing:border-box;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 18px;border-bottom:1px solid var(--line);cursor:pointer}
+.q-row:hover{background:var(--bg)}
+.q-row:focus-visible{outline:2px solid var(--brand-deep);outline-offset:-2px}
+.q-row.late{background:#FFF8F6}
+.q-row.late:hover{background:var(--red-wash)}
+.urg{width:10px;height:10px;min-width:10px;max-height:10px;border-radius:50%;margin-top:5px;background:var(--line);align-self:start}
+.urg.u-alta{background:var(--red)}.urg.u-media{background:var(--amber)}.urg.u-baixa{background:var(--brand)}
+.q-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.q-subj{font-weight:600;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-meta{font-size:12px;color:var(--muted)}
+.q-res{font-size:12.5px;color:var(--ink);opacity:.8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
+.q-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.due{font-size:11.5px;font-weight:700;border-radius:10px;padding:2px 8px;white-space:nowrap}
+.due.late{background:var(--red);color:#fff}.due.soon{background:var(--amber-wash);color:var(--amber)}.due.ok{color:var(--muted);font-weight:600}
+.bf{font-size:11px;color:var(--muted);white-space:nowrap}.bf.ok{color:var(--brand-deep);font-weight:600}
+.q-empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:48px 20px;color:var(--muted);text-align:center}
+.q-empty svg{color:var(--brand);margin-bottom:4px}.q-empty b{color:var(--ink);font-size:14px}
+.q-foot{padding:10px 18px;font-size:11.5px}
+.rit{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 18px 4px}
+.rit b{display:block;font-size:24px;line-height:1.1}
+.rit span{font-size:12px;color:var(--muted)}
+.rit em,.ia-mes em{font-style:normal;font-weight:600}
+em.up{color:var(--amber)}em.down{color:var(--red)}
+.dash-chart2{display:flex;align-items:flex-end;gap:3px;height:96px;padding:12px 18px 18px}
+.cb{flex:1;height:100%;display:flex;flex-direction:column-reverse;position:relative;min-width:0}
+.cb i{display:block;width:100%;min-height:0}
+.cb i.in{background:var(--brand);border-radius:3px 3px 0 0}
+.cb i.out{background:#9FB7A9}
+.cb b{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font-size:9.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+.cb:hover i{opacity:.75}
+.leg{display:flex;gap:12px;flex-wrap:wrap;padding:4px 18px 12px;font-size:11.5px;color:var(--muted)}
+.leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.leg i.in{background:var(--brand)}.leg i.out{background:#9FB7A9}
+.ia-mes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 18px}
+.ia-mes b{display:block;font-size:18px}.ia-mes span{font-size:11.5px;color:var(--muted)}
+#health button.hl-bad{color:var(--red);font-weight:700}
+@media (max-width:1180px){.dash-grid2{grid-template-columns:1fr}.dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.dash-kpis{grid-template-columns:1fr 1fr}.kpi .v{font-size:24px}.kpi .s{white-space:normal}.q-row{grid-template-columns:10px minmax(0,1fr)}.q-right{grid-column:2;flex-direction:row;align-items:center}.dash-hright{margin-left:0}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .chat-page{display:flex;flex-direction:column;height:100%;max-height:calc(100vh - 130px);padding:20px 24px}
 .chat-page .lead{max-width:760px}
@@ -546,44 +621,40 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
 <main>
   <section class="view on" id="v-dashboard"><div class="dash-page">
     <div class="dash-header">
-      <div><h2>Visão Geral</h2><div class="dash-sub" id="dash-range">Carregando…</div></div>
-      <div class="dash-live"><span class="dot ok" id="dash-dot"></span><span id="dash-livetx">Ao vivo</span></div>
+      <div><h2>Visão geral</h2><div class="dash-sub" id="dash-today">&nbsp;</div></div>
+      <div class="dash-hright">
+        <div class="dash-health" id="dash-health"></div>
+        <button class="btn sm" id="dash-syncbtn" onclick="dashSync(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Ler e-mails agora</button>
+      </div>
     </div>
-    <div class="dash-top" id="dash-top"></div>
-    <div class="dash-main">
-      <div class="dash-panel">
+    <div id="dash-alerts"></div>
+    <div class="dash-kpis" id="dash-kpis"></div>
+    <div class="dash-grid2">
+      <div class="dash-panel dash-queue">
         <div class="dash-ph">
-          <h4>Para responder agora</h4>
-          <button class="btn sm ghost" onclick="loadThreads();go('caixa')">Ver conversas</button>
+          <h4>Fila de resposta</h4>
+          <div class="tabs" id="q-tabs"></div>
+          <button class="btn sm ghost" onclick="loadThreads();go('caixa')">Abrir Caixa</button>
         </div>
-        <div class="dash-tasks" id="dash-tasks"></div>
+        <div class="q-list" id="q-list"></div>
+        <div class="q-foot conf" id="q-foot"></div>
       </div>
-      <div class="dash-panel">
-        <div class="dash-ph">Última sincronização</div>
-        <div class="dash-sync" id="dash-sync">—</div>
-        <div class="dash-actions">
-          <button class="btn sm" onclick="dashSync(this)">Ler e-mails agora</button>
-          <button class="btn sm ghost" onclick="go('assistente')">Perguntar ao assistente</button>
+      <div class="dash-side">
+        <div class="dash-panel">
+          <div class="dash-ph"><h4>Últimos 7 dias</h4></div>
+          <div class="rit" id="dash-ritmo"></div>
+          <div class="dash-chart2" id="dash-chart"></div>
+          <div class="leg"><span><i class="in"></i>Recebidos da Motiva</span><span><i class="out"></i>Enviados pela StartGi</span><span class="conf" style="margin-left:auto">21 dias</span></div>
         </div>
-        <div class="dash-ph" style="border-top:1px solid var(--line)">Atividade recente</div>
-        <pre class="log" id="dash-log"></pre>
+        <div class="dash-panel">
+          <div class="dash-ph"><h4>Decisões ativas por módulo</h4><button class="btn sm ghost" onclick="go('decisoes')">Ver todas</button></div>
+          <div class="dash-modules" id="dash-modules"></div>
+        </div>
+        <div class="dash-panel">
+          <div class="dash-ph"><h4>IA neste mês</h4><button class="btn sm ghost" onclick="go('status')">Detalhes</button></div>
+          <div class="ia-mes" id="dash-ia"></div>
+        </div>
       </div>
-    </div>
-    <div class="dash-main">
-      <div class="dash-panel">
-        <div class="dash-ph">Tempo médio de resposta</div>
-        <div class="dash-analytic" id="dash-tempo"><span class="conf">—</span></div>
-        <div class="dash-ph" style="border-top:1px solid var(--line)">Volume por mês · últimos 6 meses</div>
-        <div class="dash-chart" id="dash-month"></div>
-      </div>
-      <div class="dash-panel">
-        <div class="dash-ph">Decisões ativas por módulo</div>
-        <div class="dash-modules" id="dash-modules"></div>
-      </div>
-    </div>
-    <div class="dash-panel">
-      <div class="dash-ph">Volume de e-mails · últimos 21 dias</div>
-      <div class="dash-chart" id="dash-chart"></div>
     </div>
   </div></section>
   <section class="view" id="v-cobertura"><div class="page">
@@ -963,66 +1034,84 @@ function aplicarFiltros(){loadThreads()};
 ["#di","#df","#remetente"].forEach(id=>{$(id).onkeydown=e=>{if(e.key==="Enter")loadThreads()}});
 
 let threadsLoaded=false,dashLoaded=false,threadPage=1;
+let qFilter="todas",dashData=null;
+const fmtWait=h=>h<1?"menos de 1 hora":h<24?`${h} ${h===1?"hora":"horas"}`:(()=>{const d=Math.floor(h/24);return`${d} ${d===1?"dia":"dias"}`})();
+const shortWho=a=>String(a||"?").replace(/^.*<|>.*$/g,"").replace(/@.*/,"");
+function alertsHTML(d){
+  const out=[],ia=d.ia_saude||{};
+  if(ia.estado==="erro")out.push(`<div class="sys-alert err"><b>A IA parou de funcionar ${ia.desde?ago(ia.desde):""}</b><span>${esc(ia.mensagem||"")}${ia.falhas>1?` (${ia.falhas} falhas seguidas)`:""} Enquanto isso, briefings, assistente e triagem não funcionam.</span><details><summary>Detalhe técnico</summary><code>${esc(ia.detalhe||"")}</code></details></div>`);
+  else if(ia.estado==="nao_configurado")out.push(`<div class="sys-alert err"><b>IA não configurada</b><span>${esc(ia.mensagem||"")}</span></div>`);
+  if(d.zoho_state==="erro")out.push(`<div class="sys-alert err"><b>Os e-mails não estão sendo lidos</b><span>${esc(d.erro_zoho||"Erro na leitura do Zoho.")}</span><button class="btn sm" onclick="go('status')">Ver conexão</button></div>`);
+  return out.join("");
+}
+function healthHTML(d){
+  const ia=d.ia_saude||{}, z=d.zoho_state;
+  const zt={ok:"E-mails em dia",erro:"Leitura com erro",aguardando:"Aguardando leitura",nao_configurado:"Zoho não configurado"}[z]||z;
+  const it={ok:"IA funcionando",erro:"IA com erro",sem_uso:"IA pronta",nao_configurado:"IA não configurada"}[ia.estado]||"IA";
+  const iz=ia.estado==="ok"||ia.estado==="sem_uso"?"ok":"erro";
+  return`<button class="hpill ${z==="ok"?"ok":z==="aguardando"?"wait":"bad"}" onclick="go('status')" title="${d.ultima_sync?"Última leitura "+ago(d.ultima_sync):""}"><span class="dot ${z}"></span>${zt}${d.ultima_sync&&z==="ok"?` · ${ago(d.ultima_sync)}`:""}</button>
+    <button class="hpill ${iz==="ok"?"ok":"bad"}" onclick="go('status')"><span class="dot ${iz}"></span>${it}</button>`;
+}
+function kpi(cls,label,val,sub,onclick){return`<button class="kpi ${cls}" onclick="${onclick}"><span class="k">${label}</span><span class="v">${val}</span><span class="s">${sub}</span></button>`}
+function renderQueue(){
+  const d=dashData;if(!d)return;
+  const f=d.fila||[];
+  const at=f.filter(t=>t.atrasado),ur=f.filter(t=>t.urgencia==="alta");
+  const tabs=[["todas","Todas",f.length],["atrasadas","Atrasadas",at.length],["urgentes","Urgentes",ur.length]];
+  $("#q-tabs").innerHTML=tabs.map(([k,n,c])=>`<button class="${qFilter===k?"on":""}" data-q="${k}">${n} <span class="qc">${c}</span></button>`).join("");
+  $$("#q-tabs button").forEach(b=>b.onclick=()=>{qFilter=b.dataset.q;renderQueue()});
+  const list=qFilter==="atrasadas"?at:qFilter==="urgentes"?ur:f;
+  const U={alta:"Urgente",media:"Média",baixa:"Baixa"};
+  $("#q-list").innerHTML=list.length?list.map(t=>{
+    const due=t.atrasado?`<span class="due late">Atrasada ${fmtWait(-t.vence_em_h)}</span>`:t.vence_em_h<=12?`<span class="due soon">Vence em ${fmtWait(Math.max(0,t.vence_em_h))}</span>`:`<span class="due ok">No prazo</span>`;
+    const meta=[t.pedidos?`${t.pedidos} ${t.pedidos===1?"pedido":"pedidos"}`:"",t.perguntas?`${t.perguntas} ${t.perguntas===1?"pergunta":"perguntas"}`:"",t.count>1?`${t.count} e-mails`:""].filter(Boolean).join(" · ");
+    return`<button class="q-row ${t.atrasado?"late":""}" data-k="${esc(t.thread_key)}">
+      <span class="urg u-${t.urgencia||"none"}" title="${t.urgencia?"Urgência "+U[t.urgencia]:"Sem briefing ainda"}"></span>
+      <span class="q-main"><span class="q-subj">${esc(t.subject||"(sem assunto)")}</span>
+        <span class="q-meta">${esc(shortWho(t.de))} · esperando há ${fmtWait(t.espera_h)}${meta?" · "+meta:""}</span>
+        ${t.resumo?`<span class="q-res">${esc(t.resumo)}</span>`:""}</span>
+      <span class="q-right">${due}${t.briefing?`<span class="bf ok">Briefing pronto</span>`:`<span class="bf">Sem briefing</span>`}</span>
+    </button>`}).join("")
+    :`<div class="q-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><b>${qFilter==="todas"?"Tudo respondido":"Nada aqui"}</b><span>${qFilter==="todas"?"Nenhum e-mail da Motiva esperando resposta.":"Nenhuma conversa nesta situação."}</span></div>`;
+  $$("#q-list .q-row").forEach(el=>el.onclick=()=>{go("caixa");loadThreads();setTimeout(()=>openThread(el.dataset.k),80)});
+  $("#q-foot").textContent=`Prazo: urgentes em até ${d.prazos_h.alta}h, demais em até ${d.prazos_h.padrao}h a partir do e-mail mais antigo sem resposta.`;
+}
 async function loadDashboard(){
   try{
-  if(!dashLoaded)$("#dash-top").innerHTML=skelDash(6);
-  const d=await api("/api/dashboard");
-  const e=d.emails, dec=d.decisoes, pend=e.novos+e.analisados;
-  $("#c-email-total").hidden=!e.total;$("#c-email-total").textContent=e.total;
-  $("#dash-top").innerHTML=`
-    <div class="dash-card hot" onclick="go('caixa')"><h4>Pendentes p/ responder</h4><div class="dash-stat">${pend}</div><div class="dash-stat-label">${e.novos} aguardando briefing · ${e.analisados} prontos</div></div>
-    <div class="dash-card" onclick="go('decisoes')"><h4>Decisões vigentes</h4><div class="dash-stat">${dec.vigentes}</div><div class="dash-stat-label">Regras em vigor</div></div>
-    <div class="dash-card" onclick="go('caixa')"><h4>E-mails importados</h4><div class="dash-stat">${e.total}</div><div class="dash-stat-label">${d.conversas} conversas</div></div>
-    <div class="dash-card"><h4>Documentos</h4><div class="dash-stat">${d.documentos}</div><div class="dash-stat-label">Base de conhecimento</div></div>
-    <div class="dash-card" onclick="go('assistente')"><h4>Briefings IA</h4><div class="dash-stat">${d.analyses}</div><div class="dash-stat-label">Análises geradas</div></div>
-    <div class="dash-card" onclick="go('caixa')"><h4>Arquivado</h4><div class="dash-stat">${e.arquivados}</div><div class="dash-stat-label">Histórico · ${e.out} respostas</div></div>`;
-  const tasks=$("#dash-tasks");
-  if(d.para_responder&&d.para_responder.length){
-    tasks.innerHTML=d.para_responder.map(t=>`
-      <div class="dash-task" data-k="${t.thread_key||''}">
-        <div class="tt"><b>${t.subject}</b><span>${t.last_from||'?'} · ${t.last_date?new Date(t.last_date).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):''}</span></div>
-        <div class="n">${t.count} ${t.count>1?"e-mails":"e-mail"}</div>
-      </div>`).join("");
-    $$("#dash-tasks .dash-task").forEach(el=>el.onclick=()=>{go("caixa");setTimeout(()=>openThread(el.dataset.k),60)});
-  }else{
-    tasks.innerHTML=`<div class="dash-task empty">Tudo em dia — nenhuma conversa pendente.</div>`;
-  }
-  const mx=Math.max(1,...(d.por_dia||[]).map(p=>p.total||0));
-  $("#dash-chart").innerHTML=(d.por_dia||[]).map(p=>`
-    <div class="dash-bar" title="${p.dia} · ${p.total} e-mails"><i style="height:${Math.max(3,p.total/mx*100)}%"></i><b>${new Date(p.dia+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</b></div>`).join("");
-  $("#dash-range").textContent=(d.por_dia&&d.por_dia.length)?d.por_dia[0].dia+" a "+d.por_dia[d.por_dia.length-1].dia:"";
-  const tmp=d.tempo_medio_resposta_h,tsm=$("#dash-tempo");
-  if(tsm)tsm.innerHTML=tmp!=null?`${Math.floor(tmp/24)} dias e ${tmp%24} horas<div class="sub">Recebida da Motiva → resposta da StartGi, última análise</div>`:`<span class="conf">Sem respostas suficientes ainda</span>`;
-  const mm=$("#dash-month");
-  if(mm&&d.por_mes){
-    const mx2=Math.max(1,...d.por_mes.map(p=>p.total||0));
-    mm.innerHTML=d.por_mes.map(p=>`<div class="dash-bar" title="${p.mes} · ${p.total} e-mails"><i style="height:${Math.max(3,p.total/mx2*100)}%"></i><b>${p.mes.slice(5,7)}/${p.mes.slice(2,4)}</b></div>`).join("");
-  }
-  const dm=$("#dash-modules");
-  if(dm){
-    const mods=d.decisoes_por_modulo||[];
-    dm.innerHTML=mods.length?mods.slice(0,6).map((m,i)=>{const mx3=mods[0].total;
-      return`<div class="mod-line"><span class="ml">${esc(m.modulo)}</span><div class="mod-track"><i style="width:${Math.max(4,m.total/mx3*100).toFixed(0)}%"></i></div><b>${m.total}</b></div>`}).join("")
-      :`<div class="empty"><b style="color:var(--ink)">Nenhuma decisão ativa</b><br>Registre as regras vigentes em Decisões para ver a distribuição por módulo.</div>`;
-  }
-  $("#dash-log").textContent=d.log_count?d.log.slice(-30).join("\n"):"Sem atividade ainda.";
-  const lastSync=d.ultima_sync?new Date(d.ultima_sync).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
-  $("#dash-sync").innerHTML=`${lastSync}<div class="sub">${d.zoho_state==="ok"?"Zoho sincronizado":"Zoho "+d.zoho_state}</div>`;
-  $("#dash-sync .sub").style.color=d.zoho_state==="ok"?"var(--brand)":"var(--red)";
-  const dot=$("#dash-dot"), tx=$("#dash-livetx");
-  if(d.zoho_state==="ok"){dot.className="dot ok";tx.textContent="Ao vivo"}
-  else if(d.zoho_state==="erro"){dot.className="dot erro";tx.textContent="Erro na sincronização"}
-  else{dot.className="dot aguardando";tx.textContent="Aguardando sincronização"}
+  if(!dashLoaded)$("#dash-kpis").innerHTML=skelDash(4);
+  const d=await api("/api/dashboard");dashData=d;loadHealth();
+  const e=d.emails, dec=d.decisoes, f=d.fila||[];
+  $("#c-email-total").hidden=true;
+  $("#dash-today").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
+  $("#dash-health").innerHTML=healthHTML(d);
+  $("#dash-alerts").innerHTML=alertsHTML(d);
+  const at=f.filter(t=>t.atrasado).length, ur=f.filter(t=>t.urgencia==="alta"&&!t.atrasado).length, pr=f.filter(t=>t.briefing).length;
+  const tmp=d.tempo_medio_resposta_h;
+  $("#dash-kpis").innerHTML=
+    kpi(at?"bad":"good","Atrasadas",at,at?`passaram do prazo de resposta`:"nenhuma resposta atrasada","qFilter='atrasadas';renderQueue();$('#q-list').scrollIntoView({behavior:'smooth',block:'nearest'})")+
+    kpi(f.length?"warn":"good","Esperando resposta",f.length,f.length?`${pr} com briefing pronto${ur?` · ${ur} urgente${ur>1?"s":""}`:""}`:"tudo respondido","qFilter='todas';renderQueue()")+
+    kpi(dec.proposta?"warn":"good","Decisões para revisar",dec.proposta,dec.proposta?(d.triagem_com_sugestao?`${d.triagem_com_sugestao} com sugestão da IA`:"a IA pode sugerir o destino"):`${dec.vigentes} regras vigentes`,"go('decisoes')")+
+    kpi("","Tempo médio de resposta",tmp==null?"—":tmp<24?`${tmp}h`:`${Math.floor(tmp/24)}d ${tmp%24}h`,"da Motiva até a resposta da StartGi","go('caixa')");
+  renderQueue();
+  const r=d.ritmo||{}, dif=r.recebidos_7d-r.recebidos_7d_anterior;
+  $("#dash-ritmo").innerHTML=`<div><b>${r.recebidos_7d}</b><span>recebidos${r.recebidos_7d_anterior||r.recebidos_7d?` <em class="${dif>0?"up":dif<0?"down":""}">${dif>0?"▲":dif<0?"▼":"="} ${Math.abs(dif)} vs semana anterior</em>`:""}</span></div><div><b>${r.enviados_7d}</b><span>respostas enviadas</span></div>`;
+  const pd=d.por_dia||[], mx=Math.max(1,...pd.map(p=>(p.in||0)+(p.out||0)));
+  $("#dash-chart").innerHTML=pd.map((p,i)=>`<div class="cb" title="${new Date(p.dia+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}: ${p.in||0} recebidos · ${p.out||0} enviados"><i class="out" style="height:${(p.out||0)/mx*100}%"></i><i class="in" style="height:${(p.in||0)/mx*100}%"></i>${i%5===0||i===pd.length-1?`<b>${new Date(p.dia+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</b>`:""}</div>`).join("");
+  const mods=d.decisoes_por_modulo||[];
+  $("#dash-modules").innerHTML=mods.length?mods.slice(0,6).map(m=>`<div class="mod-line"><span class="ml">${esc(m.modulo)}</span><div class="mod-track"><i style="width:${Math.max(4,m.total/mods[0].total*100).toFixed(0)}%"></i></div><b>${m.total}</b></div>`).join("")
+    :`<div class="conf" style="padding:4px 0">Nenhuma decisão ativa ainda.</div>`;
+  const u=d.uso_ia_mes||{};
+  $("#dash-ia").innerHTML=`<div><b>${ktok(u.tokens||0)}</b><span>tokens</span></div><div><b>${usd(u.custo_usd||0)}</b><span>estimado</span></div><div><b>${nf(u.chamadas||0)}</b><span>chamadas${u.falhas?` · <em class="down">${u.falhas} falharam</em>`:""}</span></div>`;
+  const sb=$("#dash-syncbtn");if(sb&&!sb.dataset.busy){sb.disabled=!!d.sincronizando;sb.lastChild.textContent=d.sincronizando?"Lendo e-mails…":"Ler e-mails agora"}
   dashLoaded=true;
   }catch(e){
-    $("#dash-top").innerHTML=`<div style="grid-column:1/-1" class="empty"><b style="color:var(--ink)">Erro ao carregar</b><br>${e.message||e}</div>`;
-    $("#dash-log").textContent="Erro: "+(e.message||e);
+    $("#dash-kpis").innerHTML=`<div style="grid-column:1/-1" class="empty"><b style="color:var(--ink)">Erro ao carregar</b><br>${esc(e.message||e)}</div>`;
   }
 }
 async function dashSync(b){
-  b.disabled=true;b.textContent="Lendo…";
-  try{await post("/api/sync");toast("Leitura dos e-mails iniciada.");setTimeout(loadDashboard,4000)}
-  catch(e){toast(e.message,"err");b.disabled=false;b.textContent="Ler e-mails agora"}
+  b.disabled=true;b.dataset.busy="1";b.lastChild.textContent="Lendo e-mails…";
+  try{await post("/api/sync");toast("Leitura dos e-mails iniciada.");setTimeout(()=>{delete b.dataset.busy;loadDashboard()},5000)}
+  catch(e){toast(e.message,"err");delete b.dataset.busy;b.disabled=false;b.lastChild.textContent="Ler e-mails agora"}
 }
 setInterval(loadDashboard,30000);
 
@@ -1034,7 +1123,8 @@ async function loadHealth(){
   $("#c-prop").hidden=!status.decisoes_propostas;$("#c-prop").textContent=status.decisoes_propostas;
   const zl={ok:"Zoho sincronizado",erro:"Zoho com erro",aguardando:"Zoho aguardando",nao_configurado:"Zoho não configurado"}[status.zoho_state];
   $("#health").innerHTML=`<button onclick="go('status')"><span class="dot ${status.zoho_state}"></span>${zl}</button>
-    <button onclick="go('status')"><span class="dot ${status.ia?"ok":"erro"}"></span>${status.ia?"IA pronta":"IA não configurada"}</button>
+    ${(()=>{const h=status.ia_saude||{};const bad=h.estado==="erro"||h.estado==="nao_configurado";
+      return`<button onclick="go('status')" class="${bad?"hl-bad":""}" title="${esc(h.mensagem||"")}"><span class="dot ${bad?"erro":"ok"}"></span>${h.estado==="erro"?"IA com erro":h.estado==="nao_configurado"?"IA não configurada":"IA funcionando"}</button>`})()}
     ${status.sincronizando?`<span class="sync"><span class="spin"></span>Sincronizando</span>`:""}
     ${status.ultima_sync?`<span>Última leitura ${ago(status.ultima_sync)}</span>`:""}`;
 }
@@ -1706,7 +1796,8 @@ async function loadStatus(){
   const zt={ok:["Sincronizando normalmente",`Conta ${s.zoho_user}. Leitura a cada ${s.poll_minutos} min.`],aguardando:["Aguardando a primeira leitura",`Conta ${s.zoho_user}.`],
     erro:["Não foi possível ler os e-mails",s.erro],nao_configurado:["Não configurado","Defina ZOHO_EMAIL e ZOHO_APP_PASSWORD nas variáveis do Render."]}[s.zoho_state];
   $("#conn").innerHTML=setupSteps()+`<div class="card"><span class="dot ${s.zoho_state}" style="margin-top:7px"></span><div class="tx"><b>Zoho Mail · ${zt[0]}</b><div>${esc(zt[1])}</div>${s.ultima_sync?`<div>Última leitura ${ago(s.ultima_sync)}.</div>`:""}</div>${s.zoho?`<button class="btn sm" onclick="syncNow(this)">Ler e-mails agora</button>`:""}</div>
-    <div class="card"><span class="dot ${s.ia?"ok":"erro"}" style="margin-top:7px"></span><div class="tx"><b>Modelo de IA · ${s.ia?"Pronto":"Não configurado"}</b><div>${s.ia?esc(s.modelo)+(s.auto_analise?". Briefing automático para cada e-mail novo.":""):"Defina AI_API_KEY nas variáveis do Render."}</div></div></div>
+    ${(s.ia_saude||{}).estado==="erro"?`<div class="sys-alert err"><b>A IA está falhando ${ago(s.ia_saude.desde)}</b><span>${esc(s.ia_saude.mensagem)}</span><details><summary>Detalhe técnico</summary><code>${esc(s.ia_saude.detalhe||"")}</code></details></div>`:""}
+    <div class="card"><span class="dot ${s.ia&&(s.ia_saude||{}).estado!=="erro"?"ok":"erro"}" style="margin-top:7px"></span><div class="tx"><b>Modelo de IA · ${!s.ia?"Não configurado":(s.ia_saude||{}).estado==="erro"?"Com erro":"Funcionando"}</b><div>${s.ia?esc(s.modelo)+(s.auto_analise?". Briefing automático para cada e-mail novo.":""):"Defina AI_API_KEY nas variáveis do Render."}</div></div></div>
     <div class="card"><span class="dot ok" style="margin-top:7px"></span><div class="tx"><b>Domínios da Motiva</b><div>${esc(s.dominios_motiva.join(", "))}. Só e-mails com esses domínios entram no sistema.</div></div></div>`;
   $("#stats").innerHTML=[["E-mails",s.emails],["Documentos",s.documentos],["Decisões vigentes",s.decisoes_vigentes],["Para revisar",s.decisoes_propostas]].map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");
   $("#log").textContent=(s.log||[]).join("\n")||"Sem atividade ainda.";
