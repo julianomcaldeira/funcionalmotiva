@@ -80,11 +80,26 @@ Responda SOMENTE com um objeto JSON válido, sem texto antes ou depois, neste fo
 Em "decisoes_sugeridas", inclua somente regras ou acordos que este e-mail formaliza de fato (não suposições)."""
 
 
+GUIDE_MAX = 14000
+SPECIAL_TIPOS = ("regras", "guia_compras")   # documentos de referência com cartão próprio na Base
+
+
+def guide_block(session):
+    """Guia de Compras: entra em toda análise, chat e assistente para a IA entender a cadeia de compras."""
+    g = session.query(Document).filter(Document.tipo == "guia_compras").order_by(Document.id.desc()).first()
+    if not g or not (g.content or "").strip():
+        return None, None
+    txt = ("## GUIA DE COMPRAS (como funciona a cadeia de suprimentos da Motiva — use para entender o processo e "
+           "explicar com propriedade; itens [CONFIRMAR] são hipótese, não regra acordada)\n"
+           f"[DOC{g.id}] {g.nome}\n{(g.content or '')[:GUIDE_MAX]}")
+    return txt, {"code": f"DOC{g.id}", "label": "Guia de Compras"}
+
+
 def fmt_date(d):
     return d.strftime("%d/%m/%Y %H:%M") if d else "?"
 
 
-TIPO_LABEL = {"regras": "Regras", "especificacao": "Especificação (EF)", "documentacao": "Documentação técnica",
+TIPO_LABEL = {"regras": "Regras", "guia_compras": "Guia de Compras", "especificacao": "Especificação (EF)", "documentacao": "Documentação técnica",
               "whatsapp": "WhatsApp", "validador": "Validador de regras", "outro": "Documento"}
 
 
@@ -120,6 +135,8 @@ def enrich_sources(session, sources):
             s_["tipo"] = "documento"
             if d.tipo == "regras":
                 s_["label"] = f"Regras do sistema: {d.nome}"
+            elif d.tipo == "guia_compras":
+                s_["label"] = "Guia de Compras"
             else:
                 s_["label"] = f"Documento {TIPO_LABEL.get(d.tipo, d.tipo)}: {d.nome}"
     if dec:
@@ -180,6 +197,10 @@ def build_context(session, email_obj):
         parts.append("## REGRAS DO SISTEMA (documento de referência — valide aqui se a regra CONSTA ou NÃO CONSTA)")
         parts.append(f"[DOC{rules.id}] {rules.nome}\n{(rules.content or '')[:8000]}")
         sources.append({"code": f"DOC{rules.id}", "label": "Regras do sistema"})
+    gtxt, gsrc = guide_block(session)
+    if gtxt:
+        parts.append(gtxt)
+        sources.append(gsrc)
 
     query = f"{email_obj.subject}\n{(email_obj.body_clean or email_obj.body or '')[:3000]}"
 
@@ -271,6 +292,10 @@ def build_thread_context(session, thread_key, question, history=None):
         parts.append("## REGRAS DO SISTEMA (documento de referência — valide aqui se a regra CONSTA ou NÃO CONSTA)")
         parts.append(f"[DOC{rules.id}] {rules.nome}\n{(rules.content or '')[:8000]}")
         sources.append({"code": f"DOC{rules.id}", "label": "Regras do sistema"})
+    gtxt, gsrc = guide_block(session)
+    if gtxt:
+        parts.append(gtxt)
+        sources.append(gsrc)
 
     subjects = " ".join(dict.fromkeys(e.subject for e in emails if e.subject))
     query = f"{subjects}\n{question}"

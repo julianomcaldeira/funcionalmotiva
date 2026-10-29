@@ -196,7 +196,25 @@ def scheduler():
 @app.on_event("startup")
 def startup():
     init_db()
+    seed_guide()
     threading.Thread(target=scheduler, daemon=True).start()
+
+
+def seed_guide():
+    """Cria a primeira versão do Guia de Compras se ainda não existir (nunca sobrescreve a editada)."""
+    from .guia_compras import GUIA_NOME, GUIA_PADRAO
+    try:
+        with SessionLocal() as s:
+            if s.query(Document.id).filter(Document.tipo == "guia_compras").first():
+                return
+            d = Document(nome=GUIA_NOME, tipo="guia_compras", content=GUIA_PADRAO.strip())
+            s.add(d)
+            s.flush()
+            ai.index_document(s, d)
+            s.commit()
+            log("Guia de Compras criado (versão inicial).")
+    except Exception as ex:
+        log(f"Falha ao criar o Guia de Compras: {ex}")
 
 
 @app.get("/healthz")
@@ -1096,7 +1114,7 @@ def list_documents():
         rows = s.query(Document.id, Document.nome, Document.tipo, Document.content,
                        Document.created_at, Document.file_name, Document.tags, Document.versao,
                        Document.file_data.isnot(None).label("tem_arquivo")) \
-            .filter(Document.tipo != "regras") \
+            .filter(Document.tipo.notin_(ai.SPECIAL_TIPOS)) \
             .order_by(Document.id.desc()).all()
         return [{"id": r.id, "nome": r.nome, "tipo": r.tipo, "tamanho": len(r.content or ""),
                  "created_at": r.created_at.isoformat() if r.created_at else None,
@@ -1166,11 +1184,46 @@ def put_regras(body: RegrasIn):
         return {"id": d.id, "exists": True, "content": d.content, "created": created}
 
 
+@app.get("/api/guia-compras")
+def get_guide():
+    from .guia_compras import GUIA_PADRAO
+    with SessionLocal() as s:
+        d = s.query(Document).filter(Document.tipo == "guia_compras").order_by(Document.id.desc()).first()
+        if not d:
+            return {"exists": False, "content": "", "padrao": GUIA_PADRAO.strip()}
+        txt = d.content or ""
+        return {"exists": True, "id": d.id, "content": txt, "limite": ai.GUIDE_MAX,
+                "a_confirmar": txt.count("[CONFIRMAR"),
+                "updated_at": (d.created_at.isoformat() if d.created_at else None)}
+
+
+@app.put("/api/guia-compras")
+def put_guide(body: RegrasIn):
+    from .guia_compras import GUIA_NOME
+    content = (body.content or "").strip()
+    if not content:
+        raise HTTPException(400, "O guia não pode ficar vazio.")
+    with SessionLocal() as s:
+        d = s.query(Document).filter(Document.tipo == "guia_compras").order_by(Document.id.desc()).first()
+        if d is None:
+            d = Document(nome=GUIA_NOME, tipo="guia_compras", content=content)
+            s.add(d)
+        else:
+            s.add(DocumentVersion(document_id=d.id, versao=d.versao or 1, nome=d.nome, tipo=d.tipo,
+                                  content=d.content, nota="Antes da edição do guia"))
+            d.content = content
+            d.versao = (d.versao or 1) + 1
+        s.flush()
+        ai.index_document(s, d)
+        s.commit()
+        return {"id": d.id, "exists": True, "content": d.content, "a_confirmar": content.count("[CONFIRMAR")}
+
+
 @app.post("/api/documents")
 async def upload_document(tipo: str = Form("documentacao"), nome: str = Form(""), texto: str = Form(""),
                           tags: str = Form(""), arquivo: UploadFile | None = File(None)):
-    if tipo == "regras":
-        raise HTTPException(400, "As regras do sistema são editadas no cartão próprio "
+    if tipo in ai.SPECIAL_TIPOS:
+        raise HTTPException(400, "Regras do sistema e Guia de Compras são editados nos cartões próprios "
                                  "\"Regras do sistema\", na Base de conhecimento.")
     content, filename, raw_file, raw_name = await _doc_payload(tipo, nome, texto, arquivo)
     if not content.strip():
@@ -1200,8 +1253,8 @@ async def add_document_version(doc_id: int, nome: str = Form(""), texto: str = F
         d = s.get(Document, doc_id)
         if not d:
             raise HTTPException(404, "Documento não encontrado.")
-        if d.tipo == "regras":
-            raise HTTPException(400, "As regras do sistema são editadas no cartão próprio.")
+        if d.tipo in ai.SPECIAL_TIPOS:
+            raise HTTPException(400, "Este documento é editado no cartão próprio dele, na Base de conhecimento.")
         # Documentos criados antes do versionamento não têm baseline: arquiva o estado atual como v1.
         base_exists = (s.query(DocumentVersion)
                        .filter(DocumentVersion.document_id == doc_id, DocumentVersion.versao == 1).first())
@@ -1269,8 +1322,8 @@ def delete_document(doc_id: int):
     from .db import Chunk
     with SessionLocal() as s:
         d = s.get(Document, doc_id)
-        if d and d.tipo == "regras":
-            raise HTTPException(400, "O documento de Regras do sistema não pode ser removido aqui. "
+        if d and d.tipo in ai.SPECIAL_TIPOS:
+            raise HTTPException(400, "Este documento de referência não pode ser removido aqui. "
                                      "Edite o conteúdo no cartão próprio dele.")
         s.query(Chunk).filter(Chunk.source_kind == "document", Chunk.source_id == doc_id).delete()
         if d:
@@ -1286,7 +1339,7 @@ def cobertura():
     """O que a IA enxerga e cita: documentos com trechos indexados, quantas vezes cada um
     foi citado como fonte (em briefings e no assistente) e decisões sem fonte ou sem citação."""
     with SessionLocal() as s:
-        docs = s.query(Document).filter(Document.tipo != "regras").order_by(Document.id.desc()).all()
+        docs = s.query(Document).filter(Document.tipo.notin_(ai.SPECIAL_TIPOS)).order_by(Document.id.desc()).all()
         chunk_map = dict(s.query(Chunk.source_id, func.count(Chunk.id))
                          .filter(Chunk.source_kind == "document").group_by(Chunk.source_id).all())
         doc_cit, doc_last, dec_cit = {}, {}, {}
@@ -1399,6 +1452,11 @@ def _chat(body: ChatIn):
         sources.append({"code": f"DOC{rules.id}", "label": "Regras do sistema"})
     else:
         parts.append("(documento de Regras do sistema ainda não criado)")
+    with SessionLocal() as s:
+        gtxt, gsrc = ai.guide_block(s)
+    if gtxt:
+        parts.append(gtxt)
+        sources.append(gsrc)
     parts.append("## Índice da base de conhecimento (todos os documentos anexados)")
     if docs_all:
         for did, tipo, nome in docs_all:
