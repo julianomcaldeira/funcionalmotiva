@@ -496,6 +496,26 @@ em.up{color:var(--amber)}em.down{color:var(--red)}
 .s-vigente{background:var(--brand)}.s-em_discussao{background:#2A5A8C}.s-proposta{background:#D9A441}.s-substituida{background:#B9C2BC}.s-descartada{background:#DADFDB}
 @media (max-width:1020px){.pn-row{grid-template-columns:1fr}.pn-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.pk .v{font-size:26px}.seg{margin-left:0}.hb{grid-template-columns:minmax(0,110px) 1fr 30px}}
+/* painel cabe na tela: sem rolagem em telas de computador */
+#v-dashboard .dash-page{height:100%;overflow:hidden;display:flex;flex-direction:column;gap:12px;padding:20px 24px}
+#v-dashboard .dash-page>*{width:100%;max-width:1360px;margin-left:auto;margin-right:auto}
+.pn-grid{max-height:600px}
+.pn-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1.25fr) minmax(0,1fr);gap:12px}
+.pn-grid .pn-card{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:14px 16px}
+.pn-grid .pn-ct{margin-bottom:8px;flex:none}
+.g-vol{grid-column:1/3}
+.pn-fill{flex:1;min-height:0;position:relative}
+.pn-fill .pn-svg{position:absolute;inset:0;width:100%;height:100%}
+.pn-list{overflow:hidden}
+.pk{padding:12px 16px}.pk .v{font-size:28px}
+.pn-kpis{flex:none}
+#v-dashboard #dash-alerts:empty{display:none}
+@media (max-width:1020px),(max-height:620px){
+  #v-dashboard .dash-page{height:auto;overflow:auto}
+  .pn-grid{grid-template-columns:1fr;grid-template-rows:none}
+  .g-vol{grid-column:auto}
+  .pn-grid .pn-card{min-height:220px}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .chat-page{display:flex;flex-direction:column;height:100%;max-height:calc(100vh - 130px);padding:20px 24px}
 .chat-page .lead{max-width:760px}
@@ -674,17 +694,15 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
     </div>
     <div id="dash-alerts"></div>
     <div class="pn-kpis" id="pn-kpis"></div>
-    <div class="pn-card">
-      <div class="pn-ct"><h3>Volume de e-mails</h3><div class="pn-leg"><span><i class="in"></i>Recebidos da Motiva</span><span><i class="out"></i>Enviados pela StartGi</span></div></div>
-      <div id="pn-vol"></div>
-    </div>
-    <div class="pn-row">
-      <div class="pn-card"><div class="pn-ct"><h3>Tempo de resposta</h3><span class="conf" id="pn-resp-note"></span></div><div id="pn-resp"></div></div>
-      <div class="pn-card"><div class="pn-ct"><h3>Quem mais escreve</h3><span class="conf">e-mails recebidos</span></div><div id="pn-rem"></div></div>
-    </div>
-    <div class="pn-row">
-      <div class="pn-card"><div class="pn-ct"><h3>Conversas mais movimentadas</h3></div><div id="pn-conv"></div></div>
-      <div class="pn-card"><div class="pn-ct"><h3>Decisões</h3><button class="btn sm ghost" onclick="go('decisoes')">Abrir</button></div><div id="pn-dec"></div></div>
+    <div class="pn-grid">
+      <div class="pn-card g-vol">
+        <div class="pn-ct"><h3>Volume de e-mails</h3><div class="pn-leg"><span><i class="in"></i>Recebidos</span><span><i class="out"></i>Enviados</span></div></div>
+        <div class="pn-fill" id="pn-vol"></div>
+      </div>
+      <div class="pn-card g-resp"><div class="pn-ct"><h3>Tempo de resposta</h3><span class="conf" id="pn-resp-note"></span></div><div class="pn-fill" id="pn-resp"></div></div>
+      <div class="pn-card g-rem"><div class="pn-ct"><h3>Quem mais escreve</h3></div><div class="pn-fill pn-list" id="pn-rem"></div></div>
+      <div class="pn-card g-conv"><div class="pn-ct"><h3>Conversas mais movimentadas</h3></div><div class="pn-fill pn-list" id="pn-conv"></div></div>
+      <div class="pn-card g-dec"><div class="pn-ct"><h3>Decisões</h3><button class="btn sm ghost" onclick="go('decisoes')">Abrir</button></div><div class="pn-fill" id="pn-dec"></div></div>
     </div>
   </div></section>
   <section class="view" id="v-cobertura"><div class="page">
@@ -1070,7 +1088,24 @@ function aplicarFiltros(){loadThreads()};
 ["#di","#df","#remetente"].forEach(id=>{$(id).onkeydown=e=>{if(e.key==="Enter")loadThreads()}});
 
 let threadsLoaded=false,dashLoaded=false,threadPage=1;
-let pnDias=30;
+let pnDias=30,pnLast=null;
+function drawCharts(){
+  if(!pnLast)return;
+  const v=$("#pn-vol"),r=$("#pn-resp");
+  if(v&&v.clientWidth)v.innerHTML=svgBars(pnLast.serie,pnLast.passo,v.clientWidth,Math.max(110,v.clientHeight));
+  if(r&&r.clientWidth)r.innerHTML=svgLine(pnLast.serie,r.clientWidth,Math.max(100,r.clientHeight));
+  fitLists();
+}
+/* listas mostram só os itens que cabem inteiros na caixa (sem item cortado) */
+function fitLists(){
+  $$("#v-dashboard .pn-list").forEach(box=>{
+    [...box.children].forEach(c=>c.style.display="");
+    if(getComputedStyle($("#v-dashboard .dash-page")).overflow!=="hidden")return;
+    const lim=box.getBoundingClientRect().bottom;
+    [...box.children].forEach(c=>{if(c.getBoundingClientRect().bottom>lim+1)c.style.display="none"});
+  });
+}
+let pnRz;window.addEventListener("resize",()=>{clearTimeout(pnRz);pnRz=setTimeout(drawCharts,120)});
 function alertsHTML(d){
   const out=[],ia=d.ia_saude||{};
   if(ia.estado==="erro")out.push(`<div class="pn-alert"><b>IA parada ${ia.desde?ago(ia.desde):""}.</b> ${esc(ia.mensagem||"")} <a href="#" onclick="go('status');return false">Ver</a></div>`);
@@ -1081,14 +1116,14 @@ const pct=(a,b)=>!b?(a?null:0):Math.round((a-b)/b*100);
 function delta(a,b,invert){const p=pct(a,b);if(p==null||b==null)return`<span class="dl">sem base anterior</span>`;if(p===0)return`<span class="dl">igual ao período anterior</span>`;
   const good=invert?p<0:p>0;return`<span class="dl ${good?"g":"b"}">${p>0?"▲":"▼"} ${Math.abs(p)}% vs período anterior</span>`}
 const fh=h=>h==null?"—":h<24?`${String(h).replace(".",",")}h`:`${(h/24).toFixed(1).replace(".",",")} dias`;
-function svgBars(serie,passo){
-  const W=900,H=200,pl=34,pb=24,pt=10,n=serie.length,mx=Math.max(1,...serie.map(p=>Math.max(p.in,p.out)));
+function svgBars(serie,passo,W=900,H=200){
+  const pl=30,pb=20,pt=6,n=serie.length,mx=Math.max(1,...serie.map(p=>Math.max(p.in,p.out)));
   const step=(W-pl)/n,bw=Math.max(2,Math.min(14,step/2-2));
   const ticks=[0,Math.ceil(mx/2),mx];
   const y=v=>pt+(H-pt-pb)*(1-v/mx);
   const lab=d=>new Date(d+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
-  const every=Math.ceil(n/8);
-  return`<svg viewBox="0 0 ${W} ${H}" class="pn-svg" role="img" aria-label="Volume de e-mails">
+  const every=Math.ceil(n/Math.max(2,Math.floor(W/70)));
+  return`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="pn-svg" role="img" aria-label="Volume de e-mails">
     ${ticks.map(t=>`<line x1="${pl}" x2="${W}" y1="${y(t)}" y2="${y(t)}" class="gl"/><text x="${pl-6}" y="${y(t)+4}" class="ax" text-anchor="end">${t}</text>`).join("")}
     ${serie.map((p,i)=>{const x=pl+i*step+step/2;return`<g><title>${passo>1?"Semana de ":""}${lab(p.inicio)}: ${p.in} recebidos, ${p.out} enviados</title>
       <rect x="${x-bw-1}" y="${y(p.in)}" width="${bw}" height="${H-pb-y(p.in)}" class="b-in" rx="2"/>
@@ -1096,13 +1131,13 @@ function svgBars(serie,passo){
       ${i%every===0?`<text x="${x}" y="${H-6}" class="ax" text-anchor="middle">${lab(p.inicio)}</text>`:""}</g>`}).join("")}
   </svg>`;
 }
-function svgLine(serie){
+function svgLine(serie,W=440,H=150){
   const pts=serie.map((p,i)=>({i,v:p.resp_h,d:p.inicio})).filter(p=>p.v!=null);
   if(pts.length<2)return`<div class="pn-empty">Poucas respostas no período para formar uma tendência.</div>`;
-  const W=440,H=150,pl=34,pb=22,pt=10,n=serie.length,mx=Math.max(1,...pts.map(p=>p.v));
+  const pl=34,pb=20,pt=6,n=serie.length,mx=Math.max(1,...pts.map(p=>p.v));
   const x=i=>pl+(W-pl-8)*(n<2?0:i/(n-1)),y=v=>pt+(H-pt-pb)*(1-v/mx);
   const lab=d=>new Date(d+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
-  return`<svg viewBox="0 0 ${W} ${H}" class="pn-svg">
+  return`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="pn-svg">
     ${[0,mx/2,mx].map(t=>`<line x1="${pl}" x2="${W}" y1="${y(t)}" y2="${y(t)}" class="gl"/><text x="${pl-6}" y="${y(t)+4}" class="ax" text-anchor="end">${Math.round(t)}h</text>`).join("")}
     <polyline points="${pts.map(p=>`${x(p.i)},${y(p.v)}`).join(" ")}" class="ln"/>
     ${pts.map(p=>`<circle cx="${x(p.i)}" cy="${y(p.v)}" r="3.5" class="pt"><title>${lab(p.d)}: ${fh(p.v)}</title></circle>`).join("")}
@@ -1127,12 +1162,12 @@ async function loadDashboard(){
       <div class="pk"><span class="k">Respostas enviadas</span><span class="v">${nf(e.atual)}</span>${delta(e.atual,e.anterior)}</div>
       <div class="pk"><span class="k">Tempo médio de resposta</span><span class="v">${fh(t.atual)}</span>${t.atual!=null&&t.anterior!=null?delta(t.atual,t.anterior,true):`<span class="dl">sem base anterior</span>`}</div>
       <button class="pk link" onclick="go('caixa');loadThreads()"><span class="k">Sem resposta agora</span><span class="v">${nf(p.pendentes)}</span><span class="dl ${p.atrasadas?"b":""}">${p.atrasadas?`${p.atrasadas} fora do prazo`:"nenhuma fora do prazo"}</span></button>`;
-    $("#pn-vol").innerHTML=svgBars(p.serie,p.passo);
+    pnLast=p;
     $("#pn-resp-note").textContent=p.passo>1?"média por semana":"média por dia";
-    $("#pn-resp").innerHTML=svgLine(p.serie);
-    $("#pn-rem").innerHTML=hbars(p.remetentes,x=>x.email.replace(/@.*/,""),x=>x.total);
-    $("#pn-conv").innerHTML=p.conversas_top.length?p.conversas_top.map(c=>`<button class="cv" data-k="${esc(c.thread_key)}"><span class="cv-s">${esc(String(c.assunto||"").replace(/^((re|res|fw|fwd|enc|tr|rv)\s*:\s*)+/i,"")||"(sem assunto)")}</span><span class="cv-m">${c.emails} e-mails · último ${ago(c.ultimo)}</span>${c.pendente?`<span class="cv-p">sem resposta</span>`:""}</button>`).join(""):`<div class="pn-empty">Sem conversas no período.</div>`;
+    $("#pn-rem").innerHTML=hbars(p.remetentes.slice(0,6),x=>x.email.replace(/@.*/,""),x=>x.total);
+    $("#pn-conv").innerHTML=p.conversas_top.length?p.conversas_top.slice(0,5).map(c=>`<button class="cv" data-k="${esc(c.thread_key)}"><span class="cv-s">${esc(String(c.assunto||"").replace(/^((re|res|fw|fwd|enc|tr|rv)\s*:\s*)+/i,"")||"(sem assunto)")}</span><span class="cv-m">${c.emails} e-mails · último ${ago(c.ultimo)}</span>${c.pendente?`<span class="cv-p">sem resposta</span>`:""}</button>`).join(""):`<div class="pn-empty">Sem conversas no período.</div>`;
     $$("#pn-conv .cv").forEach(b=>b.onclick=()=>{go("caixa");loadThreads();setTimeout(()=>openThread(b.dataset.k),80)});
+    drawCharts();
     const dc=p.decisoes||{},parts=[["vigente","Vigentes"],["em_discussao","Em discussão"],["proposta","Para revisar"],["substituida","Substituídas"],["descartada","Descartadas"]].filter(([k])=>dc[k]);
     const totd=parts.reduce((a,[k])=>a+dc[k],0)||1;
     $("#pn-dec").innerHTML=parts.length?`<div class="stk">${parts.map(([k,n])=>`<i class="s-${k}" style="width:${dc[k]/totd*100}%" title="${n}: ${dc[k]}"></i>`).join("")}</div>
