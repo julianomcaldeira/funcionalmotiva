@@ -227,6 +227,8 @@ tbody tr:last-child td{border-bottom:0}
 .doc-lnk:hover{text-decoration-color:var(--brand-deep)}
 dialog .dp-meta{padding:6px 18px 0;font-size:12.5px}
 dialog.dlg-wide{width:min(980px,96vw)}
+#srcdlg form{padding:6px 20px 4px}
+#srcdlg h3{padding-left:0;padding-right:0}
 dialog .dh-item{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0}
 dialog .dh-item summary{cursor:pointer;font-weight:600;font-size:13.5px}
 dialog .dh-item summary .conf{font-weight:400;margin-right:8px}
@@ -442,7 +444,28 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
 /* histórico do assistente */
 button.src-chip{cursor:pointer;font:inherit;font-size:12px}
 button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
-.src-link{color:var(--brand-ink);text-decoration:underline;cursor:pointer}
+.chat-msg .ans{white-space:normal}
+.ans p{margin:0 0 8px}.ans p:last-child{margin-bottom:0}
+.ans h5{font-size:13.5px;margin:12px 0 6px;color:var(--ink)}
+.ans ul{margin:0 0 8px;padding-left:20px}.ans li{margin:3px 0}
+.src-link{display:inline-block;font-size:11px;font-weight:700;color:var(--brand-ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin:0 1px;text-decoration:none;cursor:pointer;line-height:1.5}
+.src-link:hover{border-color:var(--brand-deep);background:#fff}
+.srcbox{white-space:normal;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.src-title{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.src-grp{margin-bottom:8px}
+.src-gh{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:6px 0 3px}
+.src-gh span{background:var(--bg);border-radius:8px;padding:0 6px;margin-left:4px}
+.src-row{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;font:inherit;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:3px 0;cursor:pointer;color:var(--ink)}
+.src-row:hover{border-color:var(--brand-deep);background:var(--bg)}
+.src-row:hover .src-open{opacity:1}
+.src-code{flex:none;font-weight:700;font-size:11px;min-width:44px;color:var(--muted)}
+.src-row.k-email .src-code{color:#2563eb}.src-row.k-documento .src-code,.src-row.k-regras .src-code{color:#0e9f6e}.src-row.k-decisao .src-code{color:#b45309}
+.src-main{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-sub{flex:none;color:var(--muted);font-size:11.5px;white-space:nowrap;max-width:40%;overflow:hidden;text-overflow:ellipsis}
+.src-open{flex:none;color:var(--brand-ink);font-size:11.5px;font-weight:600;opacity:.55}
+.src-more{margin-top:6px}
+.src-more summary{cursor:pointer;font-size:12px;color:var(--muted);padding:4px 0}
+.src-more summary:hover{color:var(--ink)}
 .src-meta{font-size:13px;color:var(--muted);display:grid;gap:3px;margin-bottom:10px}
 .src-meta b{color:var(--ink);margin-right:4px}
 .src-body{white-space:pre-wrap;font-size:14px;line-height:1.5;max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg)}
@@ -800,6 +823,55 @@ function srcChip(code,label,tipo){
 function linkCodes(html){
   return html.replace(/\[((?:E|D|DOC)\d+)\]/g,(m,c)=>`<a href="#" class="src-link" onclick="openSource('${c}');return false">[${c}]</a>`);
 }
+/* Formata a resposta da IA: títulos, negrito, listas e códigos de fonte clicáveis */
+function fmtAnswer(text){
+  const lines=esc(String(text||"").replace(/\r/g,"")).split("\n");
+  let out="",inList=false;
+  const inline=t=>linkCodes(t.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>"));
+  for(const l of lines){
+    const li=/^\s*[-*•]\s+(.*)$/.exec(l), h=/^\s*#{1,4}\s+(.*)$/.exec(l);
+    if(li){if(!inList){out+="<ul>";inList=true}out+=`<li>${inline(li[1])}</li>`;continue}
+    if(inList){out+="</ul>";inList=false}
+    if(h)out+=`<h5>${inline(h[1].replace(/\*\*/g,""))}</h5>`;
+    else if(l.trim())out+=`<p>${inline(l)}</p>`;
+  }
+  if(inList)out+="</ul>";
+  return`<div class="ans">${out}</div>`;
+}
+/* Rótulo curto e legível de uma fonte (sem "RES: RES:" e sem prefixos repetidos) */
+function srcShort(s){
+  let t=String(s.label||"").trim();
+  const k=s.tipo||srcKind(s.code)[0];
+  if(k==="email"){
+    const m=/^E-mail de\s+(.+?)\s+·\s+(.+?):\s*(.*)$/.exec(t);
+    if(m){
+      const subj=m[3].replace(/^((re|res|fw|fwd|enc|tr)\s*:\s*)+/i,"").trim()||"(sem assunto)";
+      const who=m[2].replace(/@.*/,"");
+      return{main:subj,sub:`${m[1]} · ${who}`};
+    }
+  }
+  if(k==="documento")t=t.replace(/^Documento\s+/,"").replace(/^Regras do sistema:\s*/,"");
+  return{main:t||s.code,sub:""};
+}
+/* Bloco de fontes: só as citadas na resposta, agrupadas por tipo; o resto fica recolhido */
+function srcBlock(text,sources){
+  sources=sources||[];
+  const cited=new Set((String(text||"").match(/\b(?:DOC|E|D)\d+\b/g)||[]));
+  const byCode=new Map(sources.map(s=>[s.code,s]));
+  cited.forEach(c=>{if(!byCode.has(c))byCode.set(c,{code:c,label:""})});
+  const all=[...byCode.values()];
+  const used=all.filter(s=>cited.has(s.code)), rest=all.filter(s=>!cited.has(s.code));
+  if(!all.length)return"";
+  const groups=[["email","E-mails"],["documento","Documentos"],["decisao","Decisões"]];
+  const row=s=>{const r=srcShort(s);return`<button type="button" class="src-row k-${esc(s.tipo||srcKind(s.code)[0])}" onclick="openSource('${esc(s.code)}')" title="Abrir ${esc(s.code)}">
+      <span class="src-code">${esc(s.code)}</span><span class="src-main">${esc(r.main)}</span>${r.sub?`<span class="src-sub">${esc(r.sub)}</span>`:""}<span class="src-open">Abrir ›</span></button>`};
+  const grouped=list=>groups.map(([k,n])=>{const g=list.filter(s=>(s.tipo||srcKind(s.code)[0])===k||(k==="documento"&&(s.tipo||srcKind(s.code)[0])==="regras"));
+    return g.length?`<div class="src-grp"><div class="src-gh">${n} <span>${g.length}</span></div>${g.map(row).join("")}</div>`:""}).join("");
+  return`<div class="srcbox">
+    ${used.length?`<div class="src-title">Fontes citadas nesta resposta</div>${grouped(used)}`:`<div class="src-title">Nenhuma fonte citada diretamente</div>`}
+    ${rest.length?`<details class="src-more"><summary>Ver outras ${rest.length} fontes consultadas</summary>${grouped(rest)}</details>`:""}
+  </div>`;
+}
 async function openSource(code){
   const dlg=$("#srcdlg");
   const m=/^(DOC|E|D)(\d+)$/.exec(code||"");if(!m)return;
@@ -829,7 +901,7 @@ async function openSource(code){
     }
     dlg.innerHTML=`<form method="dialog"><h3>${title}</h3>${body}<div class="foot">${extra}<button class="btn" value="close">Fechar</button></div></form>`;
     const b=dlg.querySelector("#src-thread");
-    if(b)b.onclick=()=>{dlg.close();const dd=$("#dlg");if(dd&&dd.open)dd.close();openThread(dlg._thread)};
+    if(b)b.onclick=()=>{dlg.close();const dd=$("#dlg");if(dd&&dd.open)dd.close();const k=dlg._thread;go("caixa");loadThreads();setTimeout(()=>openThread(k),80)};
   }catch(err){toast(err.message,"err");dlg.close()}
 }
 function dlgWide(wide){const d=$("#dlg");if(d)d.classList.toggle("dlg-wide",!!wide)}
@@ -1078,8 +1150,8 @@ function saveDraftLocal(a){if($("#d-body")){a._body=$("#d-body").value;a._subj=$
 
 /* ---------- chat da cadeia (uma conversa por corrente de e-mails) ---------- */
 function tcBubble(m){
-  const src=(m.sources||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.sources.map(s=>srcChip(s.code,s.label,s.tipo)).join("")}</span>`:"";
-  return`<div class="chat-msg ${m.role==="user"?"user":"ai"}">${m.role==="user"?esc(m.content):linkCodes(esc(m.content))}${src}</div>`;
+  if(m.role==="user")return`<div class="chat-msg user">${esc(m.content)}</div>`;
+  return`<div class="chat-msg ai">${fmtAnswer(m.content)}${srcBlock(m.content,m.sources)}</div>`;
 }
 async function renderThreadChatTab(){
   const d=$("#desk");d.hidden=false;
@@ -1611,8 +1683,7 @@ function renderChat(){
   if(!chat.length){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div>`;return}
   log.innerHTML=chat.map(m=>{
     if(m.role==="user")return`<div class="chat-msg user">${esc(m.text)}</div>`;
-    const src=(m.fontes||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.fontes.map(f=>srcChip(f.code,f.label,f.tipo)).join("")}</span>`:"";
-    return`<div class="chat-msg ai">${linkCodes(esc(m.text))}${src}</div>`;
+    return`<div class="chat-msg ai">${fmtAnswer(m.text)}${srcBlock(m.text,m.fontes)}</div>`;
   }).join("");
   log.scrollTop=log.scrollHeight;
 }
@@ -1647,8 +1718,7 @@ async function openChatHistory(id){
     if(!msgs.length){log.innerHTML=`<div class="empty">Conversa sem mensagens.</div>`;return}
     log.innerHTML=msgs.map(m=>{
       if(m.role==="user")return`<div class="chat-msg user">${esc(m.content)}</div>`;
-      const src=(m.fontes||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.fontes.map(f=>srcChip(f.code,f.label,f.tipo)).join("")}</span>`:"";
-      return`<div class="chat-msg ai">${linkCodes(esc(m.content))}${src}</div>`;
+      return`<div class="chat-msg ai">${fmtAnswer(m.content)}${srcBlock(m.content,m.fontes)}</div>`;
     }).join("");
     log.scrollTop=log.scrollHeight;
   }catch(e){$("#chat-view").innerHTML=`<div class="empty">${esc(e.message||e)}</div>`}
