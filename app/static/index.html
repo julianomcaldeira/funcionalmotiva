@@ -449,6 +449,53 @@ em.up{color:var(--amber)}em.down{color:var(--red)}
 #health button.hl-bad{color:var(--red);font-weight:700}
 @media (max-width:1180px){.dash-grid2{grid-template-columns:1fr}.dash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.dash-kpis{grid-template-columns:1fr 1fr}.kpi .v{font-size:24px}.kpi .s{white-space:normal}.q-row{grid-template-columns:10px minmax(0,1fr)}.q-right{grid-column:2;flex-direction:row;align-items:center}.dash-hright{margin-left:0}}
+/* ---------- painel de dados ---------- */
+.pn-head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.pn-head h2{font-size:24px;margin:0;font-weight:700;font-family:var(--read)}
+.seg{margin-left:auto;display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{border:0;background:none;padding:5px 12px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--ink);color:#fff}
+.pn-alert{font-size:13px;color:#6E1D12;background:var(--red-wash);border:1px solid #F2C9C1;border-radius:10px;padding:8px 14px;margin-bottom:8px}
+.pn-alert a{color:inherit;font-weight:700}
+.pn-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.pk{all:unset;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.pk.link{cursor:pointer}.pk.link:hover{border-color:#CDD9D2;box-shadow:var(--sh-2)}
+.pk .k{font-size:12.5px;color:var(--muted);font-weight:600}
+.pk .v{font-size:32px;font-weight:700;line-height:1.1;color:var(--ink);font-variant-numeric:tabular-nums}
+.dl{font-size:12px;color:var(--muted)}.dl.g{color:var(--brand-deep);font-weight:600}.dl.b{color:var(--red);font-weight:600}
+.pn-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:0}
+.pn-ct{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.pn-ct h3{font-size:14px;margin:0;font-weight:700}
+.pn-ct .btn,.pn-ct .conf,.pn-leg{margin-left:auto}
+.pn-leg{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.pn-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.pn-leg i.in,.pn-svg .b-in{background:var(--brand);fill:var(--brand)}
+.pn-leg i.out,.pn-svg .b-out{background:#2A5A8C;fill:#2A5A8C}
+.pn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pn-svg{width:100%;height:auto;display:block}
+.pn-svg .gl{stroke:var(--line);stroke-width:1}
+.pn-svg .ax{font-size:10.5px;fill:var(--muted)}
+.pn-svg .ln{fill:none;stroke:#2A5A8C;stroke-width:2.2}
+.pn-svg .pt{fill:#fff;stroke:#2A5A8C;stroke-width:2}
+.pn-svg rect:hover,.pn-svg .pt:hover{opacity:.75}
+.pn-empty{color:var(--muted);font-size:13px;padding:18px 0}
+.hb{display:grid;grid-template-columns:minmax(0,150px) 1fr 34px;gap:10px;align-items:center;padding:5px 0;font-size:13px}
+.hb-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb-t{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}.hb-t i{display:block;height:100%;background:var(--brand);border-radius:5px}
+.hb b{text-align:right;font-variant-numeric:tabular-nums}
+.cv{all:unset;box-sizing:border-box;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;width:100%}
+.cv:last-child{border-bottom:0}.cv:hover .cv-s{color:var(--brand-deep)}
+.cv-s{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cv-m{font-size:12px;color:var(--muted);grid-column:1}
+.cv-p{grid-column:2;grid-row:1/3;align-self:center;font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-wash);border-radius:10px;padding:2px 8px}
+.stk{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--bg);margin:6px 0 12px}
+.stk i,.stk-l i{display:block}
+.stk-l{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px}
+.stk-l span{display:flex;align-items:center;gap:7px}.stk-l b{margin-left:auto;font-variant-numeric:tabular-nums}
+.stk-l i{width:10px;height:10px;border-radius:2px}
+.s-vigente{background:var(--brand)}.s-em_discussao{background:#2A5A8C}.s-proposta{background:#D9A441}.s-substituida{background:#B9C2BC}.s-descartada{background:#DADFDB}
+@media (max-width:1020px){.pn-row{grid-template-columns:1fr}.pn-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.pk .v{font-size:26px}.seg{margin-left:0}.hb{grid-template-columns:minmax(0,110px) 1fr 30px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .chat-page{display:flex;flex-direction:column;height:100%;max-height:calc(100vh - 130px);padding:20px 24px}
 .chat-page .lead{max-width:760px}
@@ -621,41 +668,23 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
 
 <main>
   <section class="view on" id="v-dashboard"><div class="dash-page">
-    <div class="dash-header">
-      <div><h2>Visão geral</h2><div class="dash-sub" id="dash-today">&nbsp;</div></div>
-      <div class="dash-hright">
-        <div class="dash-health" id="dash-health"></div>
-        <button class="btn sm" id="dash-syncbtn" onclick="dashSync(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Ler e-mails agora</button>
-      </div>
+    <div class="pn-head">
+      <div><h2>Painel Motiva</h2><div class="dash-sub" id="pn-sub">&nbsp;</div></div>
+      <div class="seg" id="pn-period"><button data-d="7">7 dias</button><button data-d="30" class="on">30 dias</button><button data-d="90">90 dias</button></div>
     </div>
     <div id="dash-alerts"></div>
-    <div class="dash-kpis" id="dash-kpis"></div>
-    <div class="dash-grid2">
-      <div class="dash-panel dash-queue">
-        <div class="dash-ph">
-          <h4>Fila de resposta</h4>
-          <div class="tabs" id="q-tabs"></div>
-          <button class="btn sm ghost" onclick="loadThreads();go('caixa')">Abrir Caixa</button>
-        </div>
-        <div class="q-list" id="q-list"></div>
-        <div class="q-foot conf" id="q-foot"></div>
-      </div>
-      <div class="dash-side">
-        <div class="dash-panel">
-          <div class="dash-ph"><h4>Últimos 7 dias</h4></div>
-          <div class="rit" id="dash-ritmo"></div>
-          <div class="dash-chart2" id="dash-chart"></div>
-          <div class="leg"><span><i class="in"></i>Recebidos da Motiva</span><span><i class="out"></i>Enviados pela StartGi</span><span class="conf" style="margin-left:auto">21 dias</span></div>
-        </div>
-        <div class="dash-panel">
-          <div class="dash-ph"><h4>Decisões ativas por módulo</h4><button class="btn sm ghost" onclick="go('decisoes')">Ver todas</button></div>
-          <div class="dash-modules" id="dash-modules"></div>
-        </div>
-        <div class="dash-panel">
-          <div class="dash-ph"><h4>IA neste mês</h4><button class="btn sm ghost" onclick="go('status')">Detalhes</button></div>
-          <div class="ia-mes" id="dash-ia"></div>
-        </div>
-      </div>
+    <div class="pn-kpis" id="pn-kpis"></div>
+    <div class="pn-card">
+      <div class="pn-ct"><h3>Volume de e-mails</h3><div class="pn-leg"><span><i class="in"></i>Recebidos da Motiva</span><span><i class="out"></i>Enviados pela StartGi</span></div></div>
+      <div id="pn-vol"></div>
+    </div>
+    <div class="pn-row">
+      <div class="pn-card"><div class="pn-ct"><h3>Tempo de resposta</h3><span class="conf" id="pn-resp-note"></span></div><div id="pn-resp"></div></div>
+      <div class="pn-card"><div class="pn-ct"><h3>Quem mais escreve</h3><span class="conf">e-mails recebidos</span></div><div id="pn-rem"></div></div>
+    </div>
+    <div class="pn-row">
+      <div class="pn-card"><div class="pn-ct"><h3>Conversas mais movimentadas</h3></div><div id="pn-conv"></div></div>
+      <div class="pn-card"><div class="pn-ct"><h3>Decisões</h3><button class="btn sm ghost" onclick="go('decisoes')">Abrir</button></div><div id="pn-dec"></div></div>
     </div>
   </div></section>
   <section class="view" id="v-cobertura"><div class="page">
@@ -1042,80 +1071,77 @@ function aplicarFiltros(){loadThreads()};
 ["#di","#df","#remetente"].forEach(id=>{$(id).onkeydown=e=>{if(e.key==="Enter")loadThreads()}});
 
 let threadsLoaded=false,dashLoaded=false,threadPage=1;
-let qFilter="todas",dashData=null;
-const fmtWait=h=>h<1?"menos de 1 hora":h<24?`${h} ${h===1?"hora":"horas"}`:(()=>{const d=Math.floor(h/24);return`${d} ${d===1?"dia":"dias"}`})();
-const shortWho=a=>String(a||"?").replace(/^.*<|>.*$/g,"").replace(/@.*/,"");
+let pnDias=30;
 function alertsHTML(d){
   const out=[],ia=d.ia_saude||{};
-  if(ia.estado==="erro")out.push(`<div class="sys-alert err"><b>A IA parou de funcionar ${ia.desde?ago(ia.desde):""}</b><span>${esc(ia.mensagem||"")}${ia.falhas>1?` (${ia.falhas} falhas seguidas)`:""} Enquanto isso, briefings, assistente e triagem não funcionam.</span><details><summary>Detalhe técnico</summary><code>${esc(ia.detalhe||"")}</code></details></div>`);
-  else if(ia.estado==="nao_configurado")out.push(`<div class="sys-alert err"><b>IA não configurada</b><span>${esc(ia.mensagem||"")}</span></div>`);
-  if(d.zoho_state==="erro")out.push(`<div class="sys-alert err"><b>Os e-mails não estão sendo lidos</b><span>${esc(d.erro_zoho||"Erro na leitura do Zoho.")}</span><button class="btn sm" onclick="go('status')">Ver conexão</button></div>`);
+  if(ia.estado==="erro")out.push(`<div class="pn-alert"><b>IA parada ${ia.desde?ago(ia.desde):""}.</b> ${esc(ia.mensagem||"")} <a href="#" onclick="go('status');return false">Ver</a></div>`);
+  if(d.zoho_state==="erro")out.push(`<div class="pn-alert"><b>Leitura dos e-mails com erro.</b> ${esc(d.erro_zoho||"")} <a href="#" onclick="go('status');return false">Ver</a></div>`);
   return out.join("");
 }
-function healthHTML(d){
-  const ia=d.ia_saude||{}, z=d.zoho_state;
-  const zt={ok:"E-mails em dia",erro:"Leitura com erro",aguardando:"Aguardando leitura",nao_configurado:"Zoho não configurado"}[z]||z;
-  const it={ok:"IA funcionando",erro:"IA com erro",sem_uso:"IA pronta",nao_configurado:"IA não configurada"}[ia.estado]||"IA";
-  const iz=ia.estado==="ok"||ia.estado==="sem_uso"?"ok":"erro";
-  return`<button class="hpill ${z==="ok"?"ok":z==="aguardando"?"wait":"bad"}" onclick="go('status')" title="${d.ultima_sync?"Última leitura "+ago(d.ultima_sync):""}"><span class="dot ${z}"></span>${zt}${d.ultima_sync&&z==="ok"?` · ${ago(d.ultima_sync)}`:""}</button>
-    <button class="hpill ${iz==="ok"?"ok":"bad"}" onclick="go('status')"><span class="dot ${iz}"></span>${it}</button>`;
+const pct=(a,b)=>!b?(a?null:0):Math.round((a-b)/b*100);
+function delta(a,b,invert){const p=pct(a,b);if(p==null||b==null)return`<span class="dl">sem base anterior</span>`;if(p===0)return`<span class="dl">igual ao período anterior</span>`;
+  const good=invert?p<0:p>0;return`<span class="dl ${good?"g":"b"}">${p>0?"▲":"▼"} ${Math.abs(p)}% vs período anterior</span>`}
+const fh=h=>h==null?"—":h<24?`${String(h).replace(".",",")}h`:`${(h/24).toFixed(1).replace(".",",")} dias`;
+function svgBars(serie,passo){
+  const W=900,H=200,pl=34,pb=24,pt=10,n=serie.length,mx=Math.max(1,...serie.map(p=>Math.max(p.in,p.out)));
+  const step=(W-pl)/n,bw=Math.max(2,Math.min(14,step/2-2));
+  const ticks=[0,Math.ceil(mx/2),mx];
+  const y=v=>pt+(H-pt-pb)*(1-v/mx);
+  const lab=d=>new Date(d+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+  const every=Math.ceil(n/8);
+  return`<svg viewBox="0 0 ${W} ${H}" class="pn-svg" role="img" aria-label="Volume de e-mails">
+    ${ticks.map(t=>`<line x1="${pl}" x2="${W}" y1="${y(t)}" y2="${y(t)}" class="gl"/><text x="${pl-6}" y="${y(t)+4}" class="ax" text-anchor="end">${t}</text>`).join("")}
+    ${serie.map((p,i)=>{const x=pl+i*step+step/2;return`<g><title>${passo>1?"Semana de ":""}${lab(p.inicio)}: ${p.in} recebidos, ${p.out} enviados</title>
+      <rect x="${x-bw-1}" y="${y(p.in)}" width="${bw}" height="${H-pb-y(p.in)}" class="b-in" rx="2"/>
+      <rect x="${x+1}" y="${y(p.out)}" width="${bw}" height="${H-pb-y(p.out)}" class="b-out" rx="2"/>
+      ${i%every===0?`<text x="${x}" y="${H-6}" class="ax" text-anchor="middle">${lab(p.inicio)}</text>`:""}</g>`}).join("")}
+  </svg>`;
 }
-function kpi(cls,label,val,sub,onclick){return`<button class="kpi ${cls}" onclick="${onclick}"><span class="k">${label}</span><span class="v">${val}</span><span class="s">${sub}</span></button>`}
-function renderQueue(){
-  const d=dashData;if(!d)return;
-  const f=d.fila||[];
-  const at=f.filter(t=>t.atrasado),ur=f.filter(t=>t.urgencia==="alta");
-  const tabs=[["todas","Todas",f.length],["atrasadas","Atrasadas",at.length],["urgentes","Urgentes",ur.length]];
-  $("#q-tabs").innerHTML=tabs.map(([k,n,c])=>`<button class="${qFilter===k?"on":""}" data-q="${k}">${n} <span class="qc">${c}</span></button>`).join("");
-  $$("#q-tabs button").forEach(b=>b.onclick=()=>{qFilter=b.dataset.q;renderQueue()});
-  const list=qFilter==="atrasadas"?at:qFilter==="urgentes"?ur:f;
-  const U={alta:"Urgente",media:"Média",baixa:"Baixa"};
-  $("#q-list").innerHTML=list.length?list.map(t=>{
-    const due=t.atrasado?`<span class="due late">Atrasada ${fmtWait(-t.vence_em_h)}</span>`:t.vence_em_h<=12?`<span class="due soon">Vence em ${fmtWait(Math.max(0,t.vence_em_h))}</span>`:`<span class="due ok">No prazo</span>`;
-    const meta=[t.pedidos?`${t.pedidos} ${t.pedidos===1?"pedido":"pedidos"}`:"",t.perguntas?`${t.perguntas} ${t.perguntas===1?"pergunta":"perguntas"}`:"",t.count>1?`${t.count} e-mails`:""].filter(Boolean).join(" · ");
-    return`<button class="q-row ${t.atrasado?"late":""}" data-k="${esc(t.thread_key)}">
-      <span class="urg u-${t.urgencia||"none"}" title="${t.urgencia?"Urgência "+U[t.urgencia]:"Sem briefing ainda"}"></span>
-      <span class="q-main"><span class="q-subj">${esc(t.subject||"(sem assunto)")}</span>
-        <span class="q-meta">${esc(shortWho(t.de))} · esperando há ${fmtWait(t.espera_h)}${meta?" · "+meta:""}</span>
-        ${t.resumo?`<span class="q-res">${esc(t.resumo)}</span>`:""}</span>
-      <span class="q-right">${due}${t.briefing?`<span class="bf ok">Briefing pronto</span>`:`<span class="bf">Sem briefing</span>`}</span>
-    </button>`}).join("")
-    :`<div class="q-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><b>${qFilter==="todas"?"Tudo respondido":"Nada aqui"}</b><span>${qFilter==="todas"?"Nenhum e-mail da Motiva esperando resposta.":"Nenhuma conversa nesta situação."}</span></div>`;
-  $$("#q-list .q-row").forEach(el=>el.onclick=()=>{go("caixa");loadThreads();setTimeout(()=>openThread(el.dataset.k),80)});
-  $("#q-foot").textContent=`Prazo: urgentes em até ${d.prazos_h.alta}h, demais em até ${d.prazos_h.padrao}h a partir do e-mail mais antigo sem resposta.`;
+function svgLine(serie){
+  const pts=serie.map((p,i)=>({i,v:p.resp_h,d:p.inicio})).filter(p=>p.v!=null);
+  if(pts.length<2)return`<div class="pn-empty">Poucas respostas no período para formar uma tendência.</div>`;
+  const W=440,H=150,pl=34,pb=22,pt=10,n=serie.length,mx=Math.max(1,...pts.map(p=>p.v));
+  const x=i=>pl+(W-pl-8)*(n<2?0:i/(n-1)),y=v=>pt+(H-pt-pb)*(1-v/mx);
+  const lab=d=>new Date(d+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+  return`<svg viewBox="0 0 ${W} ${H}" class="pn-svg">
+    ${[0,mx/2,mx].map(t=>`<line x1="${pl}" x2="${W}" y1="${y(t)}" y2="${y(t)}" class="gl"/><text x="${pl-6}" y="${y(t)+4}" class="ax" text-anchor="end">${Math.round(t)}h</text>`).join("")}
+    <polyline points="${pts.map(p=>`${x(p.i)},${y(p.v)}`).join(" ")}" class="ln"/>
+    ${pts.map(p=>`<circle cx="${x(p.i)}" cy="${y(p.v)}" r="3.5" class="pt"><title>${lab(p.d)}: ${fh(p.v)}</title></circle>`).join("")}
+    <text x="${x(pts[0].i)}" y="${H-5}" class="ax" text-anchor="start">${lab(pts[0].d)}</text><text x="${x(pts[pts.length-1].i)}" y="${H-5}" class="ax" text-anchor="end">${lab(pts[pts.length-1].d)}</text>
+  </svg>`;
+}
+function hbars(items,label,val,onclick){
+  if(!items.length)return`<div class="pn-empty">Sem dados no período.</div>`;
+  const mx=Math.max(...items.map(val));
+  return items.map((it,i)=>`<div class="hb" ${onclick?`role="button" tabindex="0" onclick="${onclick(it)}"`:""}><span class="hb-l" title="${esc(label(it))}">${esc(label(it))}</span><span class="hb-t"><i style="width:${Math.max(3,val(it)/mx*100)}%"></i></span><b>${val(it)}</b></div>`).join("");
 }
 async function loadDashboard(){
   try{
-  if(!dashLoaded)$("#dash-kpis").innerHTML=skelDash(4);
-  const d=await api("/api/dashboard");dashData=d;loadHealth();
-  const e=d.emails, dec=d.decisoes, f=d.fila||[];
-  $("#c-email-total").hidden=true;
-  $("#dash-today").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
-  $("#dash-health").innerHTML=healthHTML(d);
-  $("#dash-alerts").innerHTML=alertsHTML(d);
-  const at=f.filter(t=>t.atrasado).length, ur=f.filter(t=>t.urgencia==="alta"&&!t.atrasado).length, pr=f.filter(t=>t.briefing).length;
-  const tmp=d.tempo_medio_resposta_h;
-  $("#dash-kpis").innerHTML=
-    kpi(at?"bad":"good","Atrasadas",at,at?`passaram do prazo de resposta`:"nenhuma resposta atrasada","qFilter='atrasadas';renderQueue();$('#q-list').scrollIntoView({behavior:'smooth',block:'nearest'})")+
-    kpi(f.length?"warn":"good","Esperando resposta",f.length,f.length?`${pr} com briefing pronto${ur?` · ${ur} urgente${ur>1?"s":""}`:""}`:"tudo respondido","qFilter='todas';renderQueue()")+
-    kpi(dec.proposta?"warn":"good","Decisões para revisar",dec.proposta,dec.proposta?(d.triagem_com_sugestao?`${d.triagem_com_sugestao} com sugestão da IA`:"a IA pode sugerir o destino"):`${dec.vigentes} regras vigentes`,"go('decisoes')")+
-    kpi("","Tempo médio de resposta",tmp==null?"—":tmp<24?`${tmp}h`:`${Math.floor(tmp/24)}d ${tmp%24}h`,"da Motiva até a resposta da StartGi","go('caixa')");
-  renderQueue();
-  const r=d.ritmo||{}, dif=r.recebidos_7d-r.recebidos_7d_anterior;
-  $("#dash-ritmo").innerHTML=`<div><b>${r.recebidos_7d}</b><span>recebidos${r.recebidos_7d_anterior||r.recebidos_7d?` <em class="${dif>0?"up":dif<0?"down":""}">${dif>0?"▲":dif<0?"▼":"="} ${Math.abs(dif)} vs semana anterior</em>`:""}</span></div><div><b>${r.enviados_7d}</b><span>respostas enviadas</span></div>`;
-  const pd=d.por_dia||[], mx=Math.max(1,...pd.map(p=>(p.in||0)+(p.out||0)));
-  $("#dash-chart").innerHTML=pd.map((p,i)=>`<div class="cb" title="${new Date(p.dia+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}: ${p.in||0} recebidos · ${p.out||0} enviados"><i class="out" style="height:${(p.out||0)/mx*100}%"></i><i class="in" style="height:${(p.in||0)/mx*100}%"></i>${i%5===0||i===pd.length-1?`<b>${new Date(p.dia+"T12:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</b>`:""}</div>`).join("");
-  const mods=d.decisoes_por_modulo||[];
-  $("#dash-modules").innerHTML=mods.length?mods.slice(0,6).map(m=>`<div class="mod-line"><span class="ml">${esc(m.modulo)}</span><div class="mod-track"><i style="width:${Math.max(4,m.total/mods[0].total*100).toFixed(0)}%"></i></div><b>${m.total}</b></div>`).join("")
-    :`<div class="conf" style="padding:4px 0">Nenhuma decisão ativa ainda.</div>`;
-  const u=d.uso_ia_mes||{};
-  $("#dash-ia").innerHTML=`<div><b>${ktok(u.tokens||0)}</b><span>tokens</span></div><div><b>${usd(u.custo_usd||0)}</b><span>estimado</span></div><div><b>${nf(u.chamadas||0)}</b><span>chamadas${u.falhas?` · <em class="down">${u.falhas} falharam</em>`:""}</span></div>`;
-  const sb=$("#dash-syncbtn");if(sb&&!sb.dataset.busy){sb.disabled=!!d.sincronizando;sb.lastChild.textContent=d.sincronizando?"Lendo e-mails…":"Ler e-mails agora"}
-  dashLoaded=true;
-  }catch(e){
-    $("#dash-kpis").innerHTML=`<div style="grid-column:1/-1" class="empty"><b style="color:var(--ink)">Erro ao carregar</b><br>${esc(e.message||e)}</div>`;
-  }
+    if(!dashLoaded)$("#pn-kpis").innerHTML=skelDash(4);
+    const [p,d]=await Promise.all([api("/api/painel?dias="+pnDias),api("/api/dashboard").catch(()=>({}))]);
+    $("#c-email-total").hidden=true;
+    $("#pn-sub").textContent=`Últimos ${p.dias} dias${p.ultimo_recebido?" · último e-mail da Motiva "+ago(p.ultimo_recebido):""}`;
+    $("#dash-alerts").innerHTML=alertsHTML(d);
+    const r=p.recebidos,e=p.enviados,t=p.tempo_resposta_h;
+    $("#pn-kpis").innerHTML=`
+      <div class="pk"><span class="k">E-mails recebidos</span><span class="v">${nf(r.atual)}</span>${delta(r.atual,r.anterior)}</div>
+      <div class="pk"><span class="k">Respostas enviadas</span><span class="v">${nf(e.atual)}</span>${delta(e.atual,e.anterior)}</div>
+      <div class="pk"><span class="k">Tempo médio de resposta</span><span class="v">${fh(t.atual)}</span>${t.atual!=null&&t.anterior!=null?delta(t.atual,t.anterior,true):`<span class="dl">sem base anterior</span>`}</div>
+      <button class="pk link" onclick="go('caixa');loadThreads()"><span class="k">Sem resposta agora</span><span class="v">${nf(p.pendentes)}</span><span class="dl ${p.atrasadas?"b":""}">${p.atrasadas?`${p.atrasadas} fora do prazo`:"nenhuma fora do prazo"}</span></button>`;
+    $("#pn-vol").innerHTML=svgBars(p.serie,p.passo);
+    $("#pn-resp-note").textContent=p.passo>1?"média por semana":"média por dia";
+    $("#pn-resp").innerHTML=svgLine(p.serie);
+    $("#pn-rem").innerHTML=hbars(p.remetentes,x=>x.email.replace(/@.*/,""),x=>x.total);
+    $("#pn-conv").innerHTML=p.conversas_top.length?p.conversas_top.map(c=>`<button class="cv" data-k="${esc(c.thread_key)}"><span class="cv-s">${esc(String(c.assunto||"").replace(/^((re|res|fw|fwd|enc|tr|rv)\s*:\s*)+/i,"")||"(sem assunto)")}</span><span class="cv-m">${c.emails} e-mails · último ${ago(c.ultimo)}</span>${c.pendente?`<span class="cv-p">sem resposta</span>`:""}</button>`).join(""):`<div class="pn-empty">Sem conversas no período.</div>`;
+    $$("#pn-conv .cv").forEach(b=>b.onclick=()=>{go("caixa");loadThreads();setTimeout(()=>openThread(b.dataset.k),80)});
+    const dc=p.decisoes||{},parts=[["vigente","Vigentes"],["em_discussao","Em discussão"],["proposta","Para revisar"],["substituida","Substituídas"],["descartada","Descartadas"]].filter(([k])=>dc[k]);
+    const totd=parts.reduce((a,[k])=>a+dc[k],0)||1;
+    $("#pn-dec").innerHTML=parts.length?`<div class="stk">${parts.map(([k,n])=>`<i class="s-${k}" style="width:${dc[k]/totd*100}%" title="${n}: ${dc[k]}"></i>`).join("")}</div>
+      <div class="stk-l">${parts.map(([k,n])=>`<span><i class="s-${k}"></i>${n} <b>${dc[k]}</b></span>`).join("")}</div>`:`<div class="pn-empty">Nenhuma decisão registrada.</div>`;
+    dashLoaded=true;
+  }catch(err){$("#pn-kpis").innerHTML=`<div class="pn-empty">Erro ao carregar: ${esc(err.message||err)}</div>`}
 }
+document.addEventListener("click",ev=>{const b=ev.target.closest("#pn-period button");if(!b)return;pnDias=+b.dataset.d;$$("#pn-period button").forEach(x=>x.classList.toggle("on",x===b));loadDashboard()});
 async function dashSync(b){
   b.disabled=true;b.dataset.busy="1";b.lastChild.textContent="Lendo e-mails…";
   try{await post("/api/sync");toast("Leitura dos e-mails iniciada.");setTimeout(()=>{delete b.dataset.busy;loadDashboard()},5000)}

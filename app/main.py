@@ -340,6 +340,88 @@ def dashboard():
     }
 
 
+# ---------- painel de dados da Motiva ----------
+def _resp_gaps(rows):
+    """Horas entre o e-mail da Motiva e a resposta seguinte da StartGi na mesma conversa (até 7 dias)."""
+    last_in, out = {}, []
+    for key, direction, date in rows:
+        if direction == "in":
+            last_in.setdefault(key, date)
+        elif key in last_in:
+            gap = (date - last_in.pop(key)).total_seconds() / 3600
+            if 0 < gap <= 7 * 24:
+                out.append((date, gap))
+    return out
+
+
+@app.get("/api/painel")
+def painel(dias: int = 30):
+    dias = max(7, min(dias, 365))
+    tz = timedelta(hours=TZ_OFFSET_H)
+    hoje_local = (datetime.utcnow() + tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    ini = hoje_local - timedelta(days=dias - 1) - tz          # início do período (UTC)
+    ini_ant = ini - timedelta(days=dias)                       # período anterior, mesmo tamanho
+    with SessionLocal() as s:
+        rows = (s.query(Email.thread_key, Email.direction, Email.date, Email.from_addr, Email.subject)
+                .filter(Email.date >= ini_ant, Email.date.isnot(None)).order_by(Email.date).all())
+        pend_q = s.query(Email).filter(Email.direction == "in", Email.status.in_(["novo", "analisado"]))
+        pendentes_threads = {e.thread_key for e in pend_q.all()}
+        fila = response_queue(s)
+        dec = dict(s.query(Decision.status, func.count(Decision.id)).group_by(Decision.status).all())
+        ultimo = s.query(func.max(Email.date)).filter(Email.direction == "in").scalar()
+    atual = [r for r in rows if r.date >= ini]
+    ant = [r for r in rows if r.date < ini]
+
+    def tot(lst, d):
+        return sum(1 for r in lst if r.direction == d)
+
+    gaps_all = _resp_gaps([(r.thread_key, r.direction, r.date) for r in rows])
+    g_at = [g for d, g in gaps_all if d >= ini]
+    g_an = [g for d, g in gaps_all if d < ini]
+    media = lambda xs: round(sum(xs) / len(xs), 1) if xs else None
+    # série: por dia até 31 dias, por semana acima disso
+    passo = 1 if dias <= 31 else 7
+    serie = []
+    n = (dias + passo - 1) // passo
+    for i in range(n):
+        a = ini + timedelta(days=i * passo)
+        b = a + timedelta(days=passo)
+        bloco = [r for r in atual if a <= r.date < b]
+        gs = [g for d, g in gaps_all if a <= d < b]
+        serie.append({"inicio": (a + tz).date().isoformat(), "in": tot(bloco, "in"), "out": tot(bloco, "out"),
+                      "resp_h": media(gs)})
+    rem = {}
+    for r in atual:
+        if r.direction == "in":
+            for a in (r.from_addr or "").split(","):
+                a = a.strip().lower()
+                if a:
+                    rem[a] = rem.get(a, 0) + 1
+    conv = {}
+    for r in atual:
+        c = conv.setdefault(r.thread_key, {"thread_key": r.thread_key, "assunto": r.subject, "emails": 0,
+                                           "ultimo": r.date})
+        c["emails"] += 1
+        c["ultimo"], c["assunto"] = r.date, r.subject
+    top_conv = sorted(conv.values(), key=lambda c: -c["emails"])[:6]
+    for c in top_conv:
+        c["pendente"] = c["thread_key"] in pendentes_threads
+        c["ultimo"] = c["ultimo"].isoformat() + "Z"
+    return {
+        "dias": dias, "passo": passo,
+        "recebidos": {"atual": tot(atual, "in"), "anterior": tot(ant, "in")},
+        "enviados": {"atual": tot(atual, "out"), "anterior": tot(ant, "out")},
+        "tempo_resposta_h": {"atual": media(g_at), "anterior": media(g_an)},
+        "conversas": len({r.thread_key for r in atual}),
+        "pendentes": len(fila), "atrasadas": sum(1 for t in fila if t["atrasado"]),
+        "serie": serie,
+        "remetentes": [{"email": k, "total": v} for k, v in sorted(rem.items(), key=lambda x: -x[1])[:8]],
+        "conversas_top": top_conv,
+        "decisoes": {k: int(v) for k, v in dec.items()},
+        "ultimo_recebido": ultimo.isoformat() + "Z" if ultimo else None,
+    }
+
+
 # ---------- fila de resposta (o que a Motiva está esperando da StartGi) ----------
 SLA_URGENTE_H = int(os.getenv("SLA_URGENTE_H", "24"))   # pedido urgente: responder em até 1 dia
 SLA_PADRAO_H = int(os.getenv("SLA_PADRAO_H", "72"))     # demais: até 3 dias

@@ -53,3 +53,15 @@ def test_falha_da_ia_fica_registrada(monkeypatch):
     with SessionLocal() as s:
         u = s.query(AIUsage).order_by(AIUsage.id.desc()).first()
         assert not u.ok and "401" in u.erro
+
+
+def test_painel_dados(client):
+    with SessionLocal() as s:
+        s.add_all([_email(11, "p1", 30, status="respondido"), _email(12, "p1", 20, status="respondido", direction="out"),
+                   _email(13, "p2", 5, status="novo")])
+        s.commit()
+    p = client.get("/api/painel", params={"dias": 7}).json()
+    assert p["recebidos"]["atual"] == 2 and p["enviados"]["atual"] == 1
+    assert p["tempo_resposta_h"]["atual"] == 10.0
+    assert p["pendentes"] == 1 and len(p["serie"]) == 7
+    assert p["remetentes"][0]["total"] == 2
