@@ -980,6 +980,16 @@ class ChatIn(BaseModel):
 
 @app.post("/api/chat")
 def chat(body: ChatIn):
+    try:
+        return _chat(body)
+    except HTTPException:
+        raise
+    except Exception as ex:
+        traceback.print_exc()
+        raise HTTPException(500, f"Erro no assistente: {type(ex).__name__}: {ex}")
+
+
+def _chat(body: ChatIn):
     if not ai.API_KEY:
         raise HTTPException(400, "IA não configurada: defina AI_API_KEY nas variáveis do Render.")
     pergunta = body.pergunta.strip()
@@ -1030,7 +1040,11 @@ def chat(body: ChatIn):
         sources.append({"code": f"D{d.id}", "label": d.titulo})
 
     user = f"{chr(10).join(parts)}\n\n## Pergunta do usuário\n{pergunta}"
-    raw = ai.call_model(CHAT_SYSTEM, user)
+    try:
+        raw = ai.call_model(CHAT_SYSTEM, user)
+    except Exception as ex:
+        traceback.print_exc()
+        raise HTTPException(502, f"A IA não respondeu: {ex}")
 
     seen, uniq = set(), []
     for src in sources:

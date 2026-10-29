@@ -842,7 +842,7 @@ function cleanText(t){
   }
   return esc(out.join("\n"));
 }
-async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||"Algo deu errado.")}return r.json()}
+async function api(p,o={}){const r=await fetch(p,o);if(!r.ok){let d;try{d=(await r.json()).detail}catch{d=r.statusText}throw new Error(d||(r.status===502||r.status===504?"O servidor demorou demais para responder (HTTP "+r.status+"). Tente de novo em instantes.":"Algo deu errado (HTTP "+r.status+")."))}return r.json()}
 const post=(p,b)=>api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});
 
 function go(v){$$(".nv").forEach(x=>x.classList.toggle("on",x.dataset.v===v));$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));({dashboard:loadDashboard,caixa:loadThreads,decisoes:loadDecisions,base:loadDocs,cobertura:loadCobertura,status:loadStatus,assistente:()=>{}})[v]();loadHealth()}
