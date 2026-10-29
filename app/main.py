@@ -123,7 +123,8 @@ def healthz():
 
 @app.get("/")
 def index():
-    return FileResponse(STATIC / "index.html")
+    # sem cache: cada deploy chega na hora ao navegador
+    return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-store, must-revalidate"})
 
 
 # ---------- dashboard ----------
