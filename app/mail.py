@@ -217,6 +217,15 @@ def _store_message(s, raw, folder, initial, log):
     return e
 
 
+def folder_label(folder):
+    """Nome de pasta que pode aparecer na tela e no log: só as pastas configuradas ou da Motiva.
+    Pastas pessoais da conta nunca são expostas."""
+    low = folder.lower()
+    if folder in FOLDERS or low in SENT_FOLDERS or low == "inbox" or "motiva" in low or "ccr" in low:
+        return folder
+    return "outra pasta"
+
+
 def list_folders(M=None):
     """Pastas a ler: todas as selecionáveis da conta (menos as de SKIP_FOLDERS) ou só ZOHO_FOLDERS."""
     if not ALL_FOLDERS:
@@ -290,7 +299,7 @@ def _sync_folder(s, folder, since_str, initial, log, new_inbound):
     try:
         typ, _ = M.select(f'"{folder}"', readonly=True)
         if typ != "OK":
-            log(f"Pasta não encontrada: {folder}")
+            log(f"Pasta não encontrada: {folder_label(folder)}")
             return False
         uidv = (M.untagged_responses.get("UIDVALIDITY") or [b"0"])[0]
         uidv = uidv.decode() if isinstance(uidv, bytes) else str(uidv)
@@ -310,8 +319,6 @@ def _sync_folder(s, folder, since_str, initial, log, new_inbound):
         except ValueError:
             falhas = set()
         saved = 0
-        if uids:
-            log(f"{folder}: {len(uids)} mensagens novas para verificar")
         for i in range(0, len(uids), BATCH):
             chunk = uids[i:i + BATCH]
             for uid, _hdr in _motiva_uids(M, s, chunk):
@@ -324,7 +331,7 @@ def _sync_folder(s, folder, since_str, initial, log, new_inbound):
                 except Exception as ex:
                     s.rollback()
                     falhas.add(uid)
-                    log(f"{folder}: e-mail UID {uid} não pôde ser importado ({ex}). Vai tentar de novo.")
+                    log(f"{folder_label(folder)}: e-mail UID {uid} não pôde ser importado ({ex}). Vai tentar de novo.")
             set_setting(s, f"uid:{folder}", str(chunk[-1]))  # progresso salvo a cada lote
             set_setting(s, f"falhas:{folder}", json.dumps(sorted(falhas)))
         # rede de segurança: reconfere os últimos dias e as falhas anteriores
@@ -343,13 +350,13 @@ def _sync_folder(s, folder, since_str, initial, log, new_inbound):
             except Exception as ex:
                 s.rollback()
                 falhas.add(uid)
-                log(f"{folder}: e-mail UID {uid} segue com erro ({ex}).")
+                log(f"{folder_label(folder)}: e-mail UID {uid} segue com erro ({ex}).")
         set_setting(s, f"falhas:{folder}", json.dumps(sorted(falhas)))
         if saved or recuperados:
-            log(f"{folder}: {saved} e-mails da Motiva importados"
+            log(f"{folder_label(folder)}: {saved} e-mails da Motiva importados"
                 + (f", {recuperados} recuperados na conferência" if recuperados else ""))
         if falhas:
-            log(f"{folder}: {len(falhas)} e-mail(s) com erro aguardando nova tentativa")
+            log(f"{folder_label(folder)}: {len(falhas)} e-mail(s) com erro aguardando nova tentativa")
         return True
     finally:
         try:
@@ -376,7 +383,6 @@ def sync(log=print):
                 .update({"status": "arquivado"}, synchronize_session=False)
             s.commit()
         folders = list_folders()
-        set_setting(s, "pastas_lidas", json.dumps(folders, ensure_ascii=False))
         erros = []
         for folder in folders:  # uma pasta com problema não impede a leitura das outras
             for attempt in range(1, MAX_RETRIES + 1):
@@ -385,15 +391,15 @@ def sync(log=print):
                     break
                 except (imaplib.IMAP4.abort, OSError, EOFError) as ex:
                     s.rollback()
-                    log(f"{folder}: conexão interrompida pelo Zoho ({ex}). Retomando de onde parou ({attempt}/{MAX_RETRIES})")
+                    log(f"{folder_label(folder)}: conexão interrompida pelo Zoho ({ex}). Retomando de onde parou ({attempt}/{MAX_RETRIES})")
                     time.sleep(3 * attempt)
                 except Exception as ex:
                     s.rollback()
-                    log(f"{folder}: erro na leitura ({ex})")
-                    erros.append(f"{folder}: {ex}")
+                    log(f"{folder_label(folder)}: erro na leitura ({ex})")
+                    erros.append(f"{folder_label(folder)}: {ex}")
                     break
             else:
-                erros.append(f"O Zoho interrompeu a leitura da pasta {folder} várias vezes.")
+                erros.append(f"O Zoho interrompeu a leitura da pasta {folder_label(folder)} várias vezes.")
         set_setting(s, "last_sync", datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
     mark_dirty()
     if erros:
@@ -414,7 +420,6 @@ def check_missing(days=1):
             for folder in folders:
                 typ, _ = M.select(f'"{folder}"', readonly=True)
                 if typ != "OK":
-                    pastas.append({"pasta": folder, "erro": "não abriu"})
                     continue
                 typ, data = M.uid("search", None, "SINCE", desde)
                 uids = sorted(int(u) for u in (data[0].split() if typ == "OK" and data and data[0] else []))
@@ -436,9 +441,16 @@ def check_missing(days=1):
                         if mid and s.query(Email.id).filter(Email.message_id == mid).first():
                             continue
                         falt += 1
-                        faltando.append({"pasta": folder, "assunto": dec(hdr.get("Subject")),
+                        faltando.append({"pasta": folder_label(folder), "assunto": dec(hdr.get("Subject")),
                                          "de": dec(hdr.get("From")), "data": hdr.get("Date") or ""})
-                pastas.append({"pasta": folder, "mensagens": len(uids), "motiva": total_motiva, "faltando": falt})
+                if total_motiva:  # só pastas que têm e-mail da Motiva; nada da conta pessoal aparece
+                    lb = folder_label(folder)
+                    acc = next((p for p in pastas if p["pasta"] == lb), None)
+                    if acc:
+                        acc["motiva"] += total_motiva
+                        acc["faltando"] += falt
+                    else:
+                        pastas.append({"pasta": lb, "motiva": total_motiva, "faltando": falt})
     finally:
         try:
             M.logout()
