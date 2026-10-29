@@ -504,6 +504,17 @@ def attachment_file(att_id: int):
                                  "Cache-Control": "private, max-age=3600"})
 
 
+@app.get("/api/emails/{email_id}")
+def get_email(email_id: int):
+    with SessionLocal() as s:
+        e = s.get(Email, email_id)
+        if not e:
+            raise HTTPException(404, "E-mail não encontrado.")
+        d = email_dict(e)
+        d["thread_key"] = e.thread_key
+        return d
+
+
 @app.post("/api/emails/{email_id}/analyze")
 def analyze_email(email_id: int):
     try:

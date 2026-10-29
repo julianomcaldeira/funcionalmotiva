@@ -440,6 +440,12 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
 }
 
 /* histórico do assistente */
+button.src-chip{cursor:pointer;font:inherit;font-size:12px}
+button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
+.src-link{color:var(--brand-ink);text-decoration:underline;cursor:pointer}
+.src-meta{font-size:13px;color:var(--muted);display:grid;gap:3px;margin-bottom:10px}
+.src-meta b{color:var(--ink);margin-right:4px}
+.src-body{white-space:pre-wrap;font-size:14px;line-height:1.5;max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg)}
 .src-chip{display:inline-flex;align-items:baseline;gap:5px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px;color:var(--muted)}
 .src-chip b{font-weight:700;color:var(--ink)}
 .src-chip i{font-style:normal;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -635,6 +641,7 @@ mark{background:var(--amber-wash);color:#6B4A08;border-radius:3px;padding:0 1px}
 </main>
 
 <dialog id="dlg"></dialog>
+<dialog id="srcdlg" class="dlg-wide"></dialog>
 <dialog id="pal">
   <div class="pal-head">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5C665F" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -787,7 +794,43 @@ function srcChip(code,label,tipo){
   const [kind,klabel]=srcKind(code);
   const k=tipo||kind;
   const title=has?`${klabel} · ${label}`:klabel;
-  return`<span class="src-chip k-${esc(k)}" title="${esc(title)}"><b>${esc(klabel)} ${esc(code)}</b>${has?`<i>${esc(label)}</i>`:""}</span>`;
+  return`<button type="button" class="src-chip k-${esc(k)}" title="Abrir · ${esc(title)}" onclick="openSource('${esc(code)}')"><b>${esc(klabel)} ${esc(code)}</b>${has?`<i>${esc(label)}</i>`:""}</button>`;
+}
+/* Transforma [E12], [D3], [DOC7] do texto da IA em links que abrem a fonte */
+function linkCodes(html){
+  return html.replace(/\[((?:E|D|DOC)\d+)\]/g,(m,c)=>`<a href="#" class="src-link" onclick="openSource('${c}');return false">[${c}]</a>`);
+}
+async function openSource(code){
+  const dlg=$("#srcdlg");
+  const m=/^(DOC|E|D)(\d+)$/.exec(code||"");if(!m)return;
+  const [,kind,id]=m;
+  dlg.innerHTML=`<form method="dialog"><h3>${esc(code)}</h3><div class="conf">Carregando…</div><div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
+  if(!dlg.open)dlg.showModal();
+  try{
+    let body="",title="",extra="";
+    if(kind==="E"){
+      const e=await api(`/api/emails/${id}`);
+      title=`E-mail ${code} · ${esc(e.subject||"(sem assunto)")}`;
+      body=`<div class="src-meta"><div><b>De</b> ${esc(e.from||"")}</div><div><b>Para</b> ${esc(e.to||"")}</div>${e.cc?`<div><b>Cc</b> ${esc(e.cc)}</div>`:""}<div><b>Data</b> ${e.date?new Date(e.date).toLocaleString("pt-BR"):""}</div>
+        ${(e.attachments||[]).length?`<div><b>Anexos</b> ${e.attachments.map(a=>`<a href="/api/attachments/${a.id}/file" target="_blank">${esc(a.filename)}</a>`).join(" · ")}</div>`:""}</div>
+        <div class="src-body">${cleanText(e.body||"")}</div>`;
+      if(e.thread_key)extra=`<button type="button" class="btn" id="src-thread">Abrir conversa completa</button>`;
+      dlg._thread=e.thread_key;
+    }else if(kind==="DOC"){
+      const d=await api(`/api/documents/${id}`);
+      title=`Documento ${code} · ${esc(d.nome||"")}`;
+      body=`<div class="src-meta"><div><b>Tipo</b> ${esc(d.tipo||"")} · v${d.versao||1}</div></div><div class="src-body">${esc(d.content||"(sem texto)")}</div>`;
+      if(d.tem_arquivo)extra=`<a class="btn" href="/api/documents/${id}/file" target="_blank">Abrir arquivo</a>`;
+    }else{
+      const all=await api(`/api/decisions`);const d=all.find(x=>String(x.id)===id);
+      if(!d)throw new Error("Decisão não encontrada.");
+      title=`Decisão ${code} · ${esc(d.titulo||"")}`;
+      body=`<div class="src-meta">${[["Situação",ST[d.status]||d.status],["Módulo",d.modulo],["Fonte",d.fonte],["Data",d.data_decisao],["Aprovado por",d.aprovado_por]].filter(p=>p[1]).map(([k,v])=>`<div><b>${k}</b> ${linkCodes(esc(v))}</div>`).join("")}</div><div class="src-body">${esc(d.regra||"")}${d.notas?"\n\n"+esc(d.notas):""}</div>`;
+    }
+    dlg.innerHTML=`<form method="dialog"><h3>${title}</h3>${body}<div class="foot">${extra}<button class="btn" value="close">Fechar</button></div></form>`;
+    const b=dlg.querySelector("#src-thread");
+    if(b)b.onclick=()=>{dlg.close();const dd=$("#dlg");if(dd&&dd.open)dd.close();openThread(dlg._thread)};
+  }catch(err){toast(err.message,"err");dlg.close()}
 }
 function dlgWide(wide){const d=$("#dlg");if(d)d.classList.toggle("dlg-wide",!!wide)}
 function cleanText(t){
@@ -1036,7 +1079,7 @@ function saveDraftLocal(a){if($("#d-body")){a._body=$("#d-body").value;a._subj=$
 /* ---------- chat da cadeia (uma conversa por corrente de e-mails) ---------- */
 function tcBubble(m){
   const src=(m.sources||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.sources.map(s=>srcChip(s.code,s.label,s.tipo)).join("")}</span>`:"";
-  return`<div class="chat-msg ${m.role==="user"?"user":"ai"}">${esc(m.content)}${src}</div>`;
+  return`<div class="chat-msg ${m.role==="user"?"user":"ai"}">${m.role==="user"?esc(m.content):linkCodes(esc(m.content))}${src}</div>`;
 }
 async function renderThreadChatTab(){
   const d=$("#desk");d.hidden=false;
@@ -1569,7 +1612,7 @@ function renderChat(){
   log.innerHTML=chat.map(m=>{
     if(m.role==="user")return`<div class="chat-msg user">${esc(m.text)}</div>`;
     const src=(m.fontes||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.fontes.map(f=>srcChip(f.code,f.label,f.tipo)).join("")}</span>`:"";
-    return`<div class="chat-msg ai">${esc(m.text)}${src}</div>`;
+    return`<div class="chat-msg ai">${linkCodes(esc(m.text))}${src}</div>`;
   }).join("");
   log.scrollTop=log.scrollHeight;
 }
@@ -1605,7 +1648,7 @@ async function openChatHistory(id){
     log.innerHTML=msgs.map(m=>{
       if(m.role==="user")return`<div class="chat-msg user">${esc(m.content)}</div>`;
       const src=(m.fontes||[]).length?`<span class="src"><b class="src-h">Fontes (de onde tirei):</b> ${m.fontes.map(f=>srcChip(f.code,f.label,f.tipo)).join("")}</span>`:"";
-      return`<div class="chat-msg ai">${esc(m.content)}${src}</div>`;
+      return`<div class="chat-msg ai">${linkCodes(esc(m.content))}${src}</div>`;
     }).join("");
     log.scrollTop=log.scrollHeight;
   }catch(e){$("#chat-view").innerHTML=`<div class="empty">${esc(e.message||e)}</div>`}
