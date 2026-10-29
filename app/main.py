@@ -118,7 +118,8 @@ def startup():
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True}
+    # mostra qual commit está no ar (o Render define RENDER_GIT_COMMIT)
+    return {"ok": True, "versao": (os.getenv("RENDER_GIT_COMMIT") or "")[:7]}
 
 
 @app.get("/")
