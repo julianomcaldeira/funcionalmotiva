@@ -496,8 +496,15 @@ def explain_error(msg):
         return "A chave da IA foi recusada. Gere uma chave nova no provedor e atualize AI_API_KEY no Render."
     if "402" in low or "quota" in low or "insufficient" in low or "billing" in low or "credit" in low:
         return "A IA recusou por falta de crédito ou limite do plano. Confira o saldo no provedor."
-    if "429" in low or "rate" in low:
-        return "A IA está limitando o número de chamadas. Costuma passar sozinho em alguns minutos."
+    if "429" in low or "rate limit" in low or "rate_limit" in low:
+        if "weekly" in low or "usage limit" in low or "plan" in low:
+            when = _rate_limit_reset(msg or "")
+            return ("Limite semanal de uso do plano atingido."
+                    + (f" O limite reseta em {when}." if when else "")
+                    + " Enquanto isso, configure um provedor reserva no Render"
+                      " (AI_FALLBACK_PROVIDER, AI_FALLBACK_API_KEY e AI_FALLBACK_MODEL)"
+                      " ou aumente o plano.")
+        return "A IA está limitando o número de chamadas (limite por minuto). Costuma passar sozinho em alguns minutos."
     if "timed out" in low or "timeout" in low:
         return "A IA demorou demais para responder. Se repetir, aumente AI_TIMEOUT no Render."
     if "404" in low or "model" in low and "not" in low:
