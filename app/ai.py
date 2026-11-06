@@ -12,6 +12,12 @@ PROVIDER = os.getenv("AI_PROVIDER", "anthropic").lower()  # anthropic | openai |
 API_KEY = os.getenv("AI_API_KEY", "")
 MODEL = os.getenv("AI_MODEL", "claude-sonnet-5")
 BASE_URL = os.getenv("AI_BASE_URL", "")
+# Provedor reserva (opcional): se o principal falhar (limite de uso do plano, queda etc.),
+# a IA tenta este antes de mostrar o erro para o usuário.
+FB_PROVIDER = os.getenv("AI_FALLBACK_PROVIDER", "").lower()
+FB_API_KEY = os.getenv("AI_FALLBACK_API_KEY", "")
+FB_MODEL = os.getenv("AI_FALLBACK_MODEL", "")
+FB_BASE_URL = os.getenv("AI_FALLBACK_BASE_URL", "")
 MAX_TOKENS = int(os.getenv("AI_MAX_TOKENS", "16000"))
 TIMEOUT = float(os.getenv("AI_TIMEOUT", "180"))
 GEMINI_DEFAULT_MODEL = "gemini-3.6-flash"
@@ -369,26 +375,41 @@ def thread_chat(session, thread_key, question, history=None):
 
 
 def call_model(system, user, kind="outro"):
-    """Chama o modelo e registra falhas (chave inválida, timeout, resposta vazia) para o alerta do sistema."""
+    """Chama o modelo; se o principal falhar (limite de uso, queda…), tenta o provedor reserva, se houver."""
     try:
         return _call_model(system, user, kind)
     except Exception as ex:
         _record_usage(kind, None, ok=False, erro=str(ex))
-        raise
+        primeira = str(ex).split("\n")[0][:400]
+        if not (FB_PROVIDER and FB_API_KEY):
+            raise
+    try:
+        fb_model = FB_MODEL or (GEMINI_DEFAULT_MODEL if FB_PROVIDER in ("gemini", "google") else MODEL)
+        return _call_cfg(system, user, kind, FB_PROVIDER, FB_API_KEY, fb_model, FB_BASE_URL)
+    except Exception as ex2:
+        _record_usage(kind, None, ok=False, erro=f"reserva: {ex2} (principal: {primeira})")
+        raise RuntimeError(
+            "A IA não respondeu pelo provedor principal nem pelo reserva.\n"
+            f"Principal: {primeira}\nReserva: {str(ex2).split(chr(10))[0][:400]}") from ex2
 
 
 def _call_model(system, user, kind):
-    if not API_KEY:
+    """Configuração principal do provedor (ponto de extensão para testes)."""
+    return _call_cfg(system, user, kind, PROVIDER, API_KEY, MODEL, BASE_URL)
+
+
+def _call_cfg(system, user, kind, provider, api_key, model, base_url):
+    if not api_key:
         raise RuntimeError("IA não configurada: defina AI_API_KEY (e AI_PROVIDER/AI_MODEL).")
-    use_gemini = PROVIDER in ("gemini", "google") or (
-        PROVIDER == "openai" and "generativelanguage.googleapis.com" in (BASE_URL or ""))
+    use_gemini = provider in ("gemini", "google") or (
+        provider == "openai" and "generativelanguage.googleapis.com" in (base_url or ""))
     if use_gemini:
-        base = (BASE_URL or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+        base = (base_url or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
         if base.endswith("/openai"):
             base = base[: -len("/openai")]
-        url = f"{base}/models/{MODEL or GEMINI_DEFAULT_MODEL}:generateContent"
+        url = f"{base}/models/{model or GEMINI_DEFAULT_MODEL}:generateContent"
         r = httpx.post(url, timeout=TIMEOUT, headers={
-            "x-goog-api-key": API_KEY, "content-type": "application/json"},
+            "x-goog-api-key": api_key, "content-type": "application/json"},
             json={"systemInstruction": {"parts": [{"text": system}]},
                   "contents": [{"role": "user", "parts": [{"text": user}]}],
                   "generationConfig": {"maxOutputTokens": MAX_TOKENS}})
@@ -402,11 +423,11 @@ def _call_model(system, user, kind):
                            for p in (c.get("content") or {}).get("parts", [])).strip()
         except Exception:
             raise RuntimeError(f"Resposta inesperada do Gemini: {str(data)[:500]}")
-    if PROVIDER == "anthropic":
-        url = (BASE_URL or "https://api.anthropic.com") + "/v1/messages"
+    if provider == "anthropic":
+        url = (base_url or "https://api.anthropic.com") + "/v1/messages"
         r = httpx.post(url, timeout=TIMEOUT, headers={
-            "x-api-key": API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": MODEL, "max_tokens": MAX_TOKENS, "system": system,
+            "x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": model, "max_tokens": MAX_TOKENS, "system": system,
                   "messages": [{"role": "user", "content": user}]})
         if r.status_code >= 400:
             raise http_error(r)
@@ -414,9 +435,9 @@ def _call_model(system, user, kind):
         u = data.get("usage") or {}
         _record_usage(kind, (u.get("input_tokens"), u.get("output_tokens")))
         return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
-    url = (BASE_URL or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
-    r = httpx.post(url, timeout=TIMEOUT, headers={"Authorization": f"Bearer {API_KEY}"},
-                   json={"model": MODEL, "max_tokens": MAX_TOKENS,
+    url = (base_url or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
+    r = httpx.post(url, timeout=TIMEOUT, headers={"Authorization": f"Bearer {api_key}"},
+                   json={"model": model, "max_tokens": MAX_TOKENS,
                          "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
     if r.status_code >= 400:
         raise http_error(r)
@@ -432,7 +453,7 @@ def _call_model(system, user, kind):
     if not content.strip():
         finish = choice.get("finish_reason") or "?"
         raise RuntimeError(
-            f"A IA retornou conteúdo vazio (finish_reason={finish}, modelo={MODEL}). "
+            f"A IA retornou conteúdo vazio (finish_reason={finish}, modelo={model}). "
             f"Resposta: {str(data)[:400]}")
     return content
 
@@ -488,8 +509,37 @@ def explain_error(msg):
 
 def http_error(r):
     detail = (r.text or "").strip()[:500].replace("\n", " ")
+    if r.status_code == 429:
+        when = _rate_limit_reset(detail)
+        msg = ("A IA atingiu o limite de uso do plano do provedor principal"
+               + (f". O limite reseta em {when}" if when else "")
+               + ". Opções: aguardar o reset, aumentar o plano ou configurar um provedor"
+                 " reserva nas variáveis AI_FALLBACK_PROVIDER, AI_FALLBACK_API_KEY e AI_FALLBACK_MODEL.")
+        if detail and not when:
+            msg += f" Detalhe: {detail[:300]}"
+        return RuntimeError(msg)
     msg = f"IA respondeu HTTP {r.status_code} para {r.url}"
     return RuntimeError(f"{msg}: {detail}" if detail else msg)
+
+
+def _rate_limit_reset(detail):
+    """Extrai 'resets at <ISO 8601>' da resposta do provedor e formata em português (hora de Brasília)."""
+    try:
+        m = re.search(r"resets? at (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}))", detail)
+        if not m:
+            return ""
+        from datetime import datetime, timedelta, timezone
+        dt = datetime.fromisoformat(m.group(1).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        local = dt.astimezone(timezone(timedelta(hours=-3)))
+        horas = (dt - datetime.now(timezone.utc)).total_seconds() / 3600
+        quando = f"{local.strftime('%d/%m/%Y às %H:%M')} (horário de Brasília)"
+        if 0 < horas < 96:
+            quando += f", em cerca de {horas:.1f} h"
+        return quando
+    except Exception:
+        return ""
 
 
 def parse_json(text):

@@ -651,6 +651,32 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
 .src-meta{font-size:13px;color:var(--muted);display:grid;gap:3px;margin-bottom:10px}
 .src-meta b{color:var(--ink);margin-right:4px}
 .src-body{white-space:pre-wrap;font-size:14px;line-height:1.5;max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg)}
+/* Conversa completa no modal de fonte */
+.h-list{max-height:62vh;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.h-msg{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.h-msg>summary{display:flex;align-items:center;gap:9px;cursor:pointer;padding:9px 12px;font-size:13px;list-style:none;background:var(--panel)}
+.h-msg>summary::-webkit-details-marker{display:none}
+.h-msg>summary:hover{background:var(--line)}
+.h-msg[open]>summary{border-bottom:1px solid var(--line)}
+.h-msg.hit{border-color:var(--brand-deep);box-shadow:0 0 0 2px var(--brand-wash)}
+.h-dir{font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;flex:none}
+.h-dir.out{background:var(--brand-wash);color:var(--brand-ink)}
+.h-dir.in{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.h-who{font-weight:700;max-width:28%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-date{color:var(--muted);font-size:12px;flex:none}
+.h-tag{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:var(--brand-deep);color:#fff;border-radius:4px;padding:2px 7px;flex:none}
+.h-subj{color:var(--muted);font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.h-body{padding:12px;font-size:14px;line-height:1.55;white-space:pre-wrap;background:#fff}
+.h-meta{margin-bottom:8px;font-size:12px;color:var(--muted);white-space:normal}
+.h-atts{margin-top:10px;font-size:12.5px;color:var(--muted);white-space:normal}
+.att-link{border:0;background:var(--bg);border-radius:5px;padding:2px 7px;font:inherit;font-size:12px;cursor:pointer;color:var(--brand-ink)}
+.att-link:hover{border-color:var(--brand-deep);text-decoration:underline}
+/* Seletor de e-mails do assistente */
+.pk-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin:0 0 6px;cursor:pointer;color:var(--ink)}
+.pk-row:hover{border-color:var(--brand-deep);background:var(--brand-wash)}
+.pk-row .pk-main{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.pk-row .pk-main b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk-row .pk-main span{font-size:12px;color:var(--muted)}
 .src-chip{display:inline-flex;align-items:baseline;gap:5px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px;color:var(--muted)}
 .src-chip b{font-weight:700;color:var(--ink)}
 .src-chip i{font-style:normal;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -804,9 +830,10 @@ button.src-chip:hover{border-color:var(--brand-deep);color:var(--brand-ink)}
     <div id="chat-main" style="display:flex;flex-direction:column;flex:1;min-height:0">
       <div class="chat-bar" id="chat-bar" hidden>
         <b>Conversa atual</b>
+        <button class="btn sm" onclick="openEmailPicker()">Selecionar e-mail</button>
         <button class="btn sm ghost" onclick="newChat()" style="margin-left:auto">Nova conversa</button>
       </div>
-      <div class="chat-log" id="chat-log"><div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"</div></div>
+      <div class="chat-log" id="chat-log"><div class="empty"><b style="color:var(--ink)">Tudo do projeto, num lugar só</b><br>Ex.: "O que já foi acordado sobre a tabela comparativa?" · "O que a Motiva pediu sobre o Coupa?" · "Quem aprovou a regra do LOF?"<br><button class="btn sm" style="margin-top:10px" onclick="openEmailPicker()">Selecionar e-mail para revisão</button></div></div>
       <form class="chat-form" onsubmit="return sendChat(event)">
         <textarea id="chat-in" rows="2" placeholder="Escreva sua pergunta…" aria-label="Pergunta"></textarea>
         <button class="btn pri" type="submit" id="chat-btn">Enviar</button>
@@ -1053,6 +1080,12 @@ async function openSource(code){
     if(kind==="E"){
       const e=await api(`/api/emails/${id}`);
       title=`E-mail ${code} · ${esc(e.subject||"(sem assunto)")}`;
+      if(e.thread_key){
+        try{
+          const th=await api("/api/threads/"+encodeURIComponent(e.thread_key));
+          return openThreadSource(e.thread_key,e.id,`E-mail fonte: ${code}`);
+        }catch(_){/* cai para o e-mail avulso */}
+      }
       body=`<div class="src-meta"><div><b>De</b> ${esc(e.from||"")}</div><div><b>Para</b> ${esc(e.to||"")}</div>${e.cc?`<div><b>Cc</b> ${esc(e.cc)}</div>`:""}<div><b>Data</b> ${e.date?new Date(e.date).toLocaleString("pt-BR"):""}</div>
         ${(e.attachments||[]).length?`<div><b>Anexos</b> ${e.attachments.map(a=>`<a href="/api/attachments/${a.id}/file" target="_blank">${esc(a.filename)}</a>`).join(" · ")}</div>`:""}</div>
         <div class="src-body">${cleanText(e.body||"")}</div>`;
@@ -1074,6 +1107,64 @@ async function openSource(code){
     if(b)b.onclick=()=>{dlg.close();const dd=$("#dlg");if(dd&&dd.open)dd.close();const k=dlg._thread;go("caixa");loadThreads();setTimeout(()=>openThread(k),80)};
   }catch(err){toast(err.message,"err");dlg.close()}
 }
+/* Conversa completa no modal: todos os e-mails do histórico, com o citado em destaque */
+async function openThreadSource(key,hid,hint){
+  const dlg=$("#srcdlg");
+  dlg.innerHTML=`<form method="dialog"><h3>Conversa</h3><div class="conf">Carregando o histórico completo…</div><div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
+  if(!dlg.open)dlg.showModal();
+  try{
+    const th=await api("/api/threads/"+encodeURIComponent(key));
+    const ems=th.emails||[];
+    if(!ems.length)throw new Error("Conversa sem mensagens.");
+    const sub=(ems[ems.length-1].subject||ems[0].subject||"(sem assunto)");
+    const rows=ems.map(e=>{
+      const hit=hid&&e.id===hid;
+      const atts=(e.attachments||[]).length
+        ?`<div class="h-atts"><b>Anexos</b> ${e.attachments.map(a=>`<button type="button" class="att-link" onclick="showAttachment(${a.id})">${esc(a.filename)}</button>`).join(" · ")}</div>`
+        :"";
+      return`<details class="h-msg${hit?" hit":""}"${hit?" open":""}>
+        <summary>${e.direction==="out"?'<span class="h-dir out">SG</span>':'<span class="h-dir in">IN</span>'}
+          <span class="h-who">${e.direction==="out"?"StartGi":esc(e.from||"(remetente)")}</span>
+          <span class="h-date">${fmt(e.date)}</span>
+          ${hit?`<span class="h-tag">fonte citada${hint?` · ${esc(hint)}`:""}</span>`:""}
+          <span class="h-subj">${esc(e.subject||"")}</span></summary>
+        <div class="h-body"><div class="h-meta">${e.direction==="out"?"Enviado por StartGi":"De "+esc(e.from||"")} → ${esc(e.to||"-")}${e.cc?` · Cc ${esc(e.cc)}`:""}${e.date?" · "+new Date(e.date).toLocaleString("pt-BR"):""}</div>${cleanText(e.body||"(sem texto)")}${atts}</div></details>`;
+    }).join("");
+    dlg.innerHTML=`<form method="dialog"><h3>${esc(sub)}</h3>
+      <div class="conf" style="margin:-4px 0 10px">${ems.length} ${ems.length>1?"mensagens":"mensagem"} na conversa · clique em cada e-mail para ler${hid?" · o citado pela IA vem aberto":""}</div>
+      <div class="h-list">${rows}</div>
+      <div class="foot"><button type="button" class="btn" id="src-thread">Abrir na Caixa</button><button class="btn" value="close">Fechar</button></div></form>`;
+    dlg._thread=key;
+    const b=dlg.querySelector("#src-thread");
+    if(b)b.onclick=()=>{dlg.close();const dd=$("#dlg");if(dd&&dd.open)dd.close();go("caixa");loadThreads();setTimeout(()=>openThread(key),80)};
+  }catch(err){toast(err.message,"err");dlg.close()}
+}
+/* Seletor de e-mails do assistente: busca e abre a conversa completa sem sair da tela */
+let pkT=null;
+async function openEmailPicker(){
+  const d=$("#dlg");
+  d.innerHTML=`<form method="dialog"><h3>Selecionar e-mail</h3>
+    <p class="conf" style="margin:-4px 0 10px">Escolha uma conversa para ler o histórico completo (sem sair do assistente).</p>
+    <input id="pk-q" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font:inherit" placeholder="Buscar assunto, remetente ou conteúdo…" oninput="pkSearch(this.value)">
+    <div id="pk-list" style="margin-top:10px;max-height:56vh;overflow:auto"><div class="conf">Carregando…</div></div>
+    <div class="foot"><button class="btn" value="close">Fechar</button></div></form>`;
+  if(!d.open)d.showModal();
+  await pkSearch("");
+}
+async function pkSearch(q){
+  const el=$("#pk-list");if(!el)return;
+  try{
+    const r=await api("/api/threads?q="+encodeURIComponent(q||""));
+    const ts=r.items||[];
+    if(!ts.length){el.innerHTML=`<div class="empty" style="padding:22px">Nada encontrado${q?` para “${esc(q)}”`:""}.<br>A busca cobre assuntos, remetentes e o conteúdo dos e-mails.</div>`;return}
+    el.innerHTML=`<div class="conf" style="margin-bottom:8px">${r.total} conversa${r.total!==1?"s":""} encontrada${r.total!==1?"s":""}</div>`+
+      ts.map(t=>`<button type="button" class="pk-row" onclick="openThreadSource('${escQ(t.thread_key)}');closeDlg('#dlg')">
+        <span class="pk-main"><b>${esc(t.subject||"(sem assunto)")}</b><span>${esc(t.last_from||"")} · ${t.count} ${t.count>1?"mensagens":"mensagem"} · ${fmt(t.last_date)}</span></span>
+        <span class="src-open">Abrir ›</span></button>`).join("");
+  }catch(e){el.innerHTML=`<div class="empty">${esc(e.message||e)}</div>`}
+}
+function escQ(s){return String(s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"&quot;")}
+function closeDlg(sel){const d=$(sel);if(d&&d.open)d.close()}
 function dlgWide(wide){const d=$("#dlg");if(d)d.classList.toggle("dlg-wide",!!wide)}
 function cleanText(t){
   const lines=String(t||"").replace(/\r/g,"").replace(/[ \t]+$/gm,"").split("\n");
