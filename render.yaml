@@ -30,10 +30,19 @@ services:
       - key: AI_PROVIDER
         value: openai
       - key: AI_BASE_URL
-        value: https://api.commandcode.ai/provider/v1
+        value: https://api.x.ai/v1
       - key: AI_MODEL
-        value: deepseek/deepseek-v4-flash
+        value: grok-4.7
       - key: AI_API_KEY
+        sync: false
+      # Provedor reserva: entra no ar sozinho se a Grok falhar (limite, queda).
+      - key: AI_FALLBACK_PROVIDER
+        value: openai
+      - key: AI_FALLBACK_BASE_URL
+        value: https://api.commandcode.ai/provider/v1
+      - key: AI_FALLBACK_MODEL
+        value: deepseek/deepseek-v4-flash
+      - key: AI_FALLBACK_API_KEY
         sync: false
       - key: HISTORY_DAYS
         value: "30"
