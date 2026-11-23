@@ -2,6 +2,8 @@
 import json
 import os
 import re
+import threading
+import time
 
 import httpx
 
@@ -471,7 +473,12 @@ def _record_usage(kind, toks, ok=True, erro=None):
 
 
 def health():
-    """Estado da IA pelas últimas chamadas: ok, erro (com desde quando e a mensagem) ou sem_uso."""
+    """Estado da IA pelas últimas chamadas: ok, erro (com desde quando e a mensagem) ou sem_uso.
+
+    Se estiver em erro, dispara uma sonda barata em segundo plano: assim que a IA voltar
+    (crédito recarregado, limite resolvido, provedor de volta), o alerta some sozinho
+    sem precisar de ninguém testar na mão.
+    """
     if not API_KEY:
         return {"estado": "nao_configurado", "mensagem": "Defina AI_API_KEY nas variáveis do Render."}
     with SessionLocal() as s:
@@ -485,14 +492,44 @@ def health():
         if u.ok:
             break
         falhas.append(u)
-    prov = ""
+    _sonda_ia_async()
+    prov = _provedor_nome()
+    return {"estado": "erro", "falhas": len(falhas), "desde": falhas[-1].created_at.isoformat() + "Z",
+            "mensagem": explain_error(falhas[0].erro or "", prov), "detalhe": (falhas[0].erro or "")[:400],
+            "sondando": _SONDA["rodando"]}
+
+
+def _provedor_nome():
     try:
         from urllib.parse import urlparse
-        prov = urlparse(BASE_URL).netloc or PROVIDER
+        return urlparse(BASE_URL).netloc or PROVIDER
     except Exception:
-        prov = PROVIDER
-    return {"estado": "erro", "falhas": len(falhas), "desde": falhas[-1].created_at.isoformat() + "Z",
-            "mensagem": explain_error(falhas[0].erro or "", prov), "detalhe": (falhas[0].erro or "")[:400]}
+        return PROVIDER
+
+
+_SONDA = {"em": 0.0, "rodando": False}
+PROBE_INTERVALO_S = 180.0   # no máximo uma sonda a cada 3 min
+
+
+def _sonda_ia_async():
+    """Chamada mínima (ping) para descobrir se a IA voltou. Nunca bloqueia quem pediu a saúde."""
+    agora = time.time()
+    if _SONDA["rodando"] or (agora - _SONDA["em"]) < PROBE_INTERVALO_S:
+        return
+    _SONDA["rodando"] = True
+    _SONDA["em"] = agora
+
+    def run():
+        try:
+            # sucesso já grava AIUsage(ok=True) e a próxima leitura vira "ok"
+            call_model("Você é um verificador de saúde da IA. Responda somente: OK",
+                       "ping", kind="sonda")
+        except Exception:
+            pass
+        finally:
+            _SONDA["rodando"] = False
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 def explain_error(msg, provider=""):
