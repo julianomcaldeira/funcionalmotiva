@@ -485,17 +485,31 @@ def health():
         if u.ok:
             break
         falhas.append(u)
+    prov = ""
+    try:
+        from urllib.parse import urlparse
+        prov = urlparse(BASE_URL).netloc or PROVIDER
+    except Exception:
+        prov = PROVIDER
     return {"estado": "erro", "falhas": len(falhas), "desde": falhas[-1].created_at.isoformat() + "Z",
-            "mensagem": explain_error(falhas[0].erro or ""), "detalhe": (falhas[0].erro or "")[:400]}
+            "mensagem": explain_error(falhas[0].erro or "", prov), "detalhe": (falhas[0].erro or "")[:400]}
 
 
-def explain_error(msg):
+def explain_error(msg, provider=""):
     """Traduz o erro técnico da IA para o que fazer."""
     low = (msg or "").lower()
+    onde = f" do provedor {provider}" if provider else ""
+    if "spending limit" in low or ("permission-denied" in low and "credit" in low) \
+            or "used all available credits" in low or "esgotou os créditos" in low:
+        return (f"A conta da IA{onde} esgotou os créditos ou bateu o limite de gasto mensal"
+                " — é saldo, não queda do serviço. Compre mais créditos, aumente o limite de gasto"
+                " ou configure um provedor reserva no Render (AI_FALLBACK_PROVIDER, AI_FALLBACK_API_KEY"
+                " e AI_FALLBACK_MODEL).")
     if "401" in low or "unauthorized" in low or "invalid" in low and "key" in low or "authorization" in low:
         return "A chave da IA foi recusada. Gere uma chave nova no provedor e atualize AI_API_KEY no Render."
-    if "402" in low or "quota" in low or "insufficient" in low or "billing" in low or "credit" in low:
-        return "A IA recusou por falta de crédito ou limite do plano. Confira o saldo no provedor."
+    if "403" in low or "402" in low or "quota" in low or "insufficient" in low or "billing" in low or "credit" in low:
+        return (f"A IA recusou a chamada{onde} por falta de crédito, saldo ou limite do plano"
+                " (HTTP 403). Confira o saldo e o limite de gasto na conta do provedor.")
     if "429" in low or "rate limit" in low or "rate_limit" in low:
         if "weekly" in low or "usage limit" in low or "plan" in low:
             when = _rate_limit_reset(msg or "")
@@ -516,6 +530,19 @@ def explain_error(msg):
 
 def http_error(r):
     detail = (r.text or "").strip()[:500].replace("\n", " ")
+    if r.status_code == 403 and ("credit" in detail.lower() or "spending" in detail.lower()
+                                 or "permission-denied" in detail.lower()):
+        try:
+            host = r.url.host or ""
+        except Exception:
+            host = ""
+        return RuntimeError(
+            "A conta da IA"
+            + (f" ({host})" if host else "")
+            + " esgotou os créditos ou bateu o limite de gasto mensal (HTTP 403). "
+              "Compre créditos ou aumente o limite de gasto na conta do provedor. "
+              "Para não parar o trabalho, configure um provedor reserva no Render: "
+              "AI_FALLBACK_PROVIDER, AI_FALLBACK_API_KEY e AI_FALLBACK_MODEL.")
     if r.status_code == 429:
         when = _rate_limit_reset(detail)
         msg = ("A IA atingiu o limite de uso do plano do provedor principal"
